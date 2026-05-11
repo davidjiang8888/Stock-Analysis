@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
 
-ALLOWED_RESULT_STATUSES = {"calculated", "insufficient_data", "not_applicable", "peer_data_unavailable"}
+ALLOWED_RESULT_STATUSES = {"calculated", "partial", "insufficient_data", "not_applicable", "peer_data_unavailable"}
 DEFAULT_NORMALIZED_GROWTH_TARGET = 0.08
 DEFAULT_BEAR_NORMALIZED_GROWTH_TARGET = 0.05
 DEFAULT_BULL_NORMALIZED_GROWTH_TARGET = 0.10
@@ -97,11 +97,17 @@ class RelativeValuationResult:
     status: str
     method_name: str
     available_multiples: dict[str, float | None]
+    subject_multiples: dict[str, float | None]
     peer_median_multiples: dict[str, float | None]
     peer_tickers: list[str]
     peer_count: int
+    peer_group: str | None
+    relative_discount_premium_by_metric: dict[str, float | None]
+    peer_relative_status: str
+    relative_opportunity_score: float | None
     missing_fields: list[str]
     warnings: list[str]
+    peer_missing_data_warnings: list[str]
     notes: list[str]
     source_metadata: list[dict[str, Any]] = field(default_factory=list)
 
@@ -462,8 +468,15 @@ def calculate_relative_valuation(valuation_input: ValuationInput) -> RelativeVal
         "forward_pe_reported": valuation_input.forward_pe,
         "price_to_book_reported": valuation_input.price_to_book,
     }
+    subject_multiples: dict[str, float | None] = {
+        "pe": None,
+        "ps": None,
+        "p_fcf": None,
+        "ev_ebitda": None,
+    }
     missing_fields: list[str] = []
     warnings: list[str] = []
+    peer_missing_data_warnings: list[str] = []
     notes = [
         "Relative valuation is limited to standalone multiples unless peer data is available locally.",
         "Standalone multiples are context, not a recommendation.",
@@ -474,10 +487,19 @@ def calculate_relative_valuation(valuation_input: ValuationInput) -> RelativeVal
         "p_fcf": None,
         "ev_ebitda": None,
     }
-    peer_tickers = [str(item.get("ticker")).upper() for item in valuation_input.peer_inputs if item.get("ticker")]
+    peer_tickers = sorted({str(item.get("ticker")).upper() for item in valuation_input.peer_inputs if item.get("ticker")})
+    peer_groups = sorted(
+        {
+            str(item.get("peer_group")).strip()
+            for item in valuation_input.peer_inputs
+            if item.get("peer_group")
+        }
+    )
+    peer_group = peer_groups[0] if len(peer_groups) == 1 else None
+    source_metadata = list(valuation_input.source_metadata)
 
     if valuation_input.current_price is not None and valuation_input.eps not in (None, 0):
-        available_multiples["pe"] = valuation_input.current_price / valuation_input.eps
+        subject_multiples["pe"] = valuation_input.current_price / valuation_input.eps
     elif valuation_input.current_price is None:
         missing_fields.append("current_price")
     else:
@@ -491,12 +513,12 @@ def calculate_relative_valuation(valuation_input: ValuationInput) -> RelativeVal
         missing_fields.append("market_cap_or_price_and_shares")
 
     if market_cap is not None and valuation_input.revenue not in (None, 0):
-        available_multiples["ps"] = market_cap / valuation_input.revenue
+        subject_multiples["ps"] = market_cap / valuation_input.revenue
     elif valuation_input.revenue is None:
         missing_fields.append("revenue")
 
     if market_cap is not None and valuation_input.free_cash_flow not in (None, 0):
-        available_multiples["p_fcf"] = market_cap / valuation_input.free_cash_flow
+        subject_multiples["p_fcf"] = market_cap / valuation_input.free_cash_flow
     elif valuation_input.free_cash_flow is None:
         missing_fields.append("free_cash_flow")
 
@@ -506,7 +528,7 @@ def calculate_relative_valuation(valuation_input: ValuationInput) -> RelativeVal
         and valuation_input.cash is not None
         and valuation_input.debt is not None
     ):
-        available_multiples["ev_ebitda"] = (market_cap + valuation_input.debt - valuation_input.cash) / valuation_input.ebitda
+        subject_multiples["ev_ebitda"] = (market_cap + valuation_input.debt - valuation_input.cash) / valuation_input.ebitda
     else:
         if valuation_input.ebitda is None:
             missing_fields.append("ebitda")
@@ -515,12 +537,19 @@ def calculate_relative_valuation(valuation_input: ValuationInput) -> RelativeVal
         if valuation_input.debt is None:
             missing_fields.append("debt")
 
+    available_multiples.update(subject_multiples)
+
     computed_any = any(
         available_multiples[key] is not None
         for key in ("pe", "ps", "p_fcf", "ev_ebitda", "trailing_pe_reported", "forward_pe_reported", "price_to_book_reported")
     )
     peer_series: dict[str, list[float]] = {"pe": [], "ps": [], "p_fcf": [], "ev_ebitda": []}
+    peer_metric_missing: dict[str, list[str]] = {"pe": [], "ps": [], "p_fcf": [], "ev_ebitda": []}
     for peer in valuation_input.peer_inputs:
+        peer_ticker = str(peer.get("ticker")).upper() if peer.get("ticker") else "UNKNOWN"
+        for source in peer.get("source_metadata", []):
+            if source and source not in source_metadata:
+                source_metadata.append(source)
         price = peer.get("current_price")
         shares = peer.get("shares_outstanding")
         market_cap = peer.get("market_cap") or (price * shares if price is not None and shares is not None else None)
@@ -534,22 +563,65 @@ def calculate_relative_valuation(valuation_input: ValuationInput) -> RelativeVal
             peer_series["pe"].append(price / eps)
         elif peer.get("trailing_pe") is not None:
             peer_series["pe"].append(float(peer["trailing_pe"]))
+        else:
+            peer_metric_missing["pe"].append(peer_ticker)
         if market_cap is not None and revenue not in (None, 0):
             peer_series["ps"].append(market_cap / revenue)
+        else:
+            peer_metric_missing["ps"].append(peer_ticker)
         if market_cap is not None and free_cash_flow not in (None, 0):
             peer_series["p_fcf"].append(market_cap / free_cash_flow)
+        else:
+            peer_metric_missing["p_fcf"].append(peer_ticker)
         if market_cap is not None and ebitda not in (None, 0) and cash is not None and debt is not None:
             peer_series["ev_ebitda"].append((market_cap + debt - cash) / ebitda)
+        else:
+            peer_metric_missing["ev_ebitda"].append(peer_ticker)
     for key, values in peer_series.items():
         if values:
             peer_median_multiples[key] = float(sorted(values)[len(values) // 2]) if len(values) % 2 == 1 else float((sorted(values)[len(values)//2 - 1] + sorted(values)[len(values)//2]) / 2)
+    for metric, tickers in peer_metric_missing.items():
+        if tickers and subject_multiples.get(metric) is not None:
+            peer_missing_data_warnings.append(
+                f"Peer inputs for {metric} were unavailable for: {', '.join(sorted(set(tickers)))}."
+            )
 
-    if any(value is not None for value in peer_median_multiples.values()):
-        status = "calculated"
+    relative_discount_premium_by_metric: dict[str, float | None] = {
+        "pe": None,
+        "ps": None,
+        "p_fcf": None,
+        "ev_ebitda": None,
+    }
+    comparison_values: list[float] = []
+    comparison_metrics: list[str] = []
+    for metric in ("pe", "ps", "p_fcf", "ev_ebitda"):
+        subject_value = subject_multiples.get(metric)
+        peer_median = peer_median_multiples.get(metric)
+        if subject_value is not None and peer_median not in (None, 0):
+            relative_discount_premium_by_metric[metric] = (subject_value - peer_median) / peer_median
+            comparison_values.append(relative_discount_premium_by_metric[metric] or 0.0)
+            comparison_metrics.append(metric)
+
+    if not comparison_values:
+        peer_relative_status = "insufficient_peer_data"
+        relative_opportunity_score = None
+    else:
+        if all(value <= -0.05 for value in comparison_values):
+            peer_relative_status = "peer_discount"
+        elif all(value >= 0.05 for value in comparison_values):
+            peer_relative_status = "peer_premium"
+        else:
+            peer_relative_status = "mixed"
+        metric_scores = [max(0.0, min(100.0, 50.0 - (value * 100.0))) for value in comparison_values]
+        relative_opportunity_score = float(sum(metric_scores) / len(metric_scores))
+
+    possible_subject_metrics = sum(1 for metric in ("pe", "ps", "p_fcf", "ev_ebitda") if subject_multiples.get(metric) is not None)
+    if comparison_metrics:
+        status = "calculated" if len(comparison_metrics) == possible_subject_metrics and possible_subject_metrics > 0 else "partial"
         notes.append("Peer median multiples were calculated from the local peers dataset.")
     elif computed_any:
         status = "peer_data_unavailable"
-        warnings.append("Peer data is unavailable, so only standalone multiples are shown.")
+        warnings.append("Peer data is unavailable or insufficient, so only standalone multiples are shown.")
     else:
         status = "insufficient_data"
         notes.append("Standalone valuation multiples could not be calculated from the available data.")
@@ -561,13 +633,19 @@ def calculate_relative_valuation(valuation_input: ValuationInput) -> RelativeVal
         status=status,
         method_name="relative_valuation",
         available_multiples=available_multiples,
+        subject_multiples=subject_multiples,
         peer_median_multiples=peer_median_multiples,
         peer_tickers=peer_tickers,
         peer_count=len(peer_tickers),
+        peer_group=peer_group,
+        relative_discount_premium_by_metric=relative_discount_premium_by_metric,
+        peer_relative_status=peer_relative_status,
+        relative_opportunity_score=relative_opportunity_score,
         missing_fields=_sorted_unique(missing_fields),
         warnings=_sorted_unique(warnings),
+        peer_missing_data_warnings=_sorted_unique(peer_missing_data_warnings),
         notes=notes,
-        source_metadata=list(valuation_input.source_metadata),
+        source_metadata=source_metadata,
     )
 
 
@@ -645,7 +723,7 @@ def build_valuation_result(valuation_input: ValuationInput) -> ValuationResult:
 
     calculated_components = [
         base_result.status == "calculated",
-        relative_result.status in {"calculated", "peer_data_unavailable"},
+        relative_result.status in {"calculated", "partial", "peer_data_unavailable"},
     ]
     status = "calculated" if any(calculated_components) else "insufficient_data"
     coverage = "partial" if any(calculated_components) and not all(calculated_components) else ("full" if all(calculated_components) else "insufficient")

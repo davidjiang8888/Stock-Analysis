@@ -219,6 +219,48 @@ def test_local_provider_loads_peer_fixture_when_available(tmp_path: Path):
     assert {item["ticker"] for item in peer_inputs} == {"BETA", "GAMMA"}
 
 
+def test_local_provider_peer_summary_reports_group_and_availability(tmp_path: Path):
+    provider = LocalCSVMarketDataProvider(base_dir=_copy_rich_fixture(tmp_path))
+
+    summary = provider.get_peer_summary("ALFA")
+
+    assert summary["peer_dataset_present"] is True
+    assert summary["peer_group"] == "fixture_group"
+    assert summary["peer_count"] == 2
+    assert summary["peer_fundamentals_available"] == 2
+
+
+def test_local_provider_ignores_self_peers_and_duplicate_rows(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-05-01,ALFA,150,1000\n"
+        "2026-05-01,BETA,90,1000\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "fundamentals.csv").write_text(
+        "ticker,revenue,eps,free_cash_flow,shares_outstanding,market_cap\n"
+        "ALFA,1000,5,100,10,1500\n"
+        "BETA,800,4,90,12,1080\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "peers.csv").write_text(
+        "ticker,peer_ticker,peer_group\n"
+        "ALFA,ALFA,test_group\n"
+        "ALFA,BETA,test_group\n"
+        "ALFA,BETA,test_group\n",
+        encoding="utf-8",
+    )
+    provider = LocalCSVMarketDataProvider(base_dir=tmp_path)
+
+    summary = provider.get_peer_summary("ALFA")
+    peer_tickers = provider.get_peer_tickers("ALFA")
+
+    assert peer_tickers == ["BETA"]
+    assert any("self-peer" in warning.lower() for warning in summary["warnings"])
+    assert any("duplicate" in warning.lower() for warning in summary["warnings"])
+
+
 def test_local_provider_exposes_validation_metadata(tmp_path: Path):
     provider = LocalCSVMarketDataProvider(base_dir=_copy_rich_fixture(tmp_path))
 

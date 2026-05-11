@@ -175,6 +175,7 @@ def _build_missing_data_warnings(
     warnings.extend(earnings.notes)
     warnings.extend(estimates.notes)
     warnings.extend(valuation.warnings)
+    warnings.extend(valuation.relative_valuation.peer_missing_data_warnings)
     warnings.extend([f"Valuation missing field: {field}" for field in valuation.missing_fields])
     for row in dataset_coverage:
         if row.get("dataset_name") in core_datasets and not row.get("ticker_present"):
@@ -232,14 +233,19 @@ def _valuation_readiness_dict(
     valuation: ValuationResult,
     earnings: EarningsSummary,
     estimates: AnalystEstimateSummary,
+    peer_summary: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     dcf_missing = list(valuation.dcf_result.missing_fields)
     relative_missing = list(valuation.relative_valuation.missing_fields)
     return {
         "dcf_ready": valuation.dcf_result.status == "calculated",
-        "relative_ready": valuation.relative_valuation.status in {"calculated", "peer_data_unavailable"},
-        "peer_ready": valuation.relative_valuation.status == "calculated",
+        "relative_ready": valuation.relative_valuation.status in {"calculated", "partial", "peer_data_unavailable"},
+        "peer_ready": valuation.relative_valuation.status in {"calculated", "partial"},
         "peer_count": valuation.relative_valuation.peer_count,
+        "peer_group": valuation.relative_valuation.peer_group,
+        "peer_tickers": valuation.relative_valuation.peer_tickers,
+        "peer_relative_status": valuation.relative_valuation.peer_relative_status,
+        "peer_missing_data_warnings": list(valuation.relative_valuation.peer_missing_data_warnings),
         "earnings_available": any(
             value is not None
             for value in (
@@ -263,6 +269,7 @@ def _valuation_readiness_dict(
         ),
         "dcf_missing_fields": dcf_missing,
         "relative_missing_fields": relative_missing,
+        "peer_summary": peer_summary or {},
         "notes": [
             "DCF readiness requires either direct free cash flow or revenue plus FCF margin.",
             "Peer-relative readiness requires local peers plus enough peer fundamentals to form median multiples.",
@@ -290,6 +297,7 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
     dataset_coverage = provider.get_ticker_dataset_coverage(ticker) if hasattr(provider, "get_ticker_dataset_coverage") else []
     local_data_validation = provider.get_local_data_validation() if hasattr(provider, "get_local_data_validation") else []
     screener_context = provider.get_screener_context(ticker) if hasattr(provider, "get_screener_context") else {}
+    peer_summary = provider.get_peer_summary(ticker) if hasattr(provider, "get_peer_summary") else {}
     valuation = build_valuation_result(
         ValuationInput(
             ticker=ticker,
@@ -337,7 +345,7 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
         key_risks=_build_risks(performance, financials, earnings, estimates),
         missing_data_warnings=missing_data_warnings,
         data_freshness=data_freshness,
-        valuation_readiness=_valuation_readiness_dict(valuation, earnings, estimates),
+        valuation_readiness=_valuation_readiness_dict(valuation, earnings, estimates, peer_summary),
         dataset_coverage=dataset_coverage,
         local_data_validation=local_data_validation,
         screener_context=screener_context,

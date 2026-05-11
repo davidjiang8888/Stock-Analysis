@@ -255,6 +255,7 @@ def test_relative_valuation_calculates_pe_ps_and_p_fcf_when_inputs_exist():
     assert result.available_multiples["ps"] == 1.0
     assert result.available_multiples["p_fcf"] == 10.0
     assert result.status == "peer_data_unavailable"
+    assert result.peer_relative_status == "insufficient_peer_data"
 
 
 def test_relative_valuation_returns_peer_data_unavailable_with_reported_multiple_only():
@@ -267,6 +268,7 @@ def test_relative_valuation_returns_peer_data_unavailable_with_reported_multiple
 
     assert result.status == "peer_data_unavailable"
     assert result.available_multiples["trailing_pe_reported"] == 34.0
+    assert result.relative_opportunity_score is None
 
 
 def test_local_rich_fixture_produces_calculated_dcf(tmp_path: Path):
@@ -354,3 +356,50 @@ def test_relative_valuation_uses_peer_medians_when_local_peer_data_exists(tmp_pa
     assert result.status == "calculated"
     assert result.peer_count == 2
     assert result.peer_median_multiples["pe"] is not None
+    assert result.peer_group == "fixture_group"
+    assert result.relative_discount_premium_by_metric["pe"] is not None
+    assert result.peer_relative_status in {"peer_discount", "peer_premium", "mixed"}
+    assert result.relative_opportunity_score is not None
+
+
+def test_relative_valuation_returns_partial_when_only_some_peer_metrics_are_available():
+    valuation_input = ValuationInput(
+        ticker="ALFA",
+        current_price=150.0,
+        revenue=1000.0,
+        free_cash_flow=120.0,
+        eps=6.0,
+        shares_outstanding=10.0,
+        cash=200.0,
+        debt=50.0,
+        ebitda=180.0,
+        market_cap=1500.0,
+        peer_inputs=[
+            {
+                "ticker": "BETA",
+                "current_price": 85.0,
+                "revenue": 800.0,
+                "eps": 4.0,
+                "shares_outstanding": 12.0,
+                "market_cap": 1020.0,
+                "peer_group": "fixture_group",
+            },
+            {
+                "ticker": "GAMMA",
+                "current_price": 66.0,
+                "revenue": 650.0,
+                "eps": 3.5,
+                "free_cash_flow": 70.0,
+                "shares_outstanding": 11.0,
+                "market_cap": 726.0,
+                "peer_group": "fixture_group",
+            },
+        ],
+    )
+
+    result = calculate_relative_valuation(valuation_input)
+
+    assert result.status == "partial"
+    assert result.peer_median_multiples["pe"] is not None
+    assert result.peer_missing_data_warnings
+    assert result.relative_discount_premium_by_metric["ev_ebitda"] is None

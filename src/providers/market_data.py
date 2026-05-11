@@ -182,6 +182,9 @@ class MarketDataProvider(ABC):
     def get_peer_valuation_inputs(self, ticker: str) -> list[dict[str, Any]]:
         return []
 
+    def get_peer_summary(self, ticker: str) -> dict[str, Any]:
+        return {}
+
 
 def make_source_metadata(
     provider: str,

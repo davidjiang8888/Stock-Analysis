@@ -272,12 +272,51 @@ def render_stock_report_beta() -> None:
 
             relative = valuation["relative_valuation"]
             st.caption("Relative valuation")
+            st.write(f"Status: `{relative['status']}`")
+            st.write(f"Peer-relative status: `{relative.get('peer_relative_status', 'insufficient_peer_data')}`")
+            if relative.get("relative_opportunity_score") is not None:
+                st.write(f"Relative opportunity score: `{relative['relative_opportunity_score']:.1f}`")
+            if relative.get("peer_group"):
+                st.write(f"Peer group: `{relative['peer_group']}`")
+            if relative.get("peer_tickers"):
+                st.write(f"Peer tickers: `{', '.join(relative['peer_tickers'])}`")
+
+            comparison_rows = []
+            subject_multiples = relative.get("subject_multiples", {})
+            peer_medians = relative.get("peer_median_multiples", {})
+            discount_premium = relative.get("relative_discount_premium_by_metric", {})
+            metric_labels = {
+                "pe": "P/E",
+                "ps": "P/S",
+                "p_fcf": "P/FCF",
+                "ev_ebitda": "EV/EBITDA",
+            }
+            for metric_key, label in metric_labels.items():
+                if (
+                    subject_multiples.get(metric_key) is not None
+                    or peer_medians.get(metric_key) is not None
+                    or discount_premium.get(metric_key) is not None
+                ):
+                    comparison_rows.append(
+                        {
+                            "Metric": label,
+                            "Subject": subject_multiples.get(metric_key),
+                            "PeerMedian": peer_medians.get(metric_key),
+                            "DiscountPremiumPct": None
+                            if discount_premium.get(metric_key) is None
+                            else discount_premium.get(metric_key) * 100.0,
+                        }
+                    )
+            if comparison_rows:
+                st.caption("Subject vs peer medians")
+                st.dataframe(pd.DataFrame(comparison_rows), width="stretch", hide_index=True)
+
             st.json(
                 {
-                    "status": relative["status"],
                     "available_multiples": relative["available_multiples"],
                     "missing_fields": relative["missing_fields"],
                     "warnings": relative["warnings"],
+                    "peer_missing_data_warnings": relative.get("peer_missing_data_warnings", []),
                     "notes": relative["notes"],
                 },
                 expanded=False,

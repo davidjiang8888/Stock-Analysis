@@ -148,24 +148,88 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         )
         return [row.to_dict() for row in coverage]
 
-    def get_peer_tickers(self, ticker: str) -> list[str]:
+    def _peer_rows_for_ticker(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
         peers = self._load_optional_dataset("peers")
         if peers.empty or "ticker" not in peers.columns or "peer_ticker" not in peers.columns:
-            return []
+            return pd.DataFrame(), []
         ticker = ticker.upper()
-        return sorted(
-            peers.loc[peers["ticker"] == ticker, "peer_ticker"]
-            .dropna()
-            .astype(str)
-            .str.upper()
-            .str.strip()
-            .unique()
-            .tolist()
-        )
+        selected = peers.loc[peers["ticker"] == ticker].copy()
+        if selected.empty:
+            return selected, []
+
+        warnings: list[str] = []
+        selected["peer_ticker"] = selected["peer_ticker"].astype(str).str.upper().str.strip()
+        self_rows = selected.loc[selected["peer_ticker"] == ticker]
+        if not self_rows.empty:
+            warnings.append(f"Ignored {len(self_rows)} self-peer row(s) for {ticker}.")
+            selected = selected.loc[selected["peer_ticker"] != ticker].copy()
+
+        duplicate_mask = selected.duplicated(subset=["ticker", "peer_ticker"], keep="last")
+        duplicate_count = int(duplicate_mask.sum())
+        if duplicate_count:
+            warnings.append(f"Ignored {duplicate_count} duplicate peer mapping row(s) for {ticker}.")
+            selected = selected.loc[~duplicate_mask].copy()
+
+        return selected.sort_values(["ticker", "peer_ticker"]).reset_index(drop=True), warnings
+
+    def get_peer_tickers(self, ticker: str) -> list[str]:
+        peer_rows, _warnings = self._peer_rows_for_ticker(ticker)
+        if peer_rows.empty or "peer_ticker" not in peer_rows.columns:
+            return []
+        return sorted(peer_rows["peer_ticker"].dropna().astype(str).str.upper().str.strip().unique().tolist())
+
+    def get_peer_summary(self, ticker: str) -> dict[str, Any]:
+        ticker = ticker.upper()
+        peer_rows, warnings = self._peer_rows_for_ticker(ticker)
+        metadata = self.catalog.dataset_metadata("peers")
+        peer_tickers = peer_rows["peer_ticker"].dropna().astype(str).str.upper().str.strip().tolist() if not peer_rows.empty else []
+        peer_groups = sorted({str(value) for value in peer_rows.get("peer_group", pd.Series(dtype=object)).dropna().astype(str)} )
+        peers_with_fundamentals: list[str] = []
+        peers_with_quote_or_market_cap: list[str] = []
+        for peer_ticker in peer_tickers:
+            financials = self.get_financials(peer_ticker)
+            has_fundamentals = any(
+                value is not None
+                for value in (
+                    financials.revenue,
+                    financials.eps,
+                    financials.free_cash_flow,
+                    financials.ebitda,
+                    financials.trailing_pe,
+                    financials.market_cap,
+                )
+            )
+            if has_fundamentals:
+                peers_with_fundamentals.append(peer_ticker)
+            try:
+                quote = self.get_quote(peer_ticker)
+            except LookupError:
+                quote = None
+            if quote is not None or financials.market_cap is not None:
+                peers_with_quote_or_market_cap.append(peer_ticker)
+
+        return {
+            "peer_dataset_present": metadata.validation_status != "missing_file",
+            "peer_dataset_status": metadata.validation_status,
+            "peer_group": peer_groups[0] if len(peer_groups) == 1 else None,
+            "peer_groups": peer_groups,
+            "peer_tickers": peer_tickers,
+            "peer_count": len(peer_tickers),
+            "peers_with_fundamentals": peers_with_fundamentals,
+            "peers_with_quote_or_market_cap": peers_with_quote_or_market_cap,
+            "peer_fundamentals_available": len(peers_with_fundamentals),
+            "peer_market_context_available": len(peers_with_quote_or_market_cap),
+            "warnings": warnings,
+            "source_metadata": metadata.source,
+        }
 
     def get_peer_valuation_inputs(self, ticker: str) -> list[dict[str, Any]]:
         peer_inputs: list[dict[str, Any]] = []
-        for peer_ticker in self.get_peer_tickers(ticker):
+        peer_rows, warnings = self._peer_rows_for_ticker(ticker)
+        if peer_rows.empty or "peer_ticker" not in peer_rows.columns:
+            return peer_inputs
+        for peer_ticker in peer_rows["peer_ticker"].dropna().astype(str).str.upper().str.strip().tolist():
+            peer_row = peer_rows.loc[peer_rows["peer_ticker"] == peer_ticker].iloc[-1]
             financials = self.get_financials(peer_ticker)
             try:
                 quote = self.get_quote(peer_ticker)
@@ -186,8 +250,19 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
                     "trailing_pe": financials.trailing_pe,
                     "forward_pe": financials.forward_pe,
                     "price_to_book": financials.price_to_book,
+                    "peer_group": self._string_value(peer_row, "peer_group"),
+                    "sector": self._string_value(peer_row, "sector"),
+                    "industry": self._string_value(peer_row, "industry"),
+                    "mapping_source": self._string_value(peer_row, "source"),
+                    "mapping_as_of_date": self._string_value(peer_row, "as_of_date"),
+                    "source_metadata": [
+                        financials.source.to_dict() if financials.source is not None else None,
+                        quote.source.to_dict() if quote is not None else None,
+                    ],
                 }
             )
+        if warnings and peer_inputs:
+            peer_inputs[0]["peer_mapping_warnings"] = warnings
         return peer_inputs
 
     def get_screener_context(self, ticker: str) -> dict[str, dict[str, Any]]:

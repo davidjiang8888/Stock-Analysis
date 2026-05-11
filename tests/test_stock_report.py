@@ -482,5 +482,9 @@ def test_stock_report_from_rich_local_fixture_is_serializable_and_includes_valid
     assert payload["valuation_snapshot"]["relative_valuation"]["status"] == "calculated"
     assert payload["valuation_readiness"]["dcf_ready"] is True
     assert payload["valuation_readiness"]["peer_ready"] is True
+    assert payload["valuation_snapshot"]["relative_valuation"]["peer_group"] == "fixture_group"
+    assert payload["valuation_snapshot"]["relative_valuation"]["peer_tickers"] == ["BETA", "GAMMA"]
+    assert payload["valuation_snapshot"]["relative_valuation"]["relative_discount_premium_by_metric"]["pe"] is not None
+    assert payload["valuation_readiness"]["peer_count"] == 2
     assert payload["local_data_validation"]
     assert any(item["name"] == "peers" for item in payload["local_data_validation"])

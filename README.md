@@ -184,7 +184,13 @@ Relative valuation:
 - EV/EBITDA is calculated only when EBITDA, cash, debt, and market-cap context are available
 - peer multiples are not fabricated; if `data/peers.csv` or peer fundamentals are unavailable, the result is labeled accordingly
 - local peer medians can be used when `data/peers.csv` and the matching peer fundamentals are available
-- peer-aware comparisons stay transparent through fields such as `PeerRelativeStatus` and `RelativeOpportunityScore`
+- peer-aware comparisons stay transparent through fields such as `peer_relative_status`, `relative_discount_premium_by_metric`, and `relative_opportunity_score`
+- `peer_relative_status` meanings:
+  - `peer_discount`: the subject screens cheaper than local peer medians across the available comparison metrics
+  - `peer_premium`: the subject screens richer than local peer medians across the available comparison metrics
+  - `mixed`: some metrics screen cheaper while others screen richer
+  - `insufficient_peer_data`: there is not enough peer-relative data to form a comparison
+- peer-relative output is research context only, not a buy/sell/hold recommendation
 
 Missing-data behavior for valuation:
 
@@ -192,6 +198,39 @@ Missing-data behavior for valuation:
 - if standalone multiples can be calculated but peer medians cannot, relative valuation returns `peer_data_unavailable`
 - if local earnings or analyst-estimate files are missing, those sections stay explicit about local unavailability
 - the stock report never fabricates prices, fundamentals, earnings, analyst estimates, or peer values
+
+### Local peer mappings
+
+You can add local peer mappings with `data/peers.csv`.
+
+Required columns:
+
+- `ticker`
+- `peer_ticker`
+
+Optional columns:
+
+- `peer_group`
+- `sector`
+- `industry`
+- `source`
+- `as_of_date`
+
+Example:
+
+```csv
+ticker,peer_ticker,peer_group,source,as_of_date
+NVDA,AMD,ai_semis,manual_research,2026-05-11
+NVDA,AVGO,ai_semis,manual_research,2026-05-11
+```
+
+Behavior:
+
+- ticker keys are normalized to uppercase
+- self-peers are ignored with warnings
+- duplicate `ticker + peer_ticker` rows are deduplicated conservatively
+- peer medians only use local peer fundamentals and local prices when the required fields actually exist
+- missing peer metrics are excluded instead of fabricated
 
 ### Stock Report Beta in the dashboard
 
@@ -280,6 +319,17 @@ The exported JSON includes:
 - local dataset coverage
 - local schema validation metadata
 - valuation readiness diagnostics showing whether DCF, peer-relative work, earnings, and analyst estimates are actually available
+
+Example peer-aware workflow:
+
+```bash
+python -m src.stock_report --write-local-data-templates
+# fill data/imports/peers.csv or data/peers.csv with real peer mappings
+python -m src.stock_report --validate-imports
+python -m src.stock_report --preview-import-merge
+python -m src.stock_report --apply-import-merge
+python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
+```
 
 ## Optional daily price-data update
 
