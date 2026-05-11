@@ -1,0 +1,4 @@
+Ticker,Shares,CostBasis,PositionPercent,PrimaryPurpose,SecondaryTags,OriginalThesis,MaxPositionPercent,InvalidationOverride
+TSLA,0,0,0,Core Compounder,Speculative Optionality,example thesis,15,
+NVDA,0,0,0,Momentum Leader,Core Compounder,example thesis,15,
+META,0,0,0,Core Compounder,,example thesis,15,

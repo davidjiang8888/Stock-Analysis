@@ -1,0 +1,4 @@
+Ticker,Shares,CostBasis,PositionPercent,PrimaryPurpose,SecondaryTags,OriginalThesis,SetupStatus,ReviewState,ConcentrationRisk,MaxAllowedPositionPercent,Reason
+META,0,0,0.0,Core Compounder,,example thesis,Avoid,Review Thesis,False,0.15,"Position percent 0.00% is within allowed max 15.00%, portfolio concentration threshold 20.00%. Price data is missing, so purpose could not be fully verified."
+NVDA,0,0,0.0,Momentum Leader,Core Compounder,example thesis,Avoid,Review Thesis,False,0.15,"Position percent 0.00% is within allowed max 15.00%, portfolio concentration threshold 20.00%. Current evidence is too weak to keep the thesis on autopilot."
+TSLA,0,0,0.0,Core Compounder,Speculative Optionality,example thesis,Avoid,Review Thesis,False,0.15,"Position percent 0.00% is within allowed max 15.00%, portfolio concentration threshold 20.00%. Current evidence is too weak to keep the thesis on autopilot."

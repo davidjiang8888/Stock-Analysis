@@ -1,0 +1,13 @@
+Ticker,Theme,SectorETF,DefaultPurpose,MarketCapBucket,Notes
+NVDA,AI Semiconductors,SMH,Momentum Leader,Large,
+AVGO,AI Semiconductors,SMH,Momentum Leader,Large,
+AMD,AI Semiconductors,SMH,Momentum Leader,Large,
+MU,Memory Semiconductors,SMH,Momentum Leader,Large,
+CRDO,AI Infrastructure,SMH,Speculative Optionality,Mid,
+COHR,Optical / AI Infrastructure,SMH,Speculative Optionality,Mid,
+LITE,Optical / AI Infrastructure,SMH,Speculative Optionality,Mid,
+HOOD,Fintech,ARKF,Speculative Optionality,Large,
+TSLA,EV / AI / Robotics,QQQ,Core Compounder,Large,
+META,AI / Ads / Platforms,QQQ,Core Compounder,Large,
+SMH,Semiconductor ETF,SMH,ETF / Defensive / Hedge,ETF,
+QQQ,Nasdaq 100 ETF,QQQ,ETF / Defensive / Hedge,ETF,

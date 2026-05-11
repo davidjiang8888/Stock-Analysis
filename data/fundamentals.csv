@@ -1,0 +1,7 @@
+ticker,theme,sector,pe_ratio,revenue_growth,profit_margin,debt_to_equity
+NVDA,AI Infrastructure,Technology,34,0.28,0.34,0.4
+MSFT,Enterprise Software,Technology,31,0.12,0.36,0.5
+TSLA,EV,Consumer Discretionary,48,-0.03,0.07,0.2
+SPY,Broad Market,ETF,,,
+QQQ,Nasdaq Growth,ETF,,,
+XLF,Financials,ETF,,,

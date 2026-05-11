@@ -1,0 +1,13 @@
+Ticker,Theme,SectorETF,Close,Return1M,Return3M,Return6M,Return12M,RelativeReturnVsSPY,RelativeReturnVsQQQ,RelativeReturnVsSectorETF,RSPercentile,EMA10,EMA21,SMA50,SMA200,DistanceFrom10EMA,DistanceFrom21EMA,DistanceFrom50SMA,AvgVolume20D,VolumeRatio,ATRorVolatilityPct,SetupStatus,Reason
+AMD,AI Semiconductors,SMH,,,,,,,,,,,,,,,,,,,,Avoid,Price data is missing.
+AVGO,AI Semiconductors,SMH,,,,,,,,,,,,,,,,,,,,Avoid,Price data is missing.
+COHR,Optical / AI Infrastructure,SMH,,,,,,,,,,,,,,,,,,,,Avoid,Price data is missing.
+CRDO,AI Infrastructure,SMH,,,,,,,,,,,,,,,,,,,,Avoid,Price data is missing.
+HOOD,Fintech,ARKF,,,,,,,,,,,,,,,,,,,,Avoid,Price data is missing.
+LITE,Optical / AI Infrastructure,SMH,,,,,,,,,,,,,,,,,,,,Avoid,Price data is missing.
+META,AI / Ads / Platforms,QQQ,,,,,,,,,,,,,,,,,,,,Avoid,Price data is missing.
+MU,Memory Semiconductors,SMH,,,,,,,,,,,,,,,,,,,,Avoid,Price data is missing.
+NVDA,AI Semiconductors,SMH,189.0,0.3795620437956204,,,,0.334107498341075,0.29591185368155193,,100.0,177.26904910514455,166.16927857432285,,,0.0661759678526701,0.13739435846118586,,68745000.0,1.0648047130700415,0.0029709365585144872,Avoid,The current setup does not meet momentum criteria.
+SMH,Semiconductor ETF,SMH,,,,,,,,,,,,,,,,,,,,Avoid,Price data is missing.
+TSLA,EV / AI / Robotics,QQQ,265.0,-0.15335463258785942,,,,-0.19880917804240483,-0.2370048227019279,-0.2370048227019279,25.0,274.275126252266,284.4761903206625,,,-0.03381686986713894,-0.06846334063567461,,93575000.0,0.9788939353459791,0.001334482965512,Avoid,The current setup does not meet momentum criteria.
+QQQ,Nasdaq 100 ETF,QQQ,570.0,0.08365019011406849,,,,0.038195644659523076,0.0,0.0,75.0,559.6001346299323,550.0495269067226,,,0.018584458306010188,0.036270321339010314,,51220000.0,1.0484185864896525,0.0017305996068909145,Setup Forming,Price is consolidating around short-term support.
