@@ -120,7 +120,7 @@ The local schema validator lives in `src/providers/local_schemas.py`. It defines
 | --- | --- | --- |
 | `data/fundamentals.csv` | `ticker` | `theme`, `sector`, `revenue`, `revenue_growth`, `eps`, `free_cash_flow`, `fcf_margin`, `profit_margin`, `operating_margin`, `ebitda`, `cash`, `debt`, `shares_outstanding`, `market_cap`, `pe_ratio`, `source`, `as_of_date` |
 | `data/earnings.csv` / `data/earnings_history.csv` | `ticker` | `next_earnings_date`, `last_earnings_date`, `fiscal_period`, `eps_estimate`, `eps_actual`, `revenue_estimate`, `revenue_actual`, `surprise_pct`, `source`, `as_of_date` |
-| `data/analyst_estimates.csv` / `data/estimates.csv` | `ticker` | `current_quarter_eps`, `next_quarter_eps`, `current_year_eps`, `next_year_eps`, `target_mean_price`, `target_high_price`, `target_low_price`, `recommendation`, `revision_trend`, `source`, `as_of_date` |
+| `data/analyst_estimates.csv` / `data/estimates.csv` | `ticker` | `current_quarter_eps`, `next_quarter_eps`, `current_year_eps`, `next_year_eps`, `current_quarter_revenue`, `next_quarter_revenue`, `current_year_revenue`, `next_year_revenue`, `target_mean_price`, `target_high_price`, `target_low_price`, `recommendation`, `revision_trend`, `source`, `as_of_date` |
 | `data/peers.csv` | `ticker`, `peer_ticker` | `peer_group`, `sector`, `industry`, `source`, `as_of_date` |
 
 Validation behavior:
@@ -364,6 +364,22 @@ It reads from `outputs/*.csv`, shows friendly messages when files are missing, a
 
 The dashboard and CLI are research-only surfaces. They do not execute trades, route orders, or connect to brokers.
 
+## Recommended daily workflow
+
+```bash
+python3 -m src.data_update
+python3 -m src.report_generator
+python3 -m src.stock_report --validate-local-data
+streamlit run src/dashboard.py
+```
+
+This keeps the project on its local research path:
+
+- refresh local prices if you want newer research inputs
+- regenerate the core screener CSV outputs
+- validate local enrichment coverage before relying on valuation-heavy reports
+- review everything through the dashboard without any broker or trade execution features
+
 ## Enriching local CSV data
 
 If you want richer deterministic valuation coverage without relying on yfinance:
@@ -467,6 +483,13 @@ python -m src.stock_report --validate-local-data
 python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
 ```
 
+To add peer mappings through the same workflow, use `data/imports/peers.csv` with:
+
+- required: `ticker`, `peer_ticker`
+- optional: `peer_group`, `sector`, `industry`, `source`, `as_of_date`
+
+Peer mappings are not fabricated by the project. They must come from your own local research workflow.
+
 ## SEC Companyfacts staging workflow
 
 The project now includes a read-only SEC Companyfacts adapter that can stage candidate fundamentals into:
@@ -559,6 +582,25 @@ python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_
 ```
 
 This remains a research-only workflow. It does not execute trades, place orders, or provide direct buy/sell advice.
+
+## Fundamentals enrichment workflow
+
+If you want to enrich canonical local fundamentals safely, use the staged SEC + import flow:
+
+```bash
+export SEC_USER_AGENT="Your Name your.email@example.com"
+python3 -m src.stock_report --sec-stage-fundamentals --from-local-tickers
+python3 -m src.stock_report --validate-imports
+python3 -m src.stock_report --preview-import-merge
+python3 -m src.stock_report --apply-import-merge
+python3 -m src.stock_report --validate-local-data
+```
+
+This flow is explicit by design:
+
+- SEC enrichment stays read-only until you apply the local import merge
+- analyst estimates, peer mappings, and market prices are still separate local inputs
+- valuation remains informational and assumption-driven even after fundamentals are enriched
 
 ## Run tests
 

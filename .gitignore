@@ -3,3 +3,11 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+data/cache/
+!data/cache/sec/.gitkeep
+data/backups/
+data/imports/*.csv
+!data/imports/.gitkeep
+outputs/*stock_report.json
+outputs/*_stock_report.json
+local_artifacts_backup/

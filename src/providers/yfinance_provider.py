@@ -178,6 +178,7 @@ class YFinanceProvider(MarketDataProvider):
             ticker=ticker.upper(),
             next_earnings_date=next_date,
             last_earnings_date=last_earnings_date,
+            fiscal_period=None,
             eps_estimate=eps_estimate,
             eps_actual=eps_actual,
             revenue_estimate=revenue_estimate,
@@ -197,9 +198,18 @@ class YFinanceProvider(MarketDataProvider):
         next_quarter_eps = None
         current_year_eps = None
         next_year_eps = None
+        current_quarter_revenue = None
+        next_quarter_revenue = None
+        current_year_revenue = None
+        next_year_revenue = None
+        target_high_price = None
+        target_low_price = None
+        revision_trend = None
 
         info = getattr(asset, "info", {}) or {}
         target_mean_price = self._clean_float(info.get("targetMeanPrice"))
+        target_high_price = self._clean_float(info.get("targetHighPrice"))
+        target_low_price = self._clean_float(info.get("targetLowPrice"))
         recommendation = self._clean_str(info.get("recommendationKey"))
 
         try:
@@ -214,6 +224,11 @@ class YFinanceProvider(MarketDataProvider):
             next_quarter_eps = self._clean_float((trend_map.get("+1q") or {}).get("epsTrend"))
             current_year_eps = self._clean_float((trend_map.get("0y") or {}).get("epsTrend"))
             next_year_eps = self._clean_float((trend_map.get("+1y") or {}).get("epsTrend"))
+            current_quarter_revenue = self._clean_float((trend_map.get("0q") or {}).get("revenueEstimate"))
+            next_quarter_revenue = self._clean_float((trend_map.get("+1q") or {}).get("revenueEstimate"))
+            current_year_revenue = self._clean_float((trend_map.get("0y") or {}).get("revenueEstimate"))
+            next_year_revenue = self._clean_float((trend_map.get("+1y") or {}).get("revenueEstimate"))
+            revision_trend = self._clean_str((trend_map.get("0q") or {}).get("growth"))
         else:
             notes.append("Analyst estimate fields are partially stubbed in this first pass.")
 
@@ -223,8 +238,15 @@ class YFinanceProvider(MarketDataProvider):
             next_quarter_eps=next_quarter_eps,
             current_year_eps=current_year_eps,
             next_year_eps=next_year_eps,
+            current_quarter_revenue=current_quarter_revenue,
+            next_quarter_revenue=next_quarter_revenue,
+            current_year_revenue=current_year_revenue,
+            next_year_revenue=next_year_revenue,
             recommendation=recommendation,
             target_mean_price=target_mean_price,
+            target_high_price=target_high_price,
+            target_low_price=target_low_price,
+            revision_trend=revision_trend,
             notes=notes,
             source=self._source("latest available analyst metadata", notes),
         )

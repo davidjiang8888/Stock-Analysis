@@ -77,6 +77,7 @@ class EarningsSummary:
     ticker: str
     next_earnings_date: str | None = None
     last_earnings_date: str | None = None
+    fiscal_period: str | None = None
     eps_estimate: float | None = None
     eps_actual: float | None = None
     revenue_estimate: float | None = None
@@ -105,6 +106,9 @@ class AnalystEstimateSummary:
     next_year_revenue: float | None = None
     recommendation: str | None = None
     target_mean_price: float | None = None
+    target_high_price: float | None = None
+    target_low_price: float | None = None
+    revision_trend: str | None = None
     notes: list[str] = field(default_factory=list)
     source: SourceMetadata | None = None
 

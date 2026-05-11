@@ -40,3 +40,17 @@ def test_stock_report_workflow_does_not_introduce_direct_recommendation_language
     lowered = source_text.lower()
     for phrase in BANNED_RECOMMENDATION_PHRASES:
         assert phrase not in lowered
+
+
+def test_gitignore_covers_local_runtime_artifacts():
+    gitignore = Path(".gitignore").read_text(encoding="utf-8")
+    expected_entries = (
+        "data/cache/",
+        "data/backups/",
+        "data/imports/*.csv",
+        "!data/imports/.gitkeep",
+        "outputs/*stock_report.json",
+        "local_artifacts_backup/",
+    )
+    for entry in expected_entries:
+        assert entry in gitignore

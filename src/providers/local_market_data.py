@@ -396,6 +396,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             ticker=ticker,
             next_earnings_date=self._string_value(row, "next_earnings_date", "earnings_date"),
             last_earnings_date=self._string_value(row, "last_earnings_date"),
+            fiscal_period=self._string_value(row, "fiscal_period"),
             eps_estimate=self._float_value(row, "eps_estimate"),
             eps_actual=self._float_value(row, "eps_actual"),
             revenue_estimate=self._float_value(row, "revenue_estimate"),
@@ -431,6 +432,9 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             next_year_revenue=self._float_value(row, "next_year_revenue"),
             recommendation=self._string_value(row, "recommendation"),
             target_mean_price=self._float_value(row, "target_mean_price"),
+            target_high_price=self._float_value(row, "target_high_price"),
+            target_low_price=self._float_value(row, "target_low_price"),
+            revision_trend=self._string_value(row, "revision_trend"),
             notes=[] if not row.empty else [f"No local analyst-estimate row was found for {ticker}."],
             source=self._row_source("analyst_estimates", row, ["Local analyst estimate data."]) if not row.empty else make_source_metadata(**metadata.source),
         )

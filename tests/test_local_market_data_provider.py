@@ -128,8 +128,8 @@ def test_local_provider_loads_earnings_fixture_when_available(tmp_path: Path):
         encoding="utf-8",
     )
     (tmp_path / "data" / "earnings.csv").write_text(
-        "ticker,next_earnings_date,last_earnings_date,eps_estimate,eps_actual,surprise_pct\n"
-        "NVDA,2026-05-30,2026-02-25,1.2,1.3,0.08\n",
+        "ticker,next_earnings_date,last_earnings_date,fiscal_period,eps_estimate,eps_actual,surprise_pct\n"
+        "NVDA,2026-05-30,2026-02-25,Q2-2026,1.2,1.3,0.08\n",
         encoding="utf-8",
     )
     provider = LocalCSVMarketDataProvider(base_dir=tmp_path)
@@ -137,8 +137,31 @@ def test_local_provider_loads_earnings_fixture_when_available(tmp_path: Path):
     earnings = provider.get_earnings("NVDA")
 
     assert earnings.next_earnings_date == "2026-05-30"
+    assert earnings.fiscal_period == "Q2-2026"
     assert earnings.eps_estimate == 1.2
     assert earnings.surprise_pct == 0.08
+
+
+def test_local_provider_handles_sparse_earnings_row_without_crashing(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-02,NVDA,150,1000\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "earnings.csv").write_text(
+        "ticker,source,as_of_date\n"
+        "NVDA,manual,2026-05-01\n",
+        encoding="utf-8",
+    )
+    provider = LocalCSVMarketDataProvider(base_dir=tmp_path)
+
+    earnings = provider.get_earnings("NVDA")
+
+    assert earnings.ticker == "NVDA"
+    assert earnings.next_earnings_date is None
+    assert earnings.source is not None
+    assert "Dataset row source: manual" in " ".join(earnings.source.notes)
 
 
 def test_local_provider_loads_analyst_estimate_fixture_when_available(tmp_path: Path):
@@ -149,8 +172,8 @@ def test_local_provider_loads_analyst_estimate_fixture_when_available(tmp_path: 
         encoding="utf-8",
     )
     (tmp_path / "data" / "analyst_estimates.csv").write_text(
-        "ticker,current_quarter_eps,next_quarter_eps,target_mean_price,recommendation\n"
-        "NVDA,1.2,1.4,220,hold\n",
+        "ticker,current_quarter_eps,next_quarter_eps,current_quarter_revenue,target_mean_price,target_high_price,target_low_price,recommendation,revision_trend\n"
+        "NVDA,1.2,1.4,34000,220,250,180,hold,stable\n",
         encoding="utf-8",
     )
     provider = LocalCSVMarketDataProvider(base_dir=tmp_path)
@@ -159,8 +182,34 @@ def test_local_provider_loads_analyst_estimate_fixture_when_available(tmp_path: 
 
     assert estimates.current_quarter_eps == 1.2
     assert estimates.next_quarter_eps == 1.4
+    assert estimates.current_quarter_revenue == 34000.0
     assert estimates.target_mean_price == 220.0
+    assert estimates.target_high_price == 250.0
+    assert estimates.target_low_price == 180.0
     assert estimates.recommendation == "hold"
+    assert estimates.revision_trend == "stable"
+
+
+def test_local_provider_handles_sparse_analyst_estimate_row_without_crashing(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-02,NVDA,150,1000\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "analyst_estimates.csv").write_text(
+        "ticker,source,as_of_date\n"
+        "NVDA,manual,2026-05-01\n",
+        encoding="utf-8",
+    )
+    provider = LocalCSVMarketDataProvider(base_dir=tmp_path)
+
+    estimates = provider.get_analyst_estimates("NVDA")
+
+    assert estimates.ticker == "NVDA"
+    assert estimates.target_mean_price is None
+    assert estimates.source is not None
+    assert "Dataset row source: manual" in " ".join(estimates.source.notes)
 
 
 def test_local_provider_handles_missing_optional_dataset_files(tmp_path: Path):
@@ -205,7 +254,11 @@ def test_local_provider_preserves_source_and_as_of_date_from_rich_fixture(tmp_pa
 
     assert financials.as_of_date == "2026-05-01"
     assert "fixture_fundamentals" in " ".join(financials.source.notes)
+    assert earnings.fiscal_period == "Q2-2026"
     assert "fixture_earnings" in " ".join(earnings.source.notes)
+    assert estimates.target_high_price == 180.0
+    assert estimates.target_low_price == 145.0
+    assert estimates.revision_trend == "stable"
     assert "fixture_estimates" in " ".join(estimates.source.notes)
 
 
