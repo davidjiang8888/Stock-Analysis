@@ -6,10 +6,12 @@ def test_new_modules_import_cleanly():
         "src.providers.market_data",
         "src.providers.mock_market_data",
         "src.providers.local_data_catalog",
+        "src.providers.local_importer",
         "src.providers.local_schemas",
         "src.providers.local_templates",
         "src.providers.local_market_data",
         "src.providers.yfinance_provider",
+        "src.dashboard",
         "src.stock_report",
         "src.valuation",
     ]

@@ -237,6 +237,12 @@ For JSON-friendly template creation output:
 python -m src.stock_report --write-local-data-templates --json
 ```
 
+To scaffold header-only staging files directly under `data/imports/`:
+
+```bash
+python -m src.stock_report --write-import-staging
+```
+
 For a demo/smoke workflow:
 
 ```bash
@@ -330,6 +336,78 @@ python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_
 
 This workflow remains CSV-first. yfinance is optional, unofficial / research-grade, and should only be used when you explicitly opt in.
 
+## Staged local import / merge workflow
+
+You can now place real locally sourced enrichment files under:
+
+- `data/imports/`
+
+Supported staged files:
+
+- `fundamentals.csv`
+- `earnings.csv`
+- `earnings_history.csv`
+- `analyst_estimates.csv`
+- `estimates.csv`
+- `peers.csv`
+
+The importer never fabricates values. You must provide real local data and, where possible, include `source` and `as_of_date`.
+
+### Import workflow commands
+
+Validate staged files without mutating canonical data:
+
+```bash
+python -m src.stock_report --validate-imports
+```
+
+Preview what would change:
+
+```bash
+python -m src.stock_report --preview-import-merge
+```
+
+Apply the merge safely:
+
+```bash
+python -m src.stock_report --apply-import-merge
+```
+
+JSON output is also available:
+
+```bash
+python -m src.stock_report --validate-imports --json
+python -m src.stock_report --preview-import-merge --json
+python -m src.stock_report --apply-import-merge --json
+```
+
+### Merge behavior
+
+- `fundamentals`, `earnings`, and `analyst estimates` merge by `ticker`
+- `peers` merges by `ticker + peer_ticker`
+- staged validation runs before merge
+- invalid required columns refuse the apply step
+- existing canonical rows are updated by key
+- new keyed rows are appended
+- rows with missing merge keys or duplicate staged keys are skipped and reported
+- canonical files are backed up under `data/backups/<timestamp>/` before changed files are written
+- staged unknown extra columns are ignored and reported
+- existing canonical extra columns are preserved during merge
+- this workflow does not delete canonical rows in this phase
+
+### Example workflow
+
+```bash
+python -m src.stock_report --write-local-data-templates
+cp data/templates/fundamentals.csv data/imports/fundamentals.csv
+# fill in real local data manually
+python -m src.stock_report --validate-imports
+python -m src.stock_report --preview-import-merge
+python -m src.stock_report --apply-import-merge
+python -m src.stock_report --validate-local-data
+python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
+```
+
 ## Run tests
 
 ```bash
@@ -396,6 +474,7 @@ Final state-machine view combining purpose, momentum, and portfolio context into
 ## Local data onboarding tips
 
 - `--write-local-data-templates` creates header-only CSV templates under `data/templates/`
+- `--write-import-staging` creates header-only staging files under `data/imports/`
 - these templates are safe starting points for adding real local data later
 - they do not fabricate fundamentals, earnings, analyst estimates, or peer mappings
 - the Stock Report Beta now includes valuation-readiness diagnostics so you can see exactly which inputs are still missing for:

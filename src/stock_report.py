@@ -18,7 +18,8 @@ from src.providers.market_data import (
     make_source_metadata,
 )
 from src.providers.local_market_data import LocalCSVMarketDataProvider
-from src.providers.local_templates import write_local_data_templates
+from src.providers.local_importer import apply_import_merge, preview_import_merge, validate_imports
+from src.providers.local_templates import write_import_staging_files, write_local_data_templates
 from src.providers.mock_market_data import MockMarketDataProvider
 from src.valuation import ValuationInput, ValuationResult, build_valuation_result
 
@@ -419,8 +420,12 @@ def main() -> None:
     parser.add_argument("--list-local-tickers", action="store_true", help="List tickers discoverable from local CSV datasets.")
     parser.add_argument("--validate-local-data", action="store_true", help="Validate local CSV datasets and report schema coverage.")
     parser.add_argument("--write-local-data-templates", action="store_true", help="Write header-only local enrichment CSV templates under data/templates.")
+    parser.add_argument("--write-import-staging", action="store_true", help="Write header-only staging CSV files under data/imports.")
+    parser.add_argument("--validate-imports", action="store_true", help="Validate staged CSV imports under data/imports.")
+    parser.add_argument("--preview-import-merge", action="store_true", help="Preview staged CSV merge effects without changing canonical data files.")
+    parser.add_argument("--apply-import-merge", action="store_true", help="Validate and merge staged CSV imports into canonical local data files.")
     parser.add_argument("--template-dir", help="Optional destination directory for local CSV templates.")
-    parser.add_argument("--json", action="store_true", help="Print validation output as JSON when used with --validate-local-data.")
+    parser.add_argument("--json", action="store_true", help="Print CLI output as JSON for the supported validation/import/template commands.")
     args = parser.parse_args()
     cli_base_dir = Path.cwd()
 
@@ -429,6 +434,18 @@ def main() -> None:
             base_dir=cli_base_dir,
             template_dir=Path(args.template_dir) if args.template_dir else None,
         )
+        if args.json:
+            print(json.dumps(template_results, indent=2))
+        else:
+            for item in template_results:
+                print(
+                    f"{item['dataset_name']}: {item['status']} -> {item['path']} "
+                    f"columns={','.join(item['columns'])}"
+                )
+        return
+
+    if args.write_import_staging:
+        template_results = write_import_staging_files(base_dir=cli_base_dir)
         if args.json:
             print(json.dumps(template_results, indent=2))
         else:
@@ -450,6 +467,62 @@ def main() -> None:
                     f"{item['name']}: status={item['validation_status']} rows={item['row_count']} "
                     f"required_missing={','.join(item['missing_required_columns']) or '-'} "
                     f"warnings={'; '.join(item['validation_warnings']) or '-'}"
+                )
+        return
+
+    if args.validate_imports:
+        result = validate_imports(base_dir=cli_base_dir)
+        if args.json:
+            print(json.dumps(result, indent=2))
+        elif result["status"] == "no_staged_files":
+            print(f"{result['status']}: {result['warnings'][0]}")
+        else:
+            for item in result["files"]:
+                validation = item["validation"]
+                print(
+                    f"{item['file_name']}: status={validation['status']} "
+                    f"rows={validation['row_count']} "
+                    f"required_missing={','.join(validation['missing_required_columns']) or '-'} "
+                    f"warnings={'; '.join(validation['warnings']) or '-'}"
+                )
+        return
+
+    if args.preview_import_merge:
+        result = preview_import_merge(base_dir=cli_base_dir)
+        if args.json:
+            print(json.dumps(result, indent=2))
+        elif result["status"] == "no_staged_files":
+            print(f"{result['status']}: {result['warnings'][0]}")
+        else:
+            for item in result["preview"]:
+                print(
+                    f"{item['file_name']}: status={item['status']} "
+                    f"new={item['new_rows']} updated={item['updated_rows']} unchanged={item['unchanged_rows']} "
+                    f"skipped={item['skipped_rows']} "
+                    f"warnings={'; '.join(item['warnings']) or '-'}"
+                )
+        return
+
+    if args.apply_import_merge:
+        result = apply_import_merge(base_dir=cli_base_dir)
+        if args.json:
+            print(json.dumps(result, indent=2))
+        elif result["status"] == "no_staged_files":
+            print(f"{result['status']}: {result['warnings'][0]}")
+        elif result["status"] == "refused_invalid_imports":
+            print("refused_invalid_imports: staged files contain invalid required columns.")
+            for item in result["preview"]:
+                if item["status"] == "invalid":
+                    print(
+                        f"{item['file_name']}: invalid required_missing="
+                        f"{','.join(item.get('missing_required_columns', [])) or '-'}"
+                    )
+        else:
+            for item in result["applied"]:
+                print(
+                    f"{item['file_name']}: applied={item['applied']} "
+                    f"new={item['new_rows']} updated={item['updated_rows']} unchanged={item['unchanged_rows']} "
+                    f"skipped={item['skipped_rows']} backup={item['backup_path'] or '-'}"
                 )
         return
 

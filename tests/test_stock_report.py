@@ -331,6 +331,150 @@ def test_stock_report_cli_write_local_data_templates_json(tmp_path: Path, capsys
         os.chdir(previous_cwd)
 
 
+def test_stock_report_cli_write_import_staging(tmp_path: Path, capsys):
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--write-import-staging"]
+    try:
+        main()
+        output = capsys.readouterr().out
+        assert "fundamentals: created" in output
+        assert (tmp_path / "data" / "imports" / "fundamentals.csv").exists()
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
+def test_stock_report_cli_validate_imports_handles_no_staged_files(tmp_path: Path, capsys):
+    (tmp_path / "data").mkdir()
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--validate-imports"]
+    try:
+        main()
+        output = capsys.readouterr().out.strip()
+        assert output.startswith("no_staged_files:")
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
+def test_stock_report_cli_validate_imports_json(tmp_path: Path, capsys):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "imports").mkdir()
+    (tmp_path / "data" / "imports" / "fundamentals.csv").write_text(
+        "ticker,revenue,source,as_of_date\n"
+        "NVDA,1000,manual,2026-05-01\n",
+        encoding="utf-8",
+    )
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--validate-imports", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["status"] == "valid"
+        assert payload["files"][0]["file_name"] == "fundamentals.csv"
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
+def test_stock_report_cli_preview_import_merge_handles_no_staged_files(tmp_path: Path, capsys):
+    (tmp_path / "data").mkdir()
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--preview-import-merge"]
+    try:
+        main()
+        output = capsys.readouterr().out.strip()
+        assert output.startswith("no_staged_files:")
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
+def test_stock_report_cli_apply_import_merge_updates_canonical_file(tmp_path: Path, capsys):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "imports").mkdir()
+    (tmp_path / "data" / "fundamentals.csv").write_text(
+        "ticker,revenue,source,as_of_date\n"
+        "MSFT,1000,old,2026-01-01\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "imports" / "fundamentals.csv").write_text(
+        "ticker,revenue,source,as_of_date\n"
+        "MSFT,1100,new,2026-05-01\n",
+        encoding="utf-8",
+    )
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--apply-import-merge"]
+    try:
+        main()
+        output = capsys.readouterr().out
+        assert "fundamentals.csv: applied=True" in output
+        payload = pd.read_csv(tmp_path / "data" / "fundamentals.csv")
+        assert payload.loc[0, "revenue"] == 1100
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
+def test_stock_report_cli_preview_import_merge_json(tmp_path: Path, capsys):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "imports").mkdir()
+    (tmp_path / "data" / "imports" / "fundamentals.csv").write_text(
+        "ticker,revenue,source,as_of_date\n"
+        "NVDA,1000,manual,2026-05-01\n",
+        encoding="utf-8",
+    )
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--preview-import-merge", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["status"] == "valid"
+        assert payload["preview"][0]["file_name"] == "fundamentals.csv"
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
+def test_stock_report_cli_apply_import_merge_json(tmp_path: Path, capsys):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "imports").mkdir()
+    (tmp_path / "data" / "fundamentals.csv").write_text(
+        "ticker,revenue,source,as_of_date\n"
+        "MSFT,1000,old,2026-01-01\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "imports" / "fundamentals.csv").write_text(
+        "ticker,revenue,source,as_of_date\n"
+        "MSFT,1100,new,2026-05-01\n",
+        encoding="utf-8",
+    )
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--apply-import-merge", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["status"] == "applied"
+        assert payload["applied"][0]["file_name"] == "fundamentals.csv"
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
 def test_stock_report_from_rich_local_fixture_is_serializable_and_includes_validation(tmp_path: Path):
     payload = create_stock_report_payload("ALFA", provider_name="local", base_dir=_copy_rich_fixture(tmp_path))
 

@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from src.providers.local_importer import preview_import_merge, validate_imports
 from src.stock_report import build_provider, build_stock_report, export_stock_report_json
 
 
@@ -165,6 +166,31 @@ def render_stock_report_beta() -> None:
             with st.expander("Local Data Coverage / Validation", expanded=False):
                 validation = pd.DataFrame(local_provider.get_local_data_validation())
                 st.dataframe(validation, width="stretch", hide_index=True)
+        with st.expander("Local Data Import / Merge", expanded=False):
+            import_dir = DATA_DIR / "imports"
+            st.write(f"Import directory exists: `{import_dir.exists()}`")
+            import_validation = validate_imports(base_dir=BASE_DIR)
+            if import_validation["status"] == "no_staged_files":
+                st.info(import_validation["warnings"][0])
+            else:
+                staged_files = pd.DataFrame(
+                    [
+                        {
+                            "file_name": item["file_name"],
+                            "dataset_name": item["dataset_name"],
+                            "status": item["validation"]["status"],
+                            "row_count": item["validation"]["row_count"],
+                            "warnings": "; ".join(item["validation"]["warnings"]) or "-",
+                        }
+                        for item in import_validation["files"]
+                    ]
+                )
+                st.dataframe(staged_files, width="stretch", hide_index=True)
+                preview = preview_import_merge(base_dir=BASE_DIR)
+                if preview.get("preview"):
+                    preview_frame = pd.DataFrame(preview["preview"])
+                    st.caption("Preview only. Use CLI for apply.")
+                    st.dataframe(preview_frame, width="stretch", hide_index=True)
 
         if st.button("Generate Stock Report", key="stock-report-beta"):
             if not ticker:
