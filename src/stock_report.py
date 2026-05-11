@@ -21,6 +21,7 @@ from src.providers.local_market_data import LocalCSVMarketDataProvider
 from src.providers.local_importer import apply_import_merge, preview_import_merge, validate_imports
 from src.providers.local_templates import write_import_staging_files, write_local_data_templates
 from src.providers.mock_market_data import MockMarketDataProvider
+from src.providers.sec_companyfacts import build_sec_fundamentals_rows, write_sec_fundamentals_import
 from src.valuation import ValuationInput, ValuationResult, build_valuation_result
 
 
@@ -412,6 +413,28 @@ def create_stock_report_payload(ticker: str, provider_name: str = "local", base_
     return report.to_dict()
 
 
+def _read_dataset_tickers(base_dir: Path, dataset_name: str) -> list[str]:
+    provider = LocalCSVMarketDataProvider(base_dir=base_dir)
+    frame = provider.catalog.load_dataframe(dataset_name)
+    if frame is None or "ticker" not in frame.columns:
+        return []
+    return sorted(frame["ticker"].dropna().astype(str).str.upper().str.strip().unique().tolist())
+
+
+def _resolve_sec_tickers(args: argparse.Namespace, base_dir: Path) -> list[str]:
+    tickers: set[str] = set()
+    if args.tickers:
+        tickers.update(ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip())
+    if args.from_local_tickers:
+        provider = LocalCSVMarketDataProvider(base_dir=base_dir)
+        tickers.update(provider.list_local_tickers())
+    if args.from_universe:
+        tickers.update(_read_dataset_tickers(base_dir, "universe"))
+    if args.from_holdings:
+        tickers.update(_read_dataset_tickers(base_dir, "holdings"))
+    return sorted(ticker for ticker in tickers if ticker)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate a structured stock report.")
     parser.add_argument("--ticker", help="Ticker symbol to analyze")
@@ -424,6 +447,14 @@ def main() -> None:
     parser.add_argument("--validate-imports", action="store_true", help="Validate staged CSV imports under data/imports.")
     parser.add_argument("--preview-import-merge", action="store_true", help="Preview staged CSV merge effects without changing canonical data files.")
     parser.add_argument("--apply-import-merge", action="store_true", help="Validate and merge staged CSV imports into canonical local data files.")
+    parser.add_argument("--sec-stage-fundamentals", action="store_true", help="Fetch official SEC Companyfacts data and stage candidate fundamentals under data/imports/fundamentals.csv.")
+    parser.add_argument("--tickers", help="Comma-separated tickers for SEC staging.")
+    parser.add_argument("--from-local-tickers", action="store_true", help="Use locally discoverable tickers for SEC staging.")
+    parser.add_argument("--from-universe", action="store_true", help="Use tickers from data/universe.csv for SEC staging.")
+    parser.add_argument("--from-holdings", action="store_true", help="Use tickers from data/holdings.csv for SEC staging.")
+    parser.add_argument("--sec-user-agent", help="Identifying User-Agent required by the SEC, for example 'Name email@example.com'.")
+    parser.add_argument("--sec-refresh", action="store_true", help="Refresh SEC ticker-map and Companyfacts cache entries instead of reusing local cache.")
+    parser.add_argument("--overwrite", action="store_true", help="Overwrite staged SEC fundamentals.csv instead of upserting by ticker.")
     parser.add_argument("--template-dir", help="Optional destination directory for local CSV templates.")
     parser.add_argument("--json", action="store_true", help="Print CLI output as JSON for the supported validation/import/template commands.")
     args = parser.parse_args()
@@ -524,6 +555,58 @@ def main() -> None:
                     f"new={item['new_rows']} updated={item['updated_rows']} unchanged={item['unchanged_rows']} "
                     f"skipped={item['skipped_rows']} backup={item['backup_path'] or '-'}"
                 )
+        return
+
+    if args.sec_stage_fundamentals:
+        requested_tickers = _resolve_sec_tickers(args, cli_base_dir)
+        if not requested_tickers:
+            raise SystemExit(
+                "SEC staging requires at least one ticker source. Use --tickers, --from-local-tickers, "
+                "--from-universe, or --from-holdings."
+            )
+        try:
+            result = build_sec_fundamentals_rows(
+                requested_tickers,
+                user_agent=args.sec_user_agent,
+                cache_dir=cli_base_dir / "data" / "cache" / "sec",
+                refresh=args.sec_refresh,
+            )
+            write_result = write_sec_fundamentals_import(
+                result["rows"],
+                output_path=cli_base_dir / "data" / "imports" / "fundamentals.csv",
+                overwrite=args.overwrite,
+            )
+        except (RuntimeError, ValueError) as exc:
+            raise SystemExit(f"SEC staging failed: {exc}") from exc
+        payload = {
+            **result,
+            **write_result,
+            "recommended_next_commands": [
+                "python -m src.stock_report --validate-imports",
+                "python -m src.stock_report --preview-import-merge",
+                "python -m src.stock_report --apply-import-merge",
+            ],
+        }
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            print(f"requested_tickers: {', '.join(payload['requested_tickers']) or '-'}")
+            print(f"resolved_tickers: {', '.join(payload['resolved_tickers']) or '-'}")
+            print(f"unresolved_tickers: {', '.join(payload['unresolved_tickers']) or '-'}")
+            print(f"rows_written: {payload['rows_written']}")
+            print(f"staged_row_count: {payload.get('staged_row_count', 0)}")
+            print(f"output_path: {payload['output_path']}")
+            if payload["warnings"]:
+                print(f"warnings: {'; '.join(payload['warnings'])}")
+            for row in payload["row_summaries"]:
+                print(
+                    f"{row['ticker']}: populated={','.join(row['populated_fields']) or '-'} "
+                    f"missing={','.join(row['missing_fields']) or '-'} "
+                    f"warnings={'; '.join(row['warnings']) or '-'}"
+                )
+            print("next:")
+            for command in payload["recommended_next_commands"]:
+                print(f"- {command}")
         return
 
     if args.list_local_tickers:

@@ -34,6 +34,7 @@ def test_stock_report_workflow_does_not_introduce_direct_recommendation_language
         Path("src/dashboard.py"),
         Path("src/providers/market_data.py"),
         Path("src/providers/local_market_data.py"),
+        Path("src/providers/sec_companyfacts.py"),
     )
     source_text = "\n".join(path.read_text(encoding="utf-8") for path in guarded_paths)
     lowered = source_text.lower()

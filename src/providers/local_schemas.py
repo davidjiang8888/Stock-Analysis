@@ -56,6 +56,12 @@ LOCAL_DATASET_SCHEMAS: dict[str, LocalDatasetSchema] = {
             "debt_to_equity",
             "source",
             "as_of_date",
+            "sec_cik",
+            "sec_form",
+            "sec_filed_date",
+            "sec_accession",
+            "sec_fact_warnings",
+            "sec_entity_name",
         ),
         numeric_columns=(
             "revenue",
@@ -80,7 +86,7 @@ LOCAL_DATASET_SCHEMAS: dict[str, LocalDatasetSchema] = {
             "enterprise_value",
             "debt_to_equity",
         ),
-        date_columns=("as_of_date",),
+        date_columns=("as_of_date", "sec_filed_date"),
     ),
     "earnings": LocalDatasetSchema(
         dataset_name="earnings",

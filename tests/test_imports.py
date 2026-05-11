@@ -10,6 +10,7 @@ def test_new_modules_import_cleanly():
         "src.providers.local_schemas",
         "src.providers.local_templates",
         "src.providers.local_market_data",
+        "src.providers.sec_companyfacts",
         "src.providers.yfinance_provider",
         "src.dashboard",
         "src.stock_report",

@@ -170,6 +170,25 @@ def render_stock_report_beta() -> None:
             import_dir = DATA_DIR / "imports"
             st.write(f"Import directory exists: `{import_dir.exists()}`")
             import_validation = validate_imports(base_dir=BASE_DIR)
+            sec_staged_path = import_dir / "fundamentals.csv"
+            if sec_staged_path.exists():
+                modified_at = pd.Timestamp(sec_staged_path.stat().st_mtime, unit="s", tz="UTC").isoformat()
+                staged_fundamentals = next(
+                    (
+                        item
+                        for item in import_validation.get("files", [])
+                        if item.get("file_name") == "fundamentals.csv"
+                    ),
+                    None,
+                )
+                sec_summary = {
+                    "file_exists": True,
+                    "last_modified": modified_at,
+                    "row_count": staged_fundamentals["validation"]["row_count"] if staged_fundamentals else 0,
+                    "validation_status": staged_fundamentals["validation"]["status"] if staged_fundamentals else "unknown",
+                }
+                st.caption("SEC staged fundamentals visibility")
+                st.json(sec_summary, expanded=False)
             if import_validation["status"] == "no_staged_files":
                 st.info(import_validation["warnings"][0])
             else:

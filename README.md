@@ -408,6 +408,99 @@ python -m src.stock_report --validate-local-data
 python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
 ```
 
+## SEC Companyfacts staging workflow
+
+The project now includes a read-only SEC Companyfacts adapter that can stage candidate fundamentals into:
+
+- `data/imports/fundamentals.csv`
+
+It never writes directly to `data/fundamentals.csv`. You must still review staged data and run the explicit import workflow.
+
+### User-Agent requirement
+
+SEC requests require an identifying User-Agent. You can provide it either as:
+
+- CLI flag: `--sec-user-agent "Your Name your.email@example.com"`
+- environment variable: `SEC_USER_AGENT`
+
+Example:
+
+```bash
+export SEC_USER_AGENT="Your Name your.email@example.com"
+```
+
+### Cache and fair-access behavior
+
+- the SEC ticker map and Companyfacts responses are cached under `data/cache/sec/`
+- cached JSON is reused unless you pass `--sec-refresh`
+- the adapter uses a small delay between live requests to stay within fair-access expectations
+- tests mock SEC responses and do not require network access
+
+### What the SEC adapter can stage
+
+When the facts are available, the adapter may stage:
+
+- `revenue`
+- `revenue_growth`
+- `eps`
+- `free_cash_flow`
+- `fcf_margin`
+- `profit_margin`
+- `operating_margin`
+- `ebitda` only when directly available from SEC facts
+- `cash`
+- `debt`
+- `shares_outstanding`
+- `source`
+- `as_of_date`
+- SEC metadata fields such as `sec_cik`, `sec_form`, `sec_filed_date`, `sec_accession`, `sec_fact_warnings`, and `sec_entity_name`
+
+Fields may remain blank when the official SEC facts are missing or not reliably derivable.
+
+Important limits:
+
+- SEC staging does not create analyst estimates
+- SEC staging does not create peer mappings
+- SEC staging does not fetch market prices
+- SEC staging does not apply imports automatically
+- user review is still required before merging staged data
+
+### SEC staging commands
+
+Stage explicit tickers:
+
+```bash
+python -m src.stock_report --sec-stage-fundamentals --tickers NVDA,MSFT --sec-user-agent "Your Name your.email@example.com"
+```
+
+Stage from the local ticker universe:
+
+```bash
+python -m src.stock_report --sec-stage-fundamentals --from-local-tickers --sec-user-agent "Your Name your.email@example.com"
+python -m src.stock_report --sec-stage-fundamentals --from-universe --sec-user-agent "Your Name your.email@example.com"
+python -m src.stock_report --sec-stage-fundamentals --from-holdings --sec-user-agent "Your Name your.email@example.com"
+```
+
+Optional flags:
+
+- `--sec-refresh` to refresh SEC cache entries
+- `--overwrite` to replace the staged `data/imports/fundamentals.csv` file instead of upserting by ticker
+- `--json` for JSON-formatted CLI output
+
+### SEC staging example
+
+```bash
+export SEC_USER_AGENT="Your Name your.email@example.com"
+python -m src.stock_report --sec-stage-fundamentals --tickers NVDA,MSFT
+python -m src.stock_report --validate-imports
+python -m src.stock_report --preview-import-merge
+python -m src.stock_report --apply-import-merge
+python -m src.stock_report --validate-local-data
+python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
+```
+
+This remains a research-only workflow. It does not execute trades, place orders, or provide direct buy/sell advice.
+
 ## Run tests
 
 ```bash
