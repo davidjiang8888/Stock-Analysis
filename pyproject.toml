@@ -16,6 +16,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+research = [
+  "yfinance>=0.2",
+]
 dev = [
   "pytest>=8.0",
 ]

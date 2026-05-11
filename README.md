@@ -41,6 +41,12 @@ The `stock_analysis/` directory is a documented legacy scaffold kept for referen
 pip install -e .[dev]
 ```
 
+If you want the optional research-grade yfinance-backed stock report workflow, install:
+
+```bash
+pip install -e .[dev,research]
+```
+
 ## Run the pipeline
 
 Generate all active outputs:
@@ -57,6 +63,38 @@ The active pipeline now owns all generated CSVs:
 - `outputs/portfolio_review.csv`
 - `outputs/undervalued_candidates.csv`
 - `outputs/final_watchlist.csv`
+
+## Agent workflow layer
+
+This repo also includes a Codex/agent workflow layer under:
+
+- `.agents/skills/stock-analysis-core/`
+
+It adapts selected market-analysis concepts from `himself65/finance-skills` for this project:
+
+- `yfinance-data`
+- `company-valuation`
+- `earnings-preview`
+- `earnings-recap`
+- `estimate-analysis`
+
+These are integrated as reusable research workflows only. They are not broker automations, trade execution systems, or production market-data guarantees.
+
+## Optional stock report workflow
+
+The project now includes a typed stock-report assembly layer for research workflows.
+
+- provider interface: `src/providers/market_data.py`
+- mock provider for tests: `src/providers/mock_market_data.py`
+- optional yfinance adapter: `src/providers/yfinance_provider.py`
+- report assembly: `src/stock_report.py`
+- valuation scaffolding: `src/valuation.py`
+
+Important:
+
+- yfinance-backed data should be treated as unofficial / research-grade
+- the core screener still runs on the local CSV-first pipeline
+- all new market/fundamental calls stay behind provider interfaces
 
 ## Optional daily price-data update
 

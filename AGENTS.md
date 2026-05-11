@@ -2,8 +2,13 @@
 
 You are building a local Python stock research screener.
 
+This is a Stock Analysis project.
+
+For stock-analysis workflow features, use `.agents/skills/stock-analysis-core/SKILL.md`.
+
 This project is for investment research, watchlist generation, portfolio review, and risk discipline.
 It must not implement auto-trading, order execution, broker integration, or direct buy/sell instructions.
+Never implement AI trade execution.
 
 ## Core philosophy
 
@@ -76,6 +81,9 @@ Never fabricate missing data.
 Keep scoring formulas transparent.
 Every output row must include reasons, not just scores.
 Do not hide rules inside black-box model calls.
+Always keep financial data access behind provider interfaces.
+Always include source/freshness metadata for market data.
+For valuation, show assumptions and sensitivity where possible.
 
 ## Output files
 
@@ -117,3 +125,4 @@ The project is done when:
 - Missing data does not crash the program.
 - README explains setup, inputs, outputs, and limitations.
 - The system does not output direct buy/sell commands.
+- Before completing work, run available lint/tests or explain why they could not be run.
