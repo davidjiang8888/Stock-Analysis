@@ -282,11 +282,16 @@ def render_stock_report_beta() -> None:
             else:
                 st.write("No explicit missing-data warnings were assembled from the current inputs.")
 
+            if report_payload.get("valuation_readiness"):
+                st.markdown("**9. Valuation Readiness**")
+                readiness = report_payload["valuation_readiness"]
+                st.json(readiness, expanded=False)
+
             if report_payload.get("local_data_validation"):
                 with st.expander("Validation details used by this report", expanded=False):
                     st.dataframe(pd.DataFrame(report_payload["local_data_validation"]), width="stretch", hide_index=True)
 
-            st.markdown("**9. Source / Freshness Notes**")
+            st.markdown("**10. Source / Freshness Notes**")
             st.dataframe(pd.DataFrame(report_payload["data_freshness"]), width="stretch", hide_index=True)
 
             if report_payload.get("screener_context"):

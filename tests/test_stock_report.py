@@ -112,6 +112,7 @@ def test_build_stock_report_assembles_expected_sections():
     assert report["earnings_summary"]["next_earnings_date"] == "2026-07-24"
     assert report["analyst_estimate_summary"]["target_mean_price"] == 390.0
     assert "missing_data_warnings" in report
+    assert report["valuation_readiness"]["dcf_ready"] is True
     assert report["local_data_validation"] == []
     assert len(report["data_freshness"]) >= 3
     assert any("research-grade" in " ".join(note["notes"]).lower() for note in report["data_freshness"])
@@ -193,6 +194,7 @@ def test_stock_report_json_export_is_serializable_and_contains_freshness_metadat
     assert parsed["data_freshness"][0]["provider"] == "mock"
     assert parsed["provider_name"] == "MockMarketDataProvider"
     assert "missing_data_warnings" in parsed
+    assert "valuation_readiness" in parsed
     assert "status" in parsed["valuation_snapshot"]
     assert parsed["valuation_snapshot"]["status"] == "insufficient_data"
 
@@ -219,6 +221,7 @@ def test_create_stock_report_payload_uses_local_provider_when_csvs_are_available
     assert payload["data_freshness"][0]["provider"] == "local:prices.csv"
     assert payload["dataset_coverage"]
     assert "local_data_validation" in payload
+    assert "valuation_readiness" in payload
     assert payload["valuation_snapshot"]["status"] == "calculated"
     assert payload["valuation_snapshot"]["coverage"] == "partial"
 
@@ -296,10 +299,44 @@ def test_stock_report_cli_validate_local_data_human_output(tmp_path: Path, capsy
         os.chdir(previous_cwd)
 
 
+def test_stock_report_cli_write_local_data_templates(tmp_path: Path, capsys):
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--write-local-data-templates"]
+    try:
+        main()
+        output = capsys.readouterr().out
+        assert "fundamentals: created" in output
+        assert "peers: created" in output
+        assert (tmp_path / "data" / "templates" / "fundamentals.csv").exists()
+        assert (tmp_path / "data" / "templates" / "peers.csv").exists()
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
+def test_stock_report_cli_write_local_data_templates_json(tmp_path: Path, capsys):
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--write-local-data-templates", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+        assert any(item["dataset_name"] == "fundamentals" for item in payload)
+        assert any(item["dataset_name"] == "analyst_estimates" for item in payload)
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
 def test_stock_report_from_rich_local_fixture_is_serializable_and_includes_validation(tmp_path: Path):
     payload = create_stock_report_payload("ALFA", provider_name="local", base_dir=_copy_rich_fixture(tmp_path))
 
     assert payload["valuation_snapshot"]["dcf_result"]["status"] == "calculated"
     assert payload["valuation_snapshot"]["relative_valuation"]["status"] == "calculated"
+    assert payload["valuation_readiness"]["dcf_ready"] is True
+    assert payload["valuation_readiness"]["peer_ready"] is True
     assert payload["local_data_validation"]
     assert any(item["name"] == "peers" for item in payload["local_data_validation"])

@@ -18,6 +18,7 @@ from src.providers.market_data import (
     make_source_metadata,
 )
 from src.providers.local_market_data import LocalCSVMarketDataProvider
+from src.providers.local_templates import write_local_data_templates
 from src.providers.mock_market_data import MockMarketDataProvider
 from src.valuation import ValuationInput, ValuationResult, build_valuation_result
 
@@ -58,6 +59,7 @@ class StockReport:
     key_risks: list[str]
     missing_data_warnings: list[str]
     data_freshness: list[DataFreshnessNote]
+    valuation_readiness: dict[str, Any] = field(default_factory=dict)
     dataset_coverage: list[dict[str, Any]] = field(default_factory=list)
     local_data_validation: list[dict[str, Any]] = field(default_factory=list)
     screener_context: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -76,6 +78,7 @@ class StockReport:
             "key_risks": self.key_risks,
             "missing_data_warnings": self.missing_data_warnings,
             "data_freshness": [note.to_dict() for note in self.data_freshness],
+            "valuation_readiness": self.valuation_readiness,
             "dataset_coverage": self.dataset_coverage,
             "local_data_validation": self.local_data_validation,
             "screener_context": self.screener_context,
@@ -223,6 +226,48 @@ def _valuation_snapshot_dict(result: ValuationResult) -> dict[str, Any]:
     return result.to_dict()
 
 
+def _valuation_readiness_dict(
+    valuation: ValuationResult,
+    earnings: EarningsSummary,
+    estimates: AnalystEstimateSummary,
+) -> dict[str, Any]:
+    dcf_missing = list(valuation.dcf_result.missing_fields)
+    relative_missing = list(valuation.relative_valuation.missing_fields)
+    return {
+        "dcf_ready": valuation.dcf_result.status == "calculated",
+        "relative_ready": valuation.relative_valuation.status in {"calculated", "peer_data_unavailable"},
+        "peer_ready": valuation.relative_valuation.status == "calculated",
+        "peer_count": valuation.relative_valuation.peer_count,
+        "earnings_available": any(
+            value is not None
+            for value in (
+                earnings.next_earnings_date,
+                earnings.last_earnings_date,
+                earnings.eps_estimate,
+                earnings.eps_actual,
+                earnings.revenue_estimate,
+                earnings.revenue_actual,
+            )
+        ),
+        "analyst_estimates_available": any(
+            value is not None
+            for value in (
+                estimates.current_quarter_eps,
+                estimates.next_quarter_eps,
+                estimates.current_year_eps,
+                estimates.next_year_eps,
+                estimates.target_mean_price,
+            )
+        ),
+        "dcf_missing_fields": dcf_missing,
+        "relative_missing_fields": relative_missing,
+        "notes": [
+            "DCF readiness requires either direct free cash flow or revenue plus FCF margin.",
+            "Peer-relative readiness requires local peers plus enough peer fundamentals to form median multiples.",
+        ],
+    }
+
+
 def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport:
     ticker = ticker.upper()
     quote = provider.get_quote(ticker)
@@ -290,6 +335,7 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
         key_risks=_build_risks(performance, financials, earnings, estimates),
         missing_data_warnings=missing_data_warnings,
         data_freshness=data_freshness,
+        valuation_readiness=_valuation_readiness_dict(valuation, earnings, estimates),
         dataset_coverage=dataset_coverage,
         local_data_validation=local_data_validation,
         screener_context=screener_context,
@@ -372,9 +418,26 @@ def main() -> None:
     parser.add_argument("--output", help="Optional JSON output path")
     parser.add_argument("--list-local-tickers", action="store_true", help="List tickers discoverable from local CSV datasets.")
     parser.add_argument("--validate-local-data", action="store_true", help="Validate local CSV datasets and report schema coverage.")
+    parser.add_argument("--write-local-data-templates", action="store_true", help="Write header-only local enrichment CSV templates under data/templates.")
+    parser.add_argument("--template-dir", help="Optional destination directory for local CSV templates.")
     parser.add_argument("--json", action="store_true", help="Print validation output as JSON when used with --validate-local-data.")
     args = parser.parse_args()
     cli_base_dir = Path.cwd()
+
+    if args.write_local_data_templates:
+        template_results = write_local_data_templates(
+            base_dir=cli_base_dir,
+            template_dir=Path(args.template_dir) if args.template_dir else None,
+        )
+        if args.json:
+            print(json.dumps(template_results, indent=2))
+        else:
+            for item in template_results:
+                print(
+                    f"{item['dataset_name']}: {item['status']} -> {item['path']} "
+                    f"columns={','.join(item['columns'])}"
+                )
+        return
 
     if args.validate_local_data:
         provider = LocalCSVMarketDataProvider(base_dir=cli_base_dir)

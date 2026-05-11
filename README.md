@@ -225,6 +225,18 @@ For JSON-friendly validation output:
 python -m src.stock_report --validate-local-data --json
 ```
 
+To scaffold header-only local enrichment templates without fabricating any production data:
+
+```bash
+python -m src.stock_report --write-local-data-templates
+```
+
+For JSON-friendly template creation output:
+
+```bash
+python -m src.stock_report --write-local-data-templates --json
+```
+
 For a demo/smoke workflow:
 
 ```bash
@@ -252,6 +264,7 @@ The exported JSON includes:
 - source / freshness metadata
 - local dataset coverage
 - local schema validation metadata
+- valuation readiness diagnostics showing whether DCF, peer-relative work, earnings, and analyst estimates are actually available
 
 ## Optional daily price-data update
 
@@ -311,6 +324,7 @@ If you want richer deterministic valuation coverage without relying on yfinance:
 
 ```bash
 python -m src.stock_report --validate-local-data
+python -m src.stock_report --write-local-data-templates
 python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
 ```
 
@@ -378,6 +392,17 @@ Final state-machine view combining purpose, momentum, and portfolio context into
 - now adds transparent ranking fields such as `WatchlistScore`, `WatchlistRank`, and `RankReason`
 - ranking is driven by final state plus value context, not by hidden model output
 - always includes a `Reason`
+
+## Local data onboarding tips
+
+- `--write-local-data-templates` creates header-only CSV templates under `data/templates/`
+- these templates are safe starting points for adding real local data later
+- they do not fabricate fundamentals, earnings, analyst estimates, or peer mappings
+- the Stock Report Beta now includes valuation-readiness diagnostics so you can see exactly which inputs are still missing for:
+  - DCF
+  - peer-relative valuation
+  - earnings summary
+  - analyst estimate summary
 
 ## Missing-data behavior
 
