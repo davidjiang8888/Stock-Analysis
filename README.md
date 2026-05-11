@@ -89,14 +89,14 @@ The project now includes a typed stock-report assembly layer for research workfl
 - mock provider for tests: `src/providers/mock_market_data.py`
 - optional yfinance adapter: `src/providers/yfinance_provider.py`
 - report assembly: `src/stock_report.py`
-- valuation scaffolding: `src/valuation.py`
+- valuation engine: `src/valuation.py`
 
 Important:
 
 - yfinance-backed data should be treated as unofficial / research-grade
 - the core screener still runs on the local CSV-first pipeline
 - all new market/fundamental calls stay behind provider interfaces
-- valuation is scaffold-level only in this phase and remains incomplete until Phase 2A
+- valuation is informational only and not financial advice
 - local earnings and analyst-estimate coverage is intentionally limited unless a richer data source is added
 
 ### Local CSV-first architecture
@@ -111,11 +111,42 @@ The stock-report beta uses local files first.
 
 Expected optional schema examples:
 
-- fundamentals: `ticker` plus fields such as `revenue`, `eps`, `free_cash_flow`, `profit_margin`, `operating_margin`, `pe_ratio`
+- fundamentals: `ticker` plus fields such as `revenue`, `revenue_growth`, `eps`, `free_cash_flow`, `fcf_margin`, `profit_margin`, `operating_margin`, `ebitda`, `cash`, `debt`, `shares_outstanding`, `pe_ratio`, `market_cap`
 - earnings: `ticker` plus fields such as `next_earnings_date`, `last_earnings_date`, `eps_estimate`, `eps_actual`, `revenue_estimate`, `revenue_actual`, `surprise_pct`
 - analyst estimates: `ticker` plus fields such as `current_quarter_eps`, `next_quarter_eps`, `current_year_eps`, `next_year_eps`, `target_mean_price`, `recommendation`
 
 Missing files or sparse columns do not crash the workflow. The report continues with explicit missing-data warnings and source/freshness notes.
+
+### Phase 2A valuation methodology
+
+The stock report now includes a real valuation engine that stays conservative about missing data.
+
+- DCF is calculated only when the local/provider inputs are sufficient
+- direct FCF projection is used when free cash flow exists
+- revenue-plus-FCF-margin projection is used when revenue and FCF margin exist
+- EPS is never used as a hidden substitute for free cash flow
+- WACC must remain above terminal growth
+- per-share fair value is shown only when equity value and shares outstanding are both available
+- when the inputs are incomplete, the valuation result returns `insufficient_data` or partial coverage instead of fabricated outputs
+
+DCF defaults are explicit in code:
+
+- bear: lower growth, lower FCF margin, higher WACC, lower terminal growth
+- base: moderate growth, moderate WACC, moderate terminal growth
+- bull: higher growth, higher FCF margin, lower WACC, higher terminal growth while still below WACC
+
+Sensitivity:
+
+- the dashboard and JSON output include a WACC vs terminal-growth sensitivity table
+- the grid is only produced when the base DCF can actually derive fair value per share
+
+Relative valuation:
+
+- standalone P/E is calculated when price and EPS exist
+- standalone P/S is calculated when price, revenue, and shares exist
+- standalone P/FCF is calculated when price, FCF, and shares exist
+- EV/EBITDA is calculated only when EBITDA, cash, debt, and market-cap context are available
+- peer multiples are not fabricated; if peers are unavailable, the result is labeled accordingly
 
 ### Stock Report Beta in the dashboard
 
@@ -127,6 +158,7 @@ The Streamlit dashboard now includes a `Stock Report (Beta)` section.
 - the Beta section can export the structured report as JSON
 - the Beta section can show local dataset coverage for the selected ticker
 - the Beta section surfaces missing-data warnings instead of guessing unavailable values
+- the Beta section shows valuation status, bull/base/bear scenarios, relative multiples, and sensitivity when available
 
 This section is additive and does not replace the existing CSV-first screener pages.
 
@@ -165,7 +197,7 @@ The exported JSON includes:
 - provider name
 - price snapshot and performance windows
 - financial / earnings / analyst-estimate sections when local data exists
-- valuation scaffold status and notes
+- valuation status, DCF result, bull/base/bear scenarios, sensitivity, and relative valuation context
 - key risks
 - missing-data warnings
 - source / freshness metadata

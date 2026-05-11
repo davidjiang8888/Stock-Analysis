@@ -43,18 +43,24 @@ class QuoteSnapshot:
 class FinancialSnapshot:
     ticker: str
     revenue: float | None = None
+    revenue_growth: float | None = None
     eps: float | None = None
     gross_margin: float | None = None
     operating_margin: float | None = None
     profit_margin: float | None = None
     free_cash_flow: float | None = None
+    fcf_margin: float | None = None
+    ebitda: float | None = None
     market_cap: float | None = None
     enterprise_value: float | None = None
     trailing_pe: float | None = None
     forward_pe: float | None = None
     price_to_book: float | None = None
     shares_outstanding: float | None = None
+    cash: float | None = None
+    debt: float | None = None
     net_debt: float | None = None
+    debt_to_equity: float | None = None
     currency: str | None = None
     as_of_date: str | None = None
     source: SourceMetadata | None = None

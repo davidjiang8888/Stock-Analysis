@@ -19,7 +19,7 @@ from src.providers.market_data import (
 )
 from src.providers.local_market_data import LocalCSVMarketDataProvider
 from src.providers.mock_market_data import MockMarketDataProvider
-from src.valuation import ValuationScaffold, build_default_valuation_scaffold
+from src.valuation import ValuationInput, ValuationResult, build_valuation_result
 
 
 @dataclass
@@ -149,6 +149,7 @@ def _build_missing_data_warnings(
     earnings: EarningsSummary,
     estimates: AnalystEstimateSummary,
     dataset_coverage: list[dict[str, Any]],
+    valuation: ValuationResult,
 ) -> list[str]:
     warnings: list[str] = []
     core_datasets = {"prices", "fundamentals", "earnings", "analyst_estimates"}
@@ -166,6 +167,8 @@ def _build_missing_data_warnings(
         warnings.append("Free cash flow is unavailable from the current local fundamentals dataset.")
     warnings.extend(earnings.notes)
     warnings.extend(estimates.notes)
+    warnings.extend(valuation.warnings)
+    warnings.extend([f"Valuation missing field: {field}" for field in valuation.missing_fields])
     for row in dataset_coverage:
         if row.get("dataset_name") in core_datasets and not row.get("ticker_present"):
             warnings.append(f"{row['dataset_name']} has no local row for this ticker.")
@@ -190,28 +193,32 @@ def _price_snapshot_dict(quote: QuoteSnapshot) -> dict[str, Any]:
 def _financial_summary_dict(financials: FinancialSnapshot) -> dict[str, Any]:
     return {
         "revenue": financials.revenue,
+        "revenue_growth": financials.revenue_growth,
         "eps": financials.eps,
         "gross_margin": financials.gross_margin,
         "operating_margin": financials.operating_margin,
         "profit_margin": financials.profit_margin,
         "free_cash_flow": financials.free_cash_flow,
+        "fcf_margin": financials.fcf_margin,
+        "ebitda": financials.ebitda,
         "market_cap": financials.market_cap,
         "enterprise_value": financials.enterprise_value,
         "trailing_pe": financials.trailing_pe,
         "forward_pe": financials.forward_pe,
         "price_to_book": financials.price_to_book,
+        "shares_outstanding": financials.shares_outstanding,
+        "cash": financials.cash,
+        "debt": financials.debt,
+        "net_debt": financials.net_debt,
+        "debt_to_equity": financials.debt_to_equity,
         "currency": financials.currency,
         "as_of_date": financials.as_of_date,
         "source": financials.source.to_dict() if financials.source else None,
     }
 
 
-def _valuation_snapshot_dict(scaffold: ValuationScaffold) -> dict[str, Any]:
-    return {
-        "status": "scaffold",
-        "notes": ["Valuation remains a Phase 1 scaffold and should not be treated as a finished fair-value model."],
-        **scaffold.to_dict(),
-    }
+def _valuation_snapshot_dict(result: ValuationResult) -> dict[str, Any]:
+    return result.to_dict()
 
 
 def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport:
@@ -223,14 +230,6 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
     estimates = provider.get_analyst_estimates(ticker)
 
     performance = _performance_from_history(history)
-    valuation = build_default_valuation_scaffold(
-        ticker=ticker,
-        current_price=quote.price,
-        shares_outstanding=financials.shares_outstanding,
-        net_debt=financials.net_debt,
-        free_cash_flow=financials.free_cash_flow,
-    )
-
     data_freshness = [_metadata_from_source(quote.source)]
     if financials.source:
         data_freshness.append(_metadata_from_source(financials.source))
@@ -241,12 +240,37 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
 
     dataset_coverage = provider.get_ticker_dataset_coverage(ticker) if hasattr(provider, "get_ticker_dataset_coverage") else []
     screener_context = provider.get_screener_context(ticker) if hasattr(provider, "get_screener_context") else {}
+    valuation = build_valuation_result(
+        ValuationInput(
+            ticker=ticker,
+            current_price=quote.price,
+            revenue=financials.revenue,
+            revenue_growth=financials.revenue_growth,
+            free_cash_flow=financials.free_cash_flow,
+            fcf_margin=financials.fcf_margin,
+            operating_margin=financials.operating_margin,
+            profit_margin=financials.profit_margin,
+            eps=financials.eps,
+            ebitda=financials.ebitda,
+            shares_outstanding=financials.shares_outstanding,
+            cash=financials.cash,
+            debt=financials.debt,
+            net_debt=financials.net_debt,
+            market_cap=financials.market_cap,
+            trailing_pe=financials.trailing_pe,
+            forward_pe=financials.forward_pe,
+            price_to_book=financials.price_to_book,
+            source_metadata=[note.to_dict() for note in data_freshness],
+            screener_context=screener_context,
+        )
+    )
     missing_data_warnings = _build_missing_data_warnings(
         performance,
         financials,
         earnings,
         estimates,
         dataset_coverage,
+        valuation,
     )
 
     return StockReport(
@@ -305,7 +329,22 @@ def build_provider(provider_name: str, base_dir: Path | None = None) -> MarketDa
                 )
             },
             histories={("AAPL", "1y", "1d"): history},
-            financials={"AAPL": FinancialSnapshot(ticker="AAPL", revenue=1_000_000_000, free_cash_flow=100_000_000, source=source)},
+            financials={
+                "AAPL": FinancialSnapshot(
+                    ticker="AAPL",
+                    revenue=1_000_000_000,
+                    revenue_growth=0.10,
+                    eps=12.0,
+                    free_cash_flow=100_000_000,
+                    fcf_margin=0.10,
+                    operating_margin=0.22,
+                    ebitda=180_000_000,
+                    shares_outstanding=1_000_000,
+                    cash=50_000_000,
+                    debt=20_000_000,
+                    source=source,
+                )
+            },
             earnings={"AAPL": EarningsSummary(ticker="AAPL", next_earnings_date="2026-07-20", source=source)},
             estimates={"AAPL": AnalystEstimateSummary(ticker="AAPL", current_quarter_eps=1.5, source=source)},
         )

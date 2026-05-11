@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import pandas as pd
@@ -46,7 +46,7 @@ class YFinanceProvider(MarketDataProvider):
             freshness=freshness,
             official=False,
             notes=notes,
-            retrieved_at=datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            retrieved_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         )
 
     @staticmethod
@@ -111,21 +111,30 @@ class YFinanceProvider(MarketDataProvider):
         return FinancialSnapshot(
             ticker=ticker.upper(),
             revenue=self._clean_float(info.get("totalRevenue")),
+            revenue_growth=self._clean_float(info.get("revenueGrowth")),
             eps=self._clean_float(info.get("trailingEps")),
             gross_margin=self._clean_float(info.get("grossMargins")),
             operating_margin=self._clean_float(info.get("operatingMargins")),
             profit_margin=self._clean_float(info.get("profitMargins")),
             free_cash_flow=self._clean_float(info.get("freeCashflow")),
+            fcf_margin=self._clean_float(info.get("freeCashflow"))
+            / self._clean_float(info.get("totalRevenue"))
+            if self._clean_float(info.get("freeCashflow")) is not None and self._clean_float(info.get("totalRevenue")) not in (None, 0)
+            else None,
+            ebitda=self._clean_float(info.get("ebitda")),
             market_cap=self._clean_float(info.get("marketCap")),
             enterprise_value=self._clean_float(info.get("enterpriseValue")),
             trailing_pe=self._clean_float(info.get("trailingPE")),
             forward_pe=self._clean_float(info.get("forwardPE")),
             price_to_book=self._clean_float(info.get("priceToBook")),
             shares_outstanding=self._clean_float(info.get("sharesOutstanding")),
+            cash=self._clean_float(info.get("totalCash")),
+            debt=self._clean_float(info.get("totalDebt")),
             net_debt=self._clean_float(info.get("totalDebt"))
             - self._clean_float(info.get("totalCash"))
             if self._clean_float(info.get("totalDebt")) is not None and self._clean_float(info.get("totalCash")) is not None
             else None,
+            debt_to_equity=self._clean_float(info.get("debtToEquity")),
             currency=self._clean_str(info.get("financialCurrency") or info.get("currency")),
             as_of_date=self._clean_str(info.get("mostRecentQuarter")),
             source=self._source("latest available fundamentals"),

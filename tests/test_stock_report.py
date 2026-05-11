@@ -51,10 +51,14 @@ def test_build_stock_report_assembles_expected_sections():
             "MSFT": FinancialSnapshot(
                 ticker="MSFT",
                 revenue=250_000_000_000,
+                revenue_growth=0.10,
                 eps=12.5,
                 gross_margin=0.68,
                 operating_margin=0.42,
                 free_cash_flow=90_000_000_000,
+                fcf_margin=0.36,
+                cash=90_000_000_000,
+                debt=40_000_000_000,
                 market_cap=2_700_000_000_000,
                 shares_outstanding=7_400_000_000,
                 source=source,
@@ -78,7 +82,7 @@ def test_build_stock_report_assembles_expected_sections():
                 next_quarter_eps=3.25,
                 current_year_eps=13.0,
                 next_year_eps=14.1,
-                recommendation="buy",
+                recommendation="outperform",
                 target_mean_price=390.0,
                 source=source,
             )
@@ -93,7 +97,8 @@ def test_build_stock_report_assembles_expected_sections():
     assert report["price_snapshot"]["price"] == 360.0
     assert report["performance"]["one_month"] is not None
     assert report["financial_summary"]["revenue"] == 250_000_000_000
-    assert report["valuation_snapshot"]["ticker"] == "MSFT"
+    assert report["valuation_snapshot"]["status"] == "calculated"
+    assert report["valuation_snapshot"]["dcf_result"]["fair_value_per_share"] is not None
     assert report["earnings_summary"]["next_earnings_date"] == "2026-07-24"
     assert report["analyst_estimate_summary"]["target_mean_price"] == 390.0
     assert "missing_data_warnings" in report
@@ -135,6 +140,7 @@ def test_build_stock_report_surfaces_missing_data_risks():
     assert any("1Y price performance is unavailable" in risk for risk in report.key_risks)
     assert any("Free-cash-flow coverage is unavailable" in risk for risk in report.key_risks)
     assert any("Operating margin is negative" in risk for risk in report.key_risks)
+    assert report.valuation_snapshot["status"] == "insufficient_data"
 
 
 def test_stock_report_json_export_is_serializable_and_contains_freshness_metadata(tmp_path: Path):
@@ -177,7 +183,7 @@ def test_stock_report_json_export_is_serializable_and_contains_freshness_metadat
     assert parsed["provider_name"] == "MockMarketDataProvider"
     assert "missing_data_warnings" in parsed
     assert "status" in parsed["valuation_snapshot"]
-    assert parsed["valuation_snapshot"]["status"] == "scaffold"
+    assert parsed["valuation_snapshot"]["status"] == "insufficient_data"
 
 
 def test_create_stock_report_payload_uses_local_provider_when_csvs_are_available(tmp_path: Path):
@@ -201,6 +207,8 @@ def test_create_stock_report_payload_uses_local_provider_when_csvs_are_available
     assert payload["financial_summary"]["profit_margin"] == 0.30
     assert payload["data_freshness"][0]["provider"] == "local:prices.csv"
     assert payload["dataset_coverage"]
+    assert payload["valuation_snapshot"]["status"] == "calculated"
+    assert payload["valuation_snapshot"]["coverage"] == "partial"
 
 
 def test_stock_report_cli_fails_gracefully_for_missing_local_ticker(tmp_path: Path):

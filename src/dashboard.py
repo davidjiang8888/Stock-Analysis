@@ -190,8 +190,73 @@ def render_stock_report_beta() -> None:
             st.markdown("**3. Financial Summary**")
             st.json(report_payload["financial_summary"], expanded=False)
 
-            st.markdown("**4. Valuation Snapshot / Scaffold Status**")
-            st.json(report_payload["valuation_snapshot"], expanded=False)
+            valuation = report_payload["valuation_snapshot"]
+            st.markdown("**4. Valuation**")
+            st.write(f"Status: `{valuation['status']}`")
+            st.write(f"Coverage: `{valuation.get('coverage', 'n/a')}`")
+
+            base_dcf = valuation["dcf_result"]
+            if base_dcf.get("fair_value_per_share") is not None:
+                st.write(f"Base-case fair value per share: `{base_dcf['fair_value_per_share']:.2f}`")
+            else:
+                st.write("Base-case fair value per share is unavailable with the current data.")
+
+            scenario_rows = []
+            for scenario in valuation.get("scenarios", []):
+                result = scenario["dcf_result"]
+                scenario_rows.append(
+                    {
+                        "Scenario": scenario["name"],
+                        "Status": result["status"],
+                        "WACC": scenario["assumptions"]["wacc"],
+                        "TerminalGrowth": scenario["assumptions"]["terminal_growth"],
+                        "RevenueGrowth": scenario["assumptions"]["revenue_growth"],
+                        "FCFMargin": scenario["assumptions"]["fcf_margin"],
+                        "FairValuePerShare": result["fair_value_per_share"],
+                        "EnterpriseValue": result["enterprise_value"],
+                        "EquityValue": result["equity_value"],
+                    }
+                )
+            if scenario_rows:
+                st.caption("Bull / base / bear scenarios")
+                st.dataframe(pd.DataFrame(scenario_rows), width="stretch", hide_index=True)
+
+            relative = valuation["relative_valuation"]
+            st.caption("Relative valuation")
+            st.json(
+                {
+                    "status": relative["status"],
+                    "available_multiples": relative["available_multiples"],
+                    "missing_fields": relative["missing_fields"],
+                    "warnings": relative["warnings"],
+                    "notes": relative["notes"],
+                },
+                expanded=False,
+            )
+
+            sensitivity = valuation["sensitivity_table"]
+            if sensitivity["status"] == "calculated" and sensitivity["fair_value_grid"]:
+                sensitivity_frame = pd.DataFrame(
+                    sensitivity["fair_value_grid"],
+                    index=[f"WACC {value:.1%}" for value in sensitivity["wacc_values"]],
+                    columns=[f"TG {value:.1%}" for value in sensitivity["terminal_growth_values"]],
+                )
+                st.caption("DCF sensitivity table")
+                st.dataframe(sensitivity_frame, width="stretch")
+            else:
+                st.caption("DCF sensitivity table unavailable")
+                st.write(", ".join(sensitivity["missing_fields"]) if sensitivity["missing_fields"] else "Not enough inputs for sensitivity analysis.")
+
+            if valuation.get("warnings") or valuation.get("notes"):
+                with st.expander("Valuation warnings and methodology notes", expanded=False):
+                    if valuation.get("warnings"):
+                        st.markdown("**Warnings**")
+                        for warning in valuation["warnings"]:
+                            st.write(f"- {warning}")
+                    if valuation.get("notes"):
+                        st.markdown("**Notes**")
+                        for note in valuation["notes"]:
+                            st.write(f"- {note}")
 
             st.markdown("**5. Earnings Summary**")
             st.json(report_payload["earnings_summary"], expanded=False)
