@@ -1,4 +1,6 @@
+import json
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pandas as pd
 
@@ -9,8 +11,9 @@ from src.providers.market_data import (
     QuoteSnapshot,
     make_source_metadata,
 )
+from src.providers.local_market_data import LocalCSVMarketDataProvider
 from src.providers.mock_market_data import MockMarketDataProvider
-from src.stock_report import build_stock_report
+from src.stock_report import build_stock_report, create_stock_report_payload, export_stock_report_json
 
 
 def test_build_stock_report_assembles_expected_sections():
@@ -126,3 +129,66 @@ def test_build_stock_report_surfaces_missing_data_risks():
     assert any("1Y price performance is unavailable" in risk for risk in report.key_risks)
     assert any("Free-cash-flow coverage is unavailable" in risk for risk in report.key_risks)
     assert any("Operating margin is negative" in risk for risk in report.key_risks)
+
+
+def test_stock_report_json_export_is_serializable_and_contains_freshness_metadata(tmp_path: Path):
+    source = make_source_metadata(
+        provider="mock",
+        freshness="daily snapshot",
+        official=False,
+        notes=["Unofficial / research-grade market data."],
+        retrieved_at=datetime.now(timezone.utc).isoformat(),
+    )
+    provider = MockMarketDataProvider(
+        quotes={
+            "AAPL": QuoteSnapshot(
+                ticker="AAPL",
+                price=200.0,
+                previous_close=198.0,
+                open=199.0,
+                day_high=201.0,
+                day_low=197.0,
+                volume=1000,
+                currency="USD",
+                market_time="2026-05-11T12:00:00Z",
+                source=source,
+            )
+        },
+        histories={("AAPL", "1y", "1d"): pd.DataFrame([{"date": pd.Timestamp("2026-01-01"), "close": 100.0}] * 260)},
+        financials={"AAPL": FinancialSnapshot(ticker="AAPL", source=source)},
+        earnings={"AAPL": EarningsSummary(ticker="AAPL", source=source)},
+        estimates={"AAPL": AnalystEstimateSummary(ticker="AAPL", source=source)},
+    )
+
+    report = build_stock_report("AAPL", provider)
+    output_path = tmp_path / "report.json"
+    payload = export_stock_report_json(report, output_path)
+    parsed = json.loads(payload)
+
+    assert output_path.exists()
+    assert parsed["ticker"] == "AAPL"
+    assert parsed["data_freshness"][0]["provider"] == "mock"
+    assert "status" in parsed["valuation_snapshot"]
+    assert parsed["valuation_snapshot"]["status"] == "scaffold"
+
+
+def test_create_stock_report_payload_uses_local_provider_when_csvs_are_available(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-02,MSFT,100,1000\n"
+        "2026-05-11,MSFT,130,1100\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "data" / "fundamentals.csv").write_text(
+        "ticker,profit_margin,operating_margin,pe_ratio\n"
+        "MSFT,0.30,0.35,28\n",
+        encoding="utf-8",
+    )
+
+    payload = create_stock_report_payload("MSFT", provider_name="local", base_dir=tmp_path)
+
+    assert payload["ticker"] == "MSFT"
+    assert payload["price_snapshot"]["price"] == 130.0
+    assert payload["financial_summary"]["profit_margin"] == 0.30
+    assert payload["data_freshness"][0]["provider"] == "local:prices.csv"

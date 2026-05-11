@@ -96,6 +96,37 @@ Important:
 - the core screener still runs on the local CSV-first pipeline
 - all new market/fundamental calls stay behind provider interfaces
 
+### Stock Report Beta in the dashboard
+
+The Streamlit dashboard now includes a `Stock Report (Beta)` section.
+
+- default mode uses the local CSV-backed provider
+- optional yfinance mode is only used if you explicitly enable it
+- yfinance results are labeled unofficial / research-grade
+- the Beta section can export the structured report as JSON
+
+This section is additive and does not replace the existing CSV-first screener pages.
+
+### JSON / CLI export
+
+You can generate a structured JSON stock report from the command line:
+
+```bash
+python -m src.stock_report --ticker AAPL --provider local
+```
+
+For a demo/smoke workflow:
+
+```bash
+python -m src.stock_report --ticker AAPL --provider mock
+```
+
+To write JSON to a file:
+
+```bash
+python -m src.stock_report --ticker AAPL --provider local --output outputs/aapl_stock_report.json
+```
+
 ## Optional daily price-data update
 
 The project remains CSV-first and works without network access. If you want to refresh `data/prices.csv` from a free daily source before running the screener, you can use:
