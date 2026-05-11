@@ -28,6 +28,7 @@ class LoadedData:
     holdings: pd.DataFrame
     theme_map: pd.DataFrame
     fundamentals: pd.DataFrame
+    peers: pd.DataFrame
     prices: pd.DataFrame
     warnings: list[str] = field(default_factory=list)
 
@@ -113,6 +114,20 @@ def _normalize_fundamentals(frame: pd.DataFrame) -> pd.DataFrame:
     return frame
 
 
+def _normalize_peers(frame: pd.DataFrame) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+    if "peer_ticker" in frame.columns:
+        frame["peer_ticker"] = frame["peer_ticker"].astype(str).str.upper().str.strip()
+    return frame
+
+
+def _read_optional_csv(path: Path) -> tuple[pd.DataFrame, list[str]]:
+    if not path.exists():
+        return pd.DataFrame(), []
+    return _read_csv(path)
+
+
 def load_inputs(base_dir: Path, fetcher: DataFetcher) -> LoadedData:
     config = AppConfig.load(base_dir / "config.yaml")
     warnings: list[str] = []
@@ -130,8 +145,9 @@ def load_inputs(base_dir: Path, fetcher: DataFetcher) -> LoadedData:
         required={"theme", "etf", "description"},
     )
     fundamentals, fundamentals_warnings = _read_csv(base_dir / "data" / "fundamentals.csv")
+    peers, peers_warnings = _read_optional_csv(base_dir / "data" / "peers.csv")
 
-    warnings.extend(universe_warnings + holdings_warnings + theme_map_warnings + fundamentals_warnings)
+    warnings.extend(universe_warnings + holdings_warnings + theme_map_warnings + fundamentals_warnings + peers_warnings)
 
     holdings = holdings.rename(
         columns={
@@ -152,9 +168,10 @@ def load_inputs(base_dir: Path, fetcher: DataFetcher) -> LoadedData:
         }
     )
 
-    for frame in (universe, holdings, theme_map, fundamentals):
+    for frame in (universe, holdings, theme_map, fundamentals, peers):
         _normalize_ticker_column(frame)
     fundamentals = _normalize_fundamentals(fundamentals)
+    peers = _normalize_peers(peers)
 
     for column in ("position_percent", "max_position_percent"):
         holdings = _normalize_percent_column(holdings, column)
@@ -185,6 +202,7 @@ def load_inputs(base_dir: Path, fetcher: DataFetcher) -> LoadedData:
         holdings=holdings,
         theme_map=theme_map,
         fundamentals=fundamentals,
+        peers=peers,
         prices=fetch_result.prices,
         warnings=warnings,
     )

@@ -87,7 +87,15 @@ def test_report_generator_creates_outputs():
     assert set(portfolio["ReviewState"].dropna()) <= allowed_portfolio_states
     assert "MissingDataFields" in value.columns
     assert set(value["FinalValueCategory"].dropna()) <= allowed_value_categories
+    assert "PeerRelativeStatus" in value.columns
+    assert "RelativeOpportunityScore" in value.columns
     assert set(final_watchlist["FinalState"].dropna()) <= set(config.state_labels)
+    assert "WatchlistScore" in final_watchlist.columns
+    assert "WatchlistRank" in final_watchlist.columns
+    ranked_rows = final_watchlist.loc[final_watchlist["WatchlistRank"].notna()]
+    if not ranked_rows.empty:
+        assert ranked_rows["WatchlistScore"].notna().all()
+        assert ranked_rows["RankReason"].fillna("").str.len().gt(0).all()
 
     for output_name, output_path in result["files"].items():
         frame = pd.read_csv(output_path)

@@ -174,6 +174,8 @@ Relative valuation:
 - standalone P/FCF is calculated when price, FCF, and shares exist
 - EV/EBITDA is calculated only when EBITDA, cash, debt, and market-cap context are available
 - peer multiples are not fabricated; if `data/peers.csv` or peer fundamentals are unavailable, the result is labeled accordingly
+- local peer medians can be used when `data/peers.csv` and the matching peer fundamentals are available
+- peer-aware comparisons stay transparent through fields such as `PeerRelativeStatus` and `RelativeOpportunityScore`
 
 Missing-data behavior for valuation:
 
@@ -363,6 +365,8 @@ Optional value / re-rating screen.
 
 - never fabricates missing fundamentals
 - includes `MissingDataFields` when financial coverage is incomplete
+- can include peer-aware relative valuation context when `data/peers.csv` and matching peer fundamentals are available
+- surfaces fields such as `PeerCount`, `PeerRelativeStatus`, and `RelativeOpportunityScore`
 - uses conservative categories such as `Insufficient Data` and `Possible Value Trap`
 - always includes a `Reason`
 
@@ -371,6 +375,8 @@ Optional value / re-rating screen.
 Final state-machine view combining purpose, momentum, and portfolio context into one watchlist state.
 
 - uses configured state labels from `config.yaml`
+- now adds transparent ranking fields such as `WatchlistScore`, `WatchlistRank`, and `RankReason`
+- ranking is driven by final state plus value context, not by hidden model output
 - always includes a `Reason`
 
 ## Missing-data behavior

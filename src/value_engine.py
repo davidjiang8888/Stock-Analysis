@@ -37,6 +37,14 @@ DISPLAY_FIELD_NAMES = {
     "fcf_yield": "FCFYield",
 }
 
+RELATIVE_MULTIPLE_FIELDS = [
+    ("pe", "PE"),
+    ("forward_pe", "ForwardPE"),
+    ("ev_to_sales", "EVToSales"),
+    ("ev_to_ebitda", "EVToEBITDA"),
+    ("price_to_fcf", "PriceToFCF"),
+]
+
 
 @dataclass
 class ScoreResult:
@@ -163,11 +171,86 @@ def _missing_fields(fundamentals: pd.Series) -> list[str]:
     return [DISPLAY_FIELD_NAMES[field] for field in FUNDAMENTAL_FIELDS if pd.isna(fundamentals.get(field))]
 
 
+def _median(values: list[float]) -> float | None:
+    clean = sorted(float(value) for value in values if pd.notna(value))
+    if not clean:
+        return None
+    midpoint = len(clean) // 2
+    if len(clean) % 2 == 1:
+        return clean[midpoint]
+    return (clean[midpoint - 1] + clean[midpoint]) / 2.0
+
+
+def _peer_relative_context(
+    fundamentals_row: pd.Series,
+    peer_rows: pd.DataFrame | None,
+) -> dict[str, object]:
+    standalone_multiples = {
+        field: float(fundamentals_row[field])
+        for field, _label in RELATIVE_MULTIPLE_FIELDS
+        if pd.notna(fundamentals_row.get(field))
+    }
+    peer_medians = {
+        field: _median(peer_rows[field].tolist()) if peer_rows is not None and not peer_rows.empty and field in peer_rows.columns else None
+        for field, _label in RELATIVE_MULTIPLE_FIELDS
+    }
+    relative_gaps: dict[str, float | None] = {}
+    for field, _label in RELATIVE_MULTIPLE_FIELDS:
+        current = standalone_multiples.get(field)
+        peer_median = peer_medians.get(field)
+        if current is None or peer_median in (None, 0):
+            relative_gaps[field] = None
+        else:
+            relative_gaps[field] = (peer_median - current) / peer_median
+
+    comparable_gaps = [gap for gap in relative_gaps.values() if gap is not None]
+    score = None
+    if comparable_gaps:
+        score = round(max(0.0, min(100.0, 50.0 + 100.0 * (sum(comparable_gaps) / len(comparable_gaps)))), 2)
+
+    if comparable_gaps:
+        avg_gap = sum(comparable_gaps) / len(comparable_gaps)
+        if avg_gap >= 0.15:
+            status = "Discount vs Peers"
+        elif avg_gap >= 0.05:
+            status = "Slight Discount vs Peers"
+        elif avg_gap > -0.05:
+            status = "Near Peer Median"
+        elif avg_gap > -0.15:
+            status = "Slight Premium vs Peers"
+        else:
+            status = "Premium vs Peers"
+    elif standalone_multiples:
+        status = "Peer Data Unavailable"
+    else:
+        status = "Insufficient Peer Data"
+
+    notes: list[str] = []
+    compared_labels = [label for field, label in RELATIVE_MULTIPLE_FIELDS if relative_gaps.get(field) is not None]
+    if compared_labels:
+        notes.append("Peer comparison uses " + ", ".join(compared_labels) + ".")
+    elif standalone_multiples:
+        notes.append("Standalone valuation multiples are available, but peer medians are not.")
+    else:
+        notes.append("Not enough valuation multiples are available for a peer comparison.")
+
+    return {
+        "peer_count": 0 if peer_rows is None or peer_rows.empty else int(len(peer_rows)),
+        "peer_relative_status": status,
+        "relative_opportunity_score": score,
+        "standalone_multiples": standalone_multiples,
+        "peer_medians": peer_medians,
+        "relative_gaps": relative_gaps,
+        "notes": notes,
+    }
+
+
 def classify_value_row(
     snapshot_row: pd.Series,
     purpose_row: pd.Series,
     fundamentals_row: pd.Series,
     config: AppConfig,
+    peer_rows: pd.DataFrame | None = None,
 ) -> dict[str, object]:
     ticker = snapshot_row["ticker"]
     primary_purpose = purpose_row.get("FinalPrimaryPurpose", "")
@@ -189,6 +272,9 @@ def classify_value_row(
     revenue_growth = fundamentals_row.get("revenue_growth")
     enough_quality_data = quality.available_points >= 50
     enough_valuation_data = valuation.available_points >= 40
+    peer_context = _peer_relative_context(fundamentals_row, peer_rows) if has_fundamentals else _peer_relative_context(pd.Series(dtype=object), None)
+    peer_support = peer_context["relative_opportunity_score"] is not None and float(peer_context["relative_opportunity_score"]) >= 55
+    peer_premium_risk = peer_context["relative_opportunity_score"] is not None and float(peer_context["relative_opportunity_score"]) <= 40
 
     if not has_fundamentals:
         if persistent_underperformance or price_below_50:
@@ -229,6 +315,15 @@ def classify_value_row(
 
     if trap_flags:
         reason_parts.append("Trap flags: " + ", ".join(trap_flags) + ".")
+    if peer_context["peer_relative_status"] != "Insufficient Peer Data":
+        reason_parts.append(
+            f"Peer comparison status: {peer_context['peer_relative_status']}."
+        )
+    if peer_support:
+        reason_parts.append("Available peer multiples indicate a discount versus local peers.")
+    elif peer_premium_risk:
+        reason_parts.append("Available peer multiples indicate a premium versus local peers.")
+    reason_parts.extend(peer_context["notes"])
     if missing_fields:
         reason_parts.append("Missing data: " + ", ".join(missing_fields) + ".")
 
@@ -239,6 +334,19 @@ def classify_value_row(
         "ValuationScore": valuation.score,
         "MomentumConfirmationScore": momentum_score,
         "ValueTrapRiskScore": round(trap_score, 2),
+        "PeerCount": peer_context["peer_count"],
+        "PeerRelativeStatus": peer_context["peer_relative_status"],
+        "RelativeOpportunityScore": peer_context["relative_opportunity_score"],
+        "StandalonePE": peer_context["standalone_multiples"].get("pe"),
+        "PeerMedianPE": peer_context["peer_medians"].get("pe"),
+        "StandaloneForwardPE": peer_context["standalone_multiples"].get("forward_pe"),
+        "PeerMedianForwardPE": peer_context["peer_medians"].get("forward_pe"),
+        "StandaloneEVToSales": peer_context["standalone_multiples"].get("ev_to_sales"),
+        "PeerMedianEVToSales": peer_context["peer_medians"].get("ev_to_sales"),
+        "StandaloneEVToEBITDA": peer_context["standalone_multiples"].get("ev_to_ebitda"),
+        "PeerMedianEVToEBITDA": peer_context["peer_medians"].get("ev_to_ebitda"),
+        "StandalonePriceToFCF": peer_context["standalone_multiples"].get("price_to_fcf"),
+        "PeerMedianPriceToFCF": peer_context["peer_medians"].get("price_to_fcf"),
         "FinalValueCategory": category,
         "Reason": " ".join(reason_parts),
         "MissingDataFields": ", ".join(missing_fields),
@@ -250,6 +358,7 @@ def run(
     purpose_df: pd.DataFrame,
     fundamentals: pd.DataFrame,
     config: AppConfig,
+    peers: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     if snapshot.empty or purpose_df.empty:
         return pd.DataFrame(
@@ -260,6 +369,19 @@ def run(
                 "ValuationScore",
                 "MomentumConfirmationScore",
                 "ValueTrapRiskScore",
+                "PeerCount",
+                "PeerRelativeStatus",
+                "RelativeOpportunityScore",
+                "StandalonePE",
+                "PeerMedianPE",
+                "StandaloneForwardPE",
+                "PeerMedianForwardPE",
+                "StandaloneEVToSales",
+                "PeerMedianEVToSales",
+                "StandaloneEVToEBITDA",
+                "PeerMedianEVToEBITDA",
+                "StandalonePriceToFCF",
+                "PeerMedianPriceToFCF",
                 "FinalValueCategory",
                 "Reason",
                 "MissingDataFields",
@@ -268,6 +390,7 @@ def run(
 
     purpose_map = purpose_df.set_index("Ticker")
     fundamentals_map = fundamentals.set_index("ticker") if not fundamentals.empty and "ticker" in fundamentals.columns else pd.DataFrame()
+    peers_map = peers.set_index("ticker") if peers is not None and not peers.empty and "ticker" in peers.columns else pd.DataFrame()
     rows: list[dict[str, object]] = []
 
     filtered = purpose_df.loc[purpose_df["InUniverse"] | purpose_df["IsHolding"], "Ticker"].tolist()
@@ -277,6 +400,18 @@ def run(
         ticker = snapshot_row["ticker"]
         purpose_row = purpose_map.loc[ticker] if ticker in purpose_map.index else pd.Series(dtype=object)
         fundamentals_row = fundamentals_map.loc[ticker] if not fundamentals_map.empty and ticker in fundamentals_map.index else pd.Series(dtype=object)
-        rows.append(classify_value_row(snapshot_row, purpose_row, fundamentals_row, config))
+        peer_rows = pd.DataFrame()
+        if not peers_map.empty and ticker in peers_map.index and not fundamentals_map.empty:
+            peer_entries = peers_map.loc[[ticker]] if isinstance(peers_map.loc[ticker], pd.Series) else peers_map.loc[ticker]
+            if isinstance(peer_entries, pd.Series):
+                peer_entries = peer_entries.to_frame().T
+            peer_tickers = peer_entries["peer_ticker"].dropna().astype(str).str.upper().str.strip().tolist() if "peer_ticker" in peer_entries.columns else []
+            if peer_tickers:
+                peer_rows = fundamentals_map.loc[fundamentals_map.index.intersection(peer_tickers)].copy()
+        rows.append(classify_value_row(snapshot_row, purpose_row, fundamentals_row, config, peer_rows=peer_rows))
 
-    return pd.DataFrame(rows).sort_values(["FinalValueCategory", "Ticker"])
+    return pd.DataFrame(rows).sort_values(
+        ["FinalValueCategory", "RelativeOpportunityScore", "Ticker"],
+        ascending=[True, False, True],
+        na_position="last",
+    )

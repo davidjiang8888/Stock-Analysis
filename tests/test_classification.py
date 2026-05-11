@@ -316,3 +316,71 @@ def test_final_watchlist_handles_missing_merged_context_gracefully():
     assert pd.isna(row["SetupStatus"])
     assert pd.isna(row["ReviewState"])
     assert row["Reason"] == "Purpose conflicts with the latest data."
+
+
+def test_final_watchlist_adds_ranking_from_value_context():
+    purpose_df = pd.DataFrame(
+        [
+            {
+                "Ticker": "ALFA",
+                "Theme": "Software",
+                "SectorETF": "QQQ",
+                "FinalPrimaryPurpose": "Re-rating / Undervalued",
+                "SecondaryTags": "Watch",
+                "IsHolding": False,
+                "ConflictFlag": False,
+                "Reason": "Purpose still fits.",
+            },
+            {
+                "Ticker": "BETA",
+                "Theme": "Software",
+                "SectorETF": "QQQ",
+                "FinalPrimaryPurpose": "Re-rating / Undervalued",
+                "SecondaryTags": "Watch",
+                "IsHolding": True,
+                "ConflictFlag": False,
+                "Reason": "Purpose still fits.",
+            },
+        ]
+    )
+    momentum_df = pd.DataFrame(
+        [
+            {"Ticker": "ALFA", "SetupStatus": "Watch", "Reason": "Watching setup."},
+            {"Ticker": "BETA", "SetupStatus": "Watch", "Reason": "Watching setup."},
+        ]
+    )
+    portfolio_df = pd.DataFrame(
+        [
+            {"Ticker": "ALFA", "ReviewState": None, "Reason": ""},
+            {"Ticker": "BETA", "ReviewState": "Review Thesis", "Reason": "Needs review."},
+        ]
+    )
+    value_df = pd.DataFrame(
+        [
+            {
+                "Ticker": "ALFA",
+                "FinalValueCategory": "Undervalued Quality",
+                "PeerRelativeStatus": "Discount vs Peers",
+                "RelativeOpportunityScore": 70.0,
+                "Reason": "Looks cheap versus peers.",
+            },
+            {
+                "Ticker": "BETA",
+                "FinalValueCategory": "Possible Value Trap",
+                "PeerRelativeStatus": "Premium vs Peers",
+                "RelativeOpportunityScore": 35.0,
+                "Reason": "Looks rich versus peers.",
+            },
+        ]
+    )
+
+    result = build_final_watchlist(purpose_df, momentum_df, portfolio_df, value_df=value_df)
+
+    alfa = result.loc[result["Ticker"] == "ALFA"].iloc[0]
+    beta = result.loc[result["Ticker"] == "BETA"].iloc[0]
+
+    assert alfa["WatchlistRank"] == 1
+    assert beta["WatchlistRank"] == 2
+    assert alfa["FinalValueCategory"] == "Undervalued Quality"
+    assert "Base score" in alfa["RankReason"]
+    assert "Looks cheap versus peers." in alfa["Reason"]

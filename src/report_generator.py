@@ -83,9 +83,9 @@ def run(base_dir: Path | None = None) -> dict[str, object]:
     )
     market_direction_df = run_market_direction(snapshot, loaded.universe, loaded.theme_map, loaded.config)
     momentum_df = run_momentum(snapshot, loaded.config)
-    value_df = run_value(snapshot, purpose_df, loaded.fundamentals, loaded.config)
+    value_df = run_value(snapshot, purpose_df, loaded.fundamentals, loaded.config, peers=loaded.peers)
     portfolio_df = review_holdings(loaded.holdings, purpose_df, momentum_df, loaded.config)
-    final_watchlist_df = build_final_watchlist(purpose_df, momentum_df, portfolio_df)
+    final_watchlist_df = build_final_watchlist(purpose_df, momentum_df, portfolio_df, value_df=value_df)
 
     outputs_dir = base_dir / "outputs"
     outputs_dir.mkdir(parents=True, exist_ok=True)
