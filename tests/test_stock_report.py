@@ -236,7 +236,7 @@ def test_stock_report_cli_fails_gracefully_for_missing_local_ticker(tmp_path: Pa
     previous_cwd = Path.cwd()
     os.chdir(tmp_path)
     previous_argv = sys.argv[:]
-    sys.argv = ["python", "--ticker", "AAPL", "--provider", "local"]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--ticker", "AAPL", "--provider", "local"]
     try:
         with pytest.raises(SystemExit, match="Stock report generation failed: No local price rows were found for AAPL"):
             main()
@@ -256,11 +256,12 @@ def test_stock_report_cli_lists_local_tickers(tmp_path: Path, capsys):
     previous_cwd = Path.cwd()
     os.chdir(tmp_path)
     previous_argv = sys.argv[:]
-    sys.argv = ["python", "--list-local-tickers"]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--list-local-tickers"]
     try:
         main()
         output = capsys.readouterr().out.strip().splitlines()
-        assert output == ["QQQ", "SPY"]
+        assert f"Project root: {tmp_path}" in output
+        assert output[-2:] == ["QQQ", "SPY"]
     finally:
         sys.argv = previous_argv
         os.chdir(previous_cwd)
@@ -271,7 +272,7 @@ def test_stock_report_cli_validate_local_data_json(tmp_path: Path, capsys):
     previous_cwd = Path.cwd()
     os.chdir(tmp_path)
     previous_argv = sys.argv[:]
-    sys.argv = ["python", "--validate-local-data", "--json"]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--validate-local-data", "--json"]
     try:
         main()
         payload = json.loads(capsys.readouterr().out)
@@ -287,7 +288,7 @@ def test_stock_report_cli_validate_local_data_human_output(tmp_path: Path, capsy
     previous_cwd = Path.cwd()
     os.chdir(tmp_path)
     previous_argv = sys.argv[:]
-    sys.argv = ["python", "--validate-local-data"]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--validate-local-data"]
     try:
         main()
         output = capsys.readouterr().out
@@ -303,7 +304,7 @@ def test_stock_report_cli_write_local_data_templates(tmp_path: Path, capsys):
     previous_cwd = Path.cwd()
     os.chdir(tmp_path)
     previous_argv = sys.argv[:]
-    sys.argv = ["python", "--write-local-data-templates"]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--write-local-data-templates"]
     try:
         main()
         output = capsys.readouterr().out
@@ -320,7 +321,7 @@ def test_stock_report_cli_write_local_data_templates_json(tmp_path: Path, capsys
     previous_cwd = Path.cwd()
     os.chdir(tmp_path)
     previous_argv = sys.argv[:]
-    sys.argv = ["python", "--write-local-data-templates", "--json"]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--write-local-data-templates", "--json"]
     try:
         main()
         payload = json.loads(capsys.readouterr().out)
@@ -335,7 +336,7 @@ def test_stock_report_cli_write_import_staging(tmp_path: Path, capsys):
     previous_cwd = Path.cwd()
     os.chdir(tmp_path)
     previous_argv = sys.argv[:]
-    sys.argv = ["python", "--write-import-staging"]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--write-import-staging"]
     try:
         main()
         output = capsys.readouterr().out
@@ -351,11 +352,11 @@ def test_stock_report_cli_validate_imports_handles_no_staged_files(tmp_path: Pat
     previous_cwd = Path.cwd()
     os.chdir(tmp_path)
     previous_argv = sys.argv[:]
-    sys.argv = ["python", "--validate-imports"]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--validate-imports"]
     try:
         main()
         output = capsys.readouterr().out.strip()
-        assert output.startswith("no_staged_files:")
+        assert "no_staged_files:" in output
     finally:
         sys.argv = previous_argv
         os.chdir(previous_cwd)
@@ -372,7 +373,7 @@ def test_stock_report_cli_validate_imports_json(tmp_path: Path, capsys):
     previous_cwd = Path.cwd()
     os.chdir(tmp_path)
     previous_argv = sys.argv[:]
-    sys.argv = ["python", "--validate-imports", "--json"]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--validate-imports", "--json"]
     try:
         main()
         payload = json.loads(capsys.readouterr().out)
@@ -388,11 +389,11 @@ def test_stock_report_cli_preview_import_merge_handles_no_staged_files(tmp_path:
     previous_cwd = Path.cwd()
     os.chdir(tmp_path)
     previous_argv = sys.argv[:]
-    sys.argv = ["python", "--preview-import-merge"]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--preview-import-merge"]
     try:
         main()
         output = capsys.readouterr().out.strip()
-        assert output.startswith("no_staged_files:")
+        assert "no_staged_files:" in output
     finally:
         sys.argv = previous_argv
         os.chdir(previous_cwd)
@@ -414,7 +415,7 @@ def test_stock_report_cli_apply_import_merge_updates_canonical_file(tmp_path: Pa
     previous_cwd = Path.cwd()
     os.chdir(tmp_path)
     previous_argv = sys.argv[:]
-    sys.argv = ["python", "--apply-import-merge"]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--apply-import-merge"]
     try:
         main()
         output = capsys.readouterr().out
@@ -437,7 +438,7 @@ def test_stock_report_cli_preview_import_merge_json(tmp_path: Path, capsys):
     previous_cwd = Path.cwd()
     os.chdir(tmp_path)
     previous_argv = sys.argv[:]
-    sys.argv = ["python", "--preview-import-merge", "--json"]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--preview-import-merge", "--json"]
     try:
         main()
         payload = json.loads(capsys.readouterr().out)
@@ -464,7 +465,7 @@ def test_stock_report_cli_apply_import_merge_json(tmp_path: Path, capsys):
     previous_cwd = Path.cwd()
     os.chdir(tmp_path)
     previous_argv = sys.argv[:]
-    sys.argv = ["python", "--apply-import-merge", "--json"]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--apply-import-merge", "--json"]
     try:
         main()
         payload = json.loads(capsys.readouterr().out)

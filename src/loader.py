@@ -140,21 +140,22 @@ def _read_optional_csv(path: Path) -> tuple[pd.DataFrame, list[str]]:
     return _read_csv(path)
 
 
-def load_inputs(base_dir: Path, fetcher: DataFetcher) -> LoadedData:
+def load_inputs(base_dir: Path, fetcher: DataFetcher, data_dir: Path | None = None) -> LoadedData:
     config = AppConfig.load(base_dir / "config.yaml")
+    data_path = data_dir or (base_dir / "data")
     warnings: list[str] = []
 
-    universe, universe_warnings = _read_csv(base_dir / "data" / "universe.csv")
+    universe, universe_warnings = _read_csv(data_path / "universe.csv")
     holdings, holdings_warnings = _read_csv(
-        base_dir / "data" / "holdings.csv",
+        data_path / "holdings.csv",
         required={"ticker", "primarypurpose"},
     )
     theme_map, theme_map_warnings = _read_csv(
-        base_dir / "data" / "theme_map.csv",
+        data_path / "theme_map.csv",
         required={"theme", "etf", "description"},
     )
-    fundamentals, fundamentals_warnings = _read_csv(base_dir / "data" / "fundamentals.csv")
-    peers, peers_warnings = _read_optional_csv(base_dir / "data" / "peers.csv")
+    fundamentals, fundamentals_warnings = _read_csv(data_path / "fundamentals.csv")
+    peers, peers_warnings = _read_optional_csv(data_path / "peers.csv")
 
     warnings.extend(universe_warnings + holdings_warnings + theme_map_warnings + fundamentals_warnings + peers_warnings)
 

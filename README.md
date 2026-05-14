@@ -49,6 +49,29 @@ If you want the optional research-grade yfinance-backed stock report workflow, i
 pip install -e .[dev,research]
 ```
 
+### Command location and path safety
+
+The safest workflow is to run commands from the repository root:
+
+```bash
+cd "/Users/yjian070/Documents/New project"
+```
+
+Most project CLIs now print the resolved project root, data directory, and outputs directory before doing file work. By default, they resolve paths from this repository root rather than from whatever shell directory you happen to be in. If you intentionally want to run against a fixture or alternate local dataset, pass explicit paths:
+
+```bash
+python3 -m src.stock_report --project-root "/Users/yjian070/Documents/New project" --validate-local-data
+python3 -m src.stock_report --data-dir data --output-dir outputs --ticker NVDA --provider local
+python3 -m src.report_generator --data-dir data --output-dir outputs
+python3 -m src.monthly_picks --generate --data-dir data --output-dir outputs
+```
+
+For tests, prefer the bounded command below so pytest never scans your home directory by accident:
+
+```bash
+python3 -m pytest tests -q
+```
+
 ## Run the pipeline
 
 Generate all active outputs:
@@ -383,6 +406,12 @@ python -m src.data_update --chunk-size 25 --refresh
 
 ```bash
 streamlit run src/dashboard.py
+```
+
+If your shell is not already at the repository root, either `cd` there first or use the absolute dashboard path:
+
+```bash
+streamlit run "/Users/yjian070/Documents/New project/src/dashboard.py"
 ```
 
 The dashboard now uses a wide tabbed layout with a sidebar for display controls.
@@ -830,7 +859,7 @@ python3 -m src.data_update --universe-file data/universe.csv --max-tickers 100
 ## Run tests
 
 ```bash
-pytest
+python3 -m pytest tests -q
 ```
 
 ## What each output means

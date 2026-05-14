@@ -101,8 +101,10 @@ class LocalTickerDatasetCoverage:
 
 
 class LocalDataCatalog:
-    def __init__(self, base_dir: Path | None = None) -> None:
+    def __init__(self, base_dir: Path | None = None, data_dir: Path | None = None, outputs_dir: Path | None = None) -> None:
         self.base_dir = base_dir or Path(__file__).resolve().parent.parent.parent
+        self.data_dir = data_dir or (self.base_dir / "data")
+        self.outputs_dir = outputs_dir or (self.base_dir / "outputs")
         self._path_cache: dict[str, Path | None] = {}
         self._frame_cache: dict[str, pd.DataFrame | None] = {}
         self._validation_cache: dict[str, LocalSchemaValidationResult] = {}
@@ -114,12 +116,21 @@ class LocalDataCatalog:
         if dataset_name not in self._path_cache:
             path = None
             for candidate in DATASET_CANDIDATES.get(dataset_name, ()):
-                candidate_path = self.base_dir / candidate
+                candidate_path = self._candidate_path(candidate)
                 if candidate_path.exists():
                     path = candidate_path
                     break
             self._path_cache[dataset_name] = path
         return self._path_cache[dataset_name]
+
+    def _candidate_path(self, candidate: str) -> Path:
+        candidate_path = Path(candidate)
+        parts = candidate_path.parts
+        if parts and parts[0] == "data":
+            return self.data_dir.joinpath(*parts[1:])
+        if parts and parts[0] == "outputs":
+            return self.outputs_dir.joinpath(*parts[1:])
+        return self.base_dir / candidate_path
 
     def load_dataframe(self, dataset_name: str) -> pd.DataFrame | None:
         if dataset_name in self._frame_cache:

@@ -10,6 +10,7 @@ import streamlit as st
 from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_importer import preview_import_merge, validate_imports
 from src.monthly_picks import MonthlyPickConfig
+from src.paths import path_context
 from src.stock_report import build_provider, build_stock_report, export_stock_report_json
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
 
@@ -1144,6 +1145,18 @@ with st.sidebar:
     show_reason_details = st.checkbox("Show reason expanders", value=True)
     show_raw_json = st.checkbox("Show raw report JSON expanders", value=False)
     st.caption("CLI-only applies remain the safest path for staged imports and universe changes.")
+    with st.expander("Resolved local paths", expanded=False):
+        context = path_context(BASE_DIR, DATA_DIR, OUTPUTS_DIR)
+        st.code(
+            "\n".join(
+                [
+                    f"Project root: {context['project_root']}",
+                    f"Data dir: {context['data_dir']}",
+                    f"Outputs dir: {context['outputs_dir']}",
+                ]
+            ),
+            language="text",
+        )
 
 catalog = LocalDataCatalog(BASE_DIR)
 provider = get_local_provider()

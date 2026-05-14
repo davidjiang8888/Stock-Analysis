@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+
 
 TRACK_COLUMNS = [
     "Month",
@@ -30,7 +32,7 @@ class TrackRecordConfig:
 
 
 def _read_prices(base_dir: Path) -> pd.DataFrame:
-    path = base_dir / "data" / "prices.csv"
+    path = base_dir / "prices.csv"
     if not path.exists():
         return pd.DataFrame()
     frame = pd.read_csv(path)
@@ -46,9 +48,9 @@ def _read_prices(base_dir: Path) -> pd.DataFrame:
     return frame.dropna(subset=["date", "ticker", "close"]).sort_values(["ticker", "date"])
 
 
-def _read_universe_tickers(base_dir: Path) -> list[str]:
+def _read_universe_tickers(data_dir: Path) -> list[str]:
     candidates: set[str] = set()
-    for path in (base_dir / "data" / "universe.csv", base_dir / "data" / "holdings.csv"):
+    for path in (data_dir / "universe.csv", data_dir / "holdings.csv"):
         if not path.exists():
             continue
         frame = pd.read_csv(path)
@@ -85,14 +87,18 @@ def _momentum_score_as_of(frame: pd.DataFrame, selection_date: pd.Timestamp, loo
 def calculate_monthly_track_record(
     base_dir: Path | None = None,
     *,
+    data_dir: Path | None = None,
+    output_dir: Path | None = None,
     top_n: int = 5,
     benchmark: str = "SPY",
     write_output: bool = True,
 ) -> dict[str, object]:
-    base_dir = base_dir or Path(__file__).resolve().parent.parent
+    base_dir = resolve_project_root(base_dir)
+    data_dir = resolve_data_dir(data_dir, base_dir)
+    output_dir = resolve_outputs_dir(output_dir, base_dir)
     config = TrackRecordConfig(top_n=top_n, benchmark=benchmark)
-    prices = _read_prices(base_dir)
-    outputs_dir = base_dir / "outputs"
+    prices = _read_prices(data_dir)
+    outputs_dir = output_dir
     track_path = outputs_dir / "monthly_picks_track_record.csv"
     equity_path = outputs_dir / "monthly_picks_equity_curve.csv"
     if prices.empty:
@@ -114,7 +120,7 @@ def calculate_monthly_track_record(
         )
         equity = pd.DataFrame(columns=EQUITY_COLUMNS)
     else:
-        tickers = [ticker for ticker in _read_universe_tickers(base_dir) if ticker != benchmark.upper()]
+        tickers = [ticker for ticker in _read_universe_tickers(data_dir) if ticker != benchmark.upper()]
         benchmark_frame = prices.loc[prices["ticker"] == benchmark.upper()].copy()
         periods = sorted(prices["date"].dt.to_period("M").unique())
         rows: list[dict[str, object]] = []
@@ -238,13 +244,26 @@ def main() -> None:
     parser.add_argument("--monthly-picks", action="store_true", help="Calculate monthly picks track record.")
     parser.add_argument("--benchmark", default="SPY", help="Benchmark ticker for comparison.")
     parser.add_argument("--top-n", type=int, default=5, help="Number of candidates per month.")
+    parser.add_argument("--project-root", help="Project root for config.yaml and default data/output directories.")
+    parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
+    parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
     parser.add_argument("--json", action="store_true", help="Print JSON output.")
     args = parser.parse_args()
 
-    result = calculate_monthly_track_record(top_n=args.top_n, benchmark=args.benchmark)
+    project_root = resolve_project_root(args.project_root)
+    data_dir = resolve_data_dir(args.data_dir, project_root)
+    output_dir = resolve_outputs_dir(args.output_dir, project_root)
+    result = calculate_monthly_track_record(
+        project_root,
+        data_dir=data_dir,
+        output_dir=output_dir,
+        top_n=args.top_n,
+        benchmark=args.benchmark,
+    )
     if args.json:
         print(json.dumps(result, indent=2, default=str))
         return
+    print(format_path_context(project_root, data_dir, output_dir))
     print(f"Generated monthly picks track record: {result['output_path']}")
     print(f"Generated monthly picks equity curve: {result['equity_curve_path']}")
     print(f"Rows: {result['row_count']}")

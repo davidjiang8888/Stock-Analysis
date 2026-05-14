@@ -11,6 +11,7 @@ from typing import Any
 import pandas as pd
 
 from src.config import AppConfig
+from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 
 
 OUTPUT_COLUMNS = [
@@ -236,12 +237,16 @@ def _price_history_for_ticker(prices: pd.DataFrame, ticker: str) -> pd.DataFrame
 def build_monthly_research_picks(
     base_dir: Path | None = None,
     *,
+    data_dir: Path | None = None,
+    output_dir: Path | None = None,
     top_n: int | None = None,
     benchmark: str | None = None,
     weights: MonthlyPickWeights | None = None,
     write_output: bool = True,
 ) -> dict[str, object]:
-    base_dir = base_dir or Path(__file__).resolve().parent.parent
+    base_dir = resolve_project_root(base_dir)
+    data_dir = resolve_data_dir(data_dir, base_dir)
+    output_dir = resolve_outputs_dir(output_dir, base_dir)
     config_raw = AppConfig.load(base_dir / "config.yaml").raw.get("monthly_picks", {})
     weights_raw = config_raw.get("weights", {})
     weights = weights or MonthlyPickWeights(
@@ -257,8 +262,7 @@ def build_monthly_research_picks(
     benchmark = str(benchmark if benchmark is not None else config_raw.get("benchmark", "SPY"))
     config = MonthlyPickConfig(top_n=top_n, benchmark=benchmark, weights=weights)
     generated_at = datetime.now(UTC).isoformat()
-    outputs_dir = base_dir / "outputs"
-    data_dir = base_dir / "data"
+    outputs_dir = output_dir
 
     final = _read_csv(outputs_dir / "final_watchlist.csv")
     momentum = _read_csv(outputs_dir / "momentum_leaders.csv")
@@ -460,13 +464,27 @@ def main() -> None:
     parser.add_argument("--generate", action="store_true", help="Write outputs/monthly_research_picks.csv.")
     parser.add_argument("--top-n", type=int, help="Number of monthly research candidates.")
     parser.add_argument("--benchmark", help="Benchmark ticker used for downstream track-record comparison.")
+    parser.add_argument("--project-root", help="Project root for config.yaml and default data/output directories.")
+    parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
+    parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
     parser.add_argument("--json", action="store_true", help="Print JSON output.")
     args = parser.parse_args()
 
-    result = build_monthly_research_picks(top_n=args.top_n, benchmark=args.benchmark, write_output=True)
+    project_root = resolve_project_root(args.project_root)
+    data_dir = resolve_data_dir(args.data_dir, project_root)
+    output_dir = resolve_outputs_dir(args.output_dir, project_root)
+    result = build_monthly_research_picks(
+        project_root,
+        data_dir=data_dir,
+        output_dir=output_dir,
+        top_n=args.top_n,
+        benchmark=args.benchmark,
+        write_output=True,
+    )
     if args.json:
         print(json.dumps(result, indent=2, default=str))
         return
+    print(format_path_context(project_root, data_dir, output_dir))
     print(f"Generated monthly research picks: {result['output_path']}")
     print(f"Rows: {result['row_count']}")
     for warning in result["warnings"]:

@@ -326,7 +326,17 @@ def test_stock_report_cli_sec_stage_fundamentals_json(tmp_path: Path, monkeypatc
     previous_cwd = Path.cwd()
     previous_argv = sys.argv[:]
     os.chdir(tmp_path)
-    sys.argv = ["python", "--sec-stage-fundamentals", "--tickers", "NVDA", "--sec-user-agent", "Test test@example.com", "--json"]
+    sys.argv = [
+        "python",
+        "--project-root",
+        str(tmp_path),
+        "--sec-stage-fundamentals",
+        "--tickers",
+        "NVDA",
+        "--sec-user-agent",
+        "Test test@example.com",
+        "--json",
+    ]
     try:
         main()
         payload = json.loads(capsys.readouterr().out)

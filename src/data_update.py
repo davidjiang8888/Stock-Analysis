@@ -12,6 +12,7 @@ from urllib.request import urlopen
 import pandas as pd
 
 from src.config import AppConfig
+from src.paths import format_path_context, resolve_data_dir, resolve_project_root
 
 
 PRICE_COLUMNS = ["date", "ticker", "open", "high", "low", "close", "adj_close", "volume"]
@@ -101,11 +102,17 @@ def _read_csv_if_present(path: Path) -> pd.DataFrame:
     return frame
 
 
-def load_update_tickers(base_dir: Path, config: AppConfig | None = None, universe_file: Path | None = None) -> list[str]:
+def load_update_tickers(
+    base_dir: Path,
+    config: AppConfig | None = None,
+    universe_file: Path | None = None,
+    data_dir: Path | None = None,
+) -> list[str]:
     config = config or AppConfig.load(base_dir / "config.yaml")
-    universe = _read_csv_if_present(universe_file or (base_dir / "data" / "universe.csv"))
-    holdings = _read_csv_if_present(base_dir / "data" / "holdings.csv")
-    theme_map = _read_csv_if_present(base_dir / "data" / "theme_map.csv")
+    data_dir = data_dir or (base_dir / "data")
+    universe = _read_csv_if_present(universe_file or (data_dir / "universe.csv"))
+    holdings = _read_csv_if_present(data_dir / "holdings.csv")
+    theme_map = _read_csv_if_present(data_dir / "theme_map.csv")
 
     tickers: set[str] = set()
     if "ticker" in universe.columns:
@@ -187,6 +194,7 @@ def update_local_price_data(
     source: PriceHistorySource | None = None,
     tickers: list[str] | None = None,
     *,
+    data_dir: Path | None = None,
     chunk_size: int = 50,
     max_tickers: int | None = None,
     refresh: bool = False,
@@ -196,11 +204,12 @@ def update_local_price_data(
     retry_backoff_seconds: float = 0.25,
     progress_callback: Callable[[dict[str, object]], None] | None = None,
 ) -> PriceUpdateResult:
-    base_dir = base_dir or Path(__file__).resolve().parent.parent
+    base_dir = resolve_project_root(base_dir)
+    data_dir = resolve_data_dir(data_dir, base_dir)
     config = AppConfig.load(base_dir / "config.yaml")
-    prices_path = base_dir / "data" / "prices.csv"
+    prices_path = data_dir / "prices.csv"
     source = source or StooqDailyPriceSource()
-    tickers = tickers or load_update_tickers(base_dir, config, universe_file=universe_file)
+    tickers = tickers or load_update_tickers(base_dir, config, universe_file=universe_file, data_dir=data_dir)
     tickers = _ordered_normalized_tickers(tickers)
     if max_tickers is not None and max_tickers > 0:
         tickers = tickers[:max_tickers]
@@ -317,6 +326,8 @@ def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="Update local CSV price history from a free daily source.")
+    parser.add_argument("--project-root", help="Project root for config.yaml and default data directory.")
+    parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--tickers", help="Comma-separated ticker list for targeted updates.")
     parser.add_argument("--max-tickers", type=int, help="Limit the number of tickers updated.")
     parser.add_argument("--chunk-size", type=int, default=50, help="Tickers per chunk during updates.")
@@ -326,6 +337,8 @@ def main() -> None:
     args = parser.parse_args()
 
     explicit_tickers = [ticker.strip() for ticker in args.tickers.split(",") if ticker.strip()] if args.tickers else None
+    project_root = resolve_project_root(args.project_root)
+    data_dir = resolve_data_dir(args.data_dir, project_root)
 
     def print_progress(event: dict[str, object]) -> None:
         if event.get("event") == "chunk_complete":
@@ -336,6 +349,8 @@ def main() -> None:
             )
 
     result = update_local_price_data(
+        base_dir=project_root,
+        data_dir=data_dir,
         tickers=explicit_tickers,
         max_tickers=args.max_tickers,
         chunk_size=args.chunk_size,
@@ -344,6 +359,7 @@ def main() -> None:
         universe_file=Path(args.universe_file) if args.universe_file else None,
         progress_callback=print_progress,
     )
+    print(format_path_context(project_root, data_dir, None))
     print(f"Updated local price file: {result.path}")
     print(f"Tickers requested: {len(result.tickers_requested)}")
     print(f"Tickers updated: {len(result.tickers_updated)}")

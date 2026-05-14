@@ -10,6 +10,7 @@ from src.market_direction import run as run_market_direction
 from src.momentum_engine import run as run_momentum
 from src.portfolio_review import review_holdings
 from src.providers.csv_provider import CSVDataFetcher
+from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.purpose_router import route_purposes
 from src.state_machine import build_final_watchlist
 from src.value_engine import run as run_value
@@ -45,10 +46,17 @@ def _missing_snapshot_row(ticker: str, universe_row: pd.Series | None = None) ->
     }
 
 
-def run(base_dir: Path | None = None) -> dict[str, object]:
-    base_dir = base_dir or Path(__file__).resolve().parent.parent
-    fetcher = CSVDataFetcher(base_dir / "data" / "prices.csv")
-    loaded = load_inputs(base_dir, fetcher)
+def run(
+    base_dir: Path | None = None,
+    *,
+    data_dir: Path | None = None,
+    output_dir: Path | None = None,
+) -> dict[str, object]:
+    base_dir = resolve_project_root(base_dir)
+    data_dir = resolve_data_dir(data_dir, base_dir)
+    output_dir = resolve_outputs_dir(output_dir, base_dir)
+    fetcher = CSVDataFetcher(data_dir / "prices.csv")
+    loaded = load_inputs(base_dir, fetcher, data_dir=data_dir)
     snapshot, indicator_warnings = build_indicator_snapshot(
         prices=loaded.prices,
         universe=loaded.universe,
@@ -87,7 +95,7 @@ def run(base_dir: Path | None = None) -> dict[str, object]:
     portfolio_df = review_holdings(loaded.holdings, purpose_df, momentum_df, loaded.config)
     final_watchlist_df = build_final_watchlist(purpose_df, momentum_df, portfolio_df, value_df=value_df)
 
-    outputs_dir = base_dir / "outputs"
+    outputs_dir = output_dir
     outputs_dir.mkdir(parents=True, exist_ok=True)
     files = {
         "purpose_classification": outputs_dir / "purpose_classification.csv",
@@ -120,7 +128,26 @@ def run(base_dir: Path | None = None) -> dict[str, object]:
 
 
 def main() -> None:
-    result = run()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Generate the core CSV research reports.")
+    parser.add_argument("--project-root", help="Project root for config.yaml and default data/output directories.")
+    parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
+    parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
+    args = parser.parse_args()
+
+    result = run(
+        Path(args.project_root) if args.project_root else None,
+        data_dir=Path(args.data_dir) if args.data_dir else None,
+        output_dir=Path(args.output_dir) if args.output_dir else None,
+    )
+    print(
+        format_path_context(
+            project_root=Path(args.project_root) if args.project_root else None,
+            data_dir=Path(args.data_dir) if args.data_dir else None,
+            output_dir=Path(args.output_dir) if args.output_dir else None,
+        )
+    )
     print("Generated outputs:")
     for name, path in result["files"].items():
         print(f"- {name}: {path}")

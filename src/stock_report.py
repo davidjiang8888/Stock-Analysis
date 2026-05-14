@@ -22,6 +22,7 @@ from src.providers.local_importer import apply_import_merge, preview_import_merg
 from src.providers.local_templates import write_import_staging_files, write_local_data_templates
 from src.providers.mock_market_data import MockMarketDataProvider
 from src.providers.sec_companyfacts import build_sec_fundamentals_rows, write_sec_fundamentals_import
+from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.valuation import ValuationInput, ValuationResult, build_valuation_result
 
 
@@ -360,10 +361,20 @@ def export_stock_report_json(report: StockReport, output_path: Path | None = Non
     return payload
 
 
-def build_provider(provider_name: str, base_dir: Path | None = None) -> MarketDataProvider:
+def build_provider(
+    provider_name: str,
+    base_dir: Path | None = None,
+    data_dir: Path | None = None,
+    output_dir: Path | None = None,
+) -> MarketDataProvider:
     provider_name = provider_name.lower()
     if provider_name == "local":
-        return LocalCSVMarketDataProvider(base_dir=base_dir)
+        root = resolve_project_root(base_dir)
+        return LocalCSVMarketDataProvider(
+            base_dir=root,
+            data_dir=resolve_data_dir(data_dir, root),
+            outputs_dir=resolve_outputs_dir(output_dir, root),
+        )
     if provider_name == "mock":
         source = make_source_metadata(
             provider="mock",
@@ -416,30 +427,36 @@ def build_provider(provider_name: str, base_dir: Path | None = None) -> MarketDa
     raise ValueError(f"Unsupported stock report provider: {provider_name}")
 
 
-def create_stock_report_payload(ticker: str, provider_name: str = "local", base_dir: Path | None = None) -> dict[str, Any]:
-    report = build_stock_report(ticker, build_provider(provider_name, base_dir=base_dir))
+def create_stock_report_payload(
+    ticker: str,
+    provider_name: str = "local",
+    base_dir: Path | None = None,
+    data_dir: Path | None = None,
+    output_dir: Path | None = None,
+) -> dict[str, Any]:
+    report = build_stock_report(ticker, build_provider(provider_name, base_dir=base_dir, data_dir=data_dir, output_dir=output_dir))
     return report.to_dict()
 
 
-def _read_dataset_tickers(base_dir: Path, dataset_name: str) -> list[str]:
-    provider = LocalCSVMarketDataProvider(base_dir=base_dir)
+def _read_dataset_tickers(base_dir: Path, dataset_name: str, data_dir: Path | None = None, output_dir: Path | None = None) -> list[str]:
+    provider = LocalCSVMarketDataProvider(base_dir=base_dir, data_dir=data_dir, outputs_dir=output_dir)
     frame = provider.catalog.load_dataframe(dataset_name)
     if frame is None or "ticker" not in frame.columns:
         return []
     return sorted(frame["ticker"].dropna().astype(str).str.upper().str.strip().unique().tolist())
 
 
-def _resolve_sec_tickers(args: argparse.Namespace, base_dir: Path) -> list[str]:
+def _resolve_sec_tickers(args: argparse.Namespace, base_dir: Path, data_dir: Path, output_dir: Path) -> list[str]:
     tickers: set[str] = set()
     if args.tickers:
         tickers.update(ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip())
     if args.from_local_tickers:
-        provider = LocalCSVMarketDataProvider(base_dir=base_dir)
+        provider = LocalCSVMarketDataProvider(base_dir=base_dir, data_dir=data_dir, outputs_dir=output_dir)
         tickers.update(provider.list_local_tickers())
     if args.from_universe:
-        tickers.update(_read_dataset_tickers(base_dir, "universe"))
+        tickers.update(_read_dataset_tickers(base_dir, "universe", data_dir, output_dir))
     if args.from_holdings:
-        tickers.update(_read_dataset_tickers(base_dir, "holdings"))
+        tickers.update(_read_dataset_tickers(base_dir, "holdings", data_dir, output_dir))
     return sorted(ticker for ticker in tickers if ticker)
 
 
@@ -448,6 +465,9 @@ def main() -> None:
     parser.add_argument("--ticker", help="Ticker symbol to analyze")
     parser.add_argument("--provider", default="local", choices=["local", "mock", "yfinance"], help="Research data provider")
     parser.add_argument("--output", help="Optional JSON output path")
+    parser.add_argument("--project-root", help="Project root for config.yaml and default data/output directories.")
+    parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
+    parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
     parser.add_argument("--list-local-tickers", action="store_true", help="List tickers discoverable from local CSV datasets.")
     parser.add_argument("--validate-local-data", action="store_true", help="Validate local CSV datasets and report schema coverage.")
     parser.add_argument("--write-local-data-templates", action="store_true", help="Write header-only local enrichment CSV templates under data/templates.")
@@ -466,16 +486,22 @@ def main() -> None:
     parser.add_argument("--template-dir", help="Optional destination directory for local CSV templates.")
     parser.add_argument("--json", action="store_true", help="Print CLI output as JSON for the supported validation/import/template commands.")
     args = parser.parse_args()
-    cli_base_dir = Path.cwd()
+    cli_base_dir = resolve_project_root(args.project_root)
+    cli_data_dir = resolve_data_dir(args.data_dir, cli_base_dir)
+    cli_output_dir = resolve_outputs_dir(args.output_dir, cli_base_dir)
+
+    def print_paths() -> None:
+        print(format_path_context(cli_base_dir, cli_data_dir, cli_output_dir))
 
     if args.write_local_data_templates:
         template_results = write_local_data_templates(
             base_dir=cli_base_dir,
-            template_dir=Path(args.template_dir) if args.template_dir else None,
+            template_dir=Path(args.template_dir) if args.template_dir else cli_data_dir / "templates",
         )
         if args.json:
             print(json.dumps(template_results, indent=2))
         else:
+            print_paths()
             for item in template_results:
                 print(
                     f"{item['dataset_name']}: {item['status']} -> {item['path']} "
@@ -484,10 +510,11 @@ def main() -> None:
         return
 
     if args.write_import_staging:
-        template_results = write_import_staging_files(base_dir=cli_base_dir)
+        template_results = write_import_staging_files(base_dir=cli_base_dir, import_dir=cli_data_dir / "imports")
         if args.json:
             print(json.dumps(template_results, indent=2))
         else:
+            print_paths()
             for item in template_results:
                 print(
                     f"{item['dataset_name']}: {item['status']} -> {item['path']} "
@@ -496,11 +523,12 @@ def main() -> None:
         return
 
     if args.validate_local_data:
-        provider = LocalCSVMarketDataProvider(base_dir=cli_base_dir)
+        provider = LocalCSVMarketDataProvider(base_dir=cli_base_dir, data_dir=cli_data_dir, outputs_dir=cli_output_dir)
         validation = provider.get_local_data_validation()
         if args.json:
             print(json.dumps(validation, indent=2))
         else:
+            print_paths()
             for item in validation:
                 print(
                     f"{item['name']}: status={item['validation_status']} rows={item['row_count']} "
@@ -510,12 +538,14 @@ def main() -> None:
         return
 
     if args.validate_imports:
-        result = validate_imports(base_dir=cli_base_dir)
+        result = validate_imports(base_dir=cli_base_dir, data_dir=cli_data_dir)
         if args.json:
             print(json.dumps(result, indent=2))
         elif result["status"] == "no_staged_files":
+            print_paths()
             print(f"{result['status']}: {result['warnings'][0]}")
         else:
+            print_paths()
             for item in result["files"]:
                 validation = item["validation"]
                 print(
@@ -527,12 +557,14 @@ def main() -> None:
         return
 
     if args.preview_import_merge:
-        result = preview_import_merge(base_dir=cli_base_dir)
+        result = preview_import_merge(base_dir=cli_base_dir, data_dir=cli_data_dir)
         if args.json:
             print(json.dumps(result, indent=2))
         elif result["status"] == "no_staged_files":
+            print_paths()
             print(f"{result['status']}: {result['warnings'][0]}")
         else:
+            print_paths()
             for item in result["preview"]:
                 print(
                     f"{item['file_name']}: status={item['status']} "
@@ -543,12 +575,14 @@ def main() -> None:
         return
 
     if args.apply_import_merge:
-        result = apply_import_merge(base_dir=cli_base_dir)
+        result = apply_import_merge(base_dir=cli_base_dir, data_dir=cli_data_dir)
         if args.json:
             print(json.dumps(result, indent=2))
         elif result["status"] == "no_staged_files":
+            print_paths()
             print(f"{result['status']}: {result['warnings'][0]}")
         elif result["status"] == "refused_invalid_imports":
+            print_paths()
             print("refused_invalid_imports: staged files contain invalid required columns.")
             for item in result["preview"]:
                 if item["status"] == "invalid":
@@ -557,6 +591,7 @@ def main() -> None:
                         f"{','.join(item.get('missing_required_columns', [])) or '-'}"
                     )
         else:
+            print_paths()
             for item in result["applied"]:
                 print(
                     f"{item['file_name']}: applied={item['applied']} "
@@ -566,7 +601,7 @@ def main() -> None:
         return
 
     if args.sec_stage_fundamentals:
-        requested_tickers = _resolve_sec_tickers(args, cli_base_dir)
+        requested_tickers = _resolve_sec_tickers(args, cli_base_dir, cli_data_dir, cli_output_dir)
         if not requested_tickers:
             raise SystemExit(
                 "SEC staging requires at least one ticker source. Use --tickers, --from-local-tickers, "
@@ -576,12 +611,12 @@ def main() -> None:
             result = build_sec_fundamentals_rows(
                 requested_tickers,
                 user_agent=args.sec_user_agent,
-                cache_dir=cli_base_dir / "data" / "cache" / "sec",
+                cache_dir=cli_data_dir / "cache" / "sec",
                 refresh=args.sec_refresh,
             )
             write_result = write_sec_fundamentals_import(
                 result["rows"],
-                output_path=cli_base_dir / "data" / "imports" / "fundamentals.csv",
+                output_path=cli_data_dir / "imports" / "fundamentals.csv",
                 overwrite=args.overwrite,
             )
         except (RuntimeError, ValueError) as exc:
@@ -598,6 +633,7 @@ def main() -> None:
         if args.json:
             print(json.dumps(payload, indent=2))
         else:
+            print_paths()
             print(f"requested_tickers: {', '.join(payload['requested_tickers']) or '-'}")
             print(f"resolved_tickers: {', '.join(payload['resolved_tickers']) or '-'}")
             print(f"unresolved_tickers: {', '.join(payload['unresolved_tickers']) or '-'}")
@@ -618,8 +654,9 @@ def main() -> None:
         return
 
     if args.list_local_tickers:
-        provider = LocalCSVMarketDataProvider(base_dir=cli_base_dir)
+        provider = LocalCSVMarketDataProvider(base_dir=cli_base_dir, data_dir=cli_data_dir, outputs_dir=cli_output_dir)
         tickers = provider.list_local_tickers()
+        print_paths()
         print("\n".join(tickers))
         return
 
@@ -627,10 +664,24 @@ def main() -> None:
         raise SystemExit("--ticker is required unless --list-local-tickers is used.")
 
     try:
-        report = build_stock_report(args.ticker, build_provider(args.provider, base_dir=cli_base_dir))
-        payload = export_stock_report_json(report, Path(args.output) if args.output else None)
+        report = build_stock_report(
+            args.ticker,
+            build_provider(args.provider, base_dir=cli_base_dir, data_dir=cli_data_dir, output_dir=cli_output_dir),
+        )
+        output_path = None
+        if args.output:
+            raw_output = Path(args.output)
+            output_path = (
+                raw_output
+                if raw_output.is_absolute()
+                else cli_base_dir / raw_output
+                if raw_output.parts and raw_output.parts[0] == "outputs"
+                else cli_output_dir / raw_output
+            )
+        payload = export_stock_report_json(report, output_path)
     except (FileNotFoundError, LookupError, RuntimeError, ValueError) as exc:
         raise SystemExit(f"Stock report generation failed: {exc}") from exc
+    print_paths()
     print(payload)
 
 

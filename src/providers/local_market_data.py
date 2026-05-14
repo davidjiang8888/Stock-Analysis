@@ -24,11 +24,13 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
     deterministic CSV-first pipeline.
     """
 
-    def __init__(self, base_dir: Path | None = None) -> None:
+    def __init__(self, base_dir: Path | None = None, data_dir: Path | None = None, outputs_dir: Path | None = None) -> None:
         self.base_dir = base_dir or Path(__file__).resolve().parent.parent.parent
-        self.catalog = LocalDataCatalog(self.base_dir)
-        self.prices_path = self.base_dir / "data" / "prices.csv"
-        self.fundamentals_path = self.base_dir / "data" / "fundamentals.csv"
+        self.data_dir = data_dir or (self.base_dir / "data")
+        self.outputs_dir = outputs_dir or (self.base_dir / "outputs")
+        self.catalog = LocalDataCatalog(self.base_dir, data_dir=self.data_dir, outputs_dir=self.outputs_dir)
+        self.prices_path = self.data_dir / "prices.csv"
+        self.fundamentals_path = self.data_dir / "fundamentals.csv"
 
     def _source(self, file_path: Path, freshness: str, notes: list[str]) -> object:
         retrieved_at = (
