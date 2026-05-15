@@ -1,4 +1,4 @@
-.PHONY: test pipeline monthly track-record validate-data daily dashboard sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates
+.PHONY: test pipeline monthly track-record validate-data daily dashboard sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates price-status price-validate price-preview price-apply price-refresh
 
 test:
 	python3 -m pytest tests -q
@@ -24,6 +24,21 @@ onboarding:
 
 templates:
 	python3 -m src.data_onboarding --write-templates
+
+price-status:
+	python3 -m src.data_update --price-status
+
+price-validate:
+	python3 -m src.data_update --validate-price-imports
+
+price-preview:
+	python3 -m src.data_update --preview-price-import-merge
+
+price-apply:
+	python3 -m src.data_update --apply-price-import-merge
+
+price-refresh:
+	python3 -m src.data_update --universe-file data/universe.csv
 
 daily:
 	python3 -m src.data_update --universe-file data/universe.csv

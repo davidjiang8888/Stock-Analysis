@@ -117,6 +117,20 @@ def test_data_source_status_tables_handle_missing_outputs(tmp_path):
     assert dashboard.friendly_data_source_status("optional_unofficial") == "Optional unofficial"
 
 
+def test_price_update_status_helpers_handle_missing_and_counts(tmp_path):
+    frame, message = dashboard.load_price_update_status(tmp_path)
+
+    assert frame is None
+    assert "price_update_status.csv" in message
+
+    counts = dashboard.summarize_price_update_status(
+        pd.DataFrame({"status": ["fetched", "parse_error", "parse_error", "source_unavailable"]})
+    )
+
+    assert counts["fetched"] == 1
+    assert counts["parse_error"] == 2
+
+
 def test_onboarding_tables_handle_missing_outputs_and_summary():
     tables = dashboard.load_data_onboarding_tables(Path("/tmp/nonexistent-dashboard-test-dir"))
 

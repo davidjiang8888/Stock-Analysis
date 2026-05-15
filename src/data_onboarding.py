@@ -44,7 +44,8 @@ ACTION_COLUMNS = [
     "example_command",
 ]
 
-TEMPLATE_DATASETS = ("peers", "fundamentals", "earnings", "analyst_estimates", "custom_universe")
+TEMPLATE_DATASETS = ("prices", "peers", "fundamentals", "earnings", "analyst_estimates", "custom_universe")
+PRICE_TEMPLATE_COLUMNS = ["date", "ticker", "open", "high", "low", "close", "volume", "adjusted_close", "source", "as_of_date", "notes"]
 
 
 @dataclass
@@ -152,9 +153,15 @@ def _missing_join(items: list[str]) -> str:
 
 def _action_for_coverage(row: TickerCoverage) -> str:
     if not row.has_prices:
-        return f"Refresh prices with python3 -m src.data_update --tickers {row.ticker}"
+        return (
+            f"Run python3 -m src.data_update --tickers {row.ticker}, or add verified rows to "
+            "data/imports/prices.csv and run validate/preview/apply."
+        )
     if row.price_history_days < 21:
-        return f"Add more local price history for {row.ticker}."
+        return (
+            f"Run python3 -m src.data_update --tickers {row.ticker}, or add more verified local price rows "
+            "to data/imports/prices.csv."
+        )
     if not row.has_fundamentals or not row.dcf_ready:
         return f"Run SEC staging for fundamentals: python3 -m src.stock_report --sec-stage-fundamentals --tickers {row.ticker}"
     if not row.has_peer_mapping:
@@ -265,8 +272,11 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     dataset="prices",
                     status="missing" if not row.has_prices else "insufficient_history",
                     reason=row.missing_required_for_momentum or "Price coverage is too sparse for stable momentum research.",
-                    recommended_action=f"Refresh prices with python3 -m src.data_update --tickers {row.ticker}",
-                    target_file="data/prices.csv",
+                    recommended_action=(
+                        f"Run python3 -m src.data_update --tickers {row.ticker}, or add verified rows to "
+                        "data/imports/prices.csv and run validate/preview/apply."
+                    ),
+                    target_file="data/imports/prices.csv",
                     example_command=f"python3 -m src.data_update --tickers {row.ticker}",
                 )
             )
@@ -388,6 +398,8 @@ def write_onboarding_outputs(
 
 
 def _template_columns(dataset_name: str) -> list[str]:
+    if dataset_name == "prices":
+        return PRICE_TEMPLATE_COLUMNS
     schema = LOCAL_DATASET_SCHEMAS[dataset_name]
     columns = list(schema.required_columns)
     for column in schema.optional_columns:

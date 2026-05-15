@@ -133,7 +133,11 @@ def test_write_onboarding_outputs_and_templates(tmp_path: Path):
     assert Path(output_result["coverage_path"]).exists()
     assert Path(output_result["actions_path"]).exists()
     assert (tmp_path / "data" / "templates" / "peers.csv").exists()
+    assert (tmp_path / "data" / "templates" / "prices.csv").exists()
     assert (tmp_path / "data" / "templates" / "custom_universe.csv").exists()
+    assert (tmp_path / "data" / "templates" / "prices.csv").read_text(encoding="utf-8").startswith(
+        "date,ticker,open,high,low,close,volume"
+    )
     assert any(item["dataset_name"] == "analyst_estimates" for item in template_result)
 
 

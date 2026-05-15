@@ -87,6 +87,11 @@ make validate-data
 make coverage
 make onboarding
 make templates
+make price-refresh
+make price-status
+make price-validate
+make price-preview
+make price-apply
 make daily
 make dashboard
 ```
@@ -510,6 +515,51 @@ python -m src.data_update --universe-file data/universe.csv --max-tickers 100
 python -m src.data_update --tickers NVDA,MSFT,AVGO
 python -m src.data_update --chunk-size 25 --refresh
 ```
+
+### Price data fallback workflow
+
+Remote price refresh can fail because the default source is free, unofficial, and outside this repo's control. That is expected; the app keeps using local CSV fallback data instead of fabricating prices.
+
+When remote refresh fails, use the staged manual import path:
+
+```bash
+make price-refresh
+make price-status
+# Fill data/imports/prices.csv with verified exported/local OHLCV rows.
+make price-validate
+make price-preview
+make price-apply
+make onboarding
+make daily
+make dashboard
+```
+
+Manual staged prices live at `data/imports/prices.csv`.
+
+Required columns:
+
+- `date`
+- `ticker`
+- `open`
+- `high`
+- `low`
+- `close`
+- `volume`
+
+Optional columns:
+
+- `adjusted_close`
+- `source`
+- `as_of_date`
+- `notes`
+
+Validation checks required columns, parseable dates, uppercase tickers, numeric OHLCV fields, duplicate `date + ticker` rows, `high >= low`, and non-missing positive closes. Preview shows new rows, updated rows, skipped rows, duplicates, and affected tickers before anything is written. Apply creates a backup under `data/backups/<timestamp>/` and never deletes existing canonical price rows in this phase.
+
+Price update diagnostics are written to:
+
+- `outputs/price_update_status.csv`
+
+The dashboard `Data Health` tab surfaces this status file and gives the manual fallback commands. Price imports are still research-only local data management; no broker, order routing, or trade-execution integration is added.
 
 ## Run the dashboard
 

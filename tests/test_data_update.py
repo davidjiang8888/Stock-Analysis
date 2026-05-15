@@ -2,7 +2,13 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.data_update import load_update_tickers, update_local_price_data
+from src.data_update import (
+    apply_price_import_merge,
+    load_update_tickers,
+    preview_price_import_merge,
+    update_local_price_data,
+    validate_price_imports,
+)
 
 
 class FakePriceSource:
@@ -257,3 +263,98 @@ def test_update_local_price_data_retries_and_continues_when_one_ticker_fails(tmp
 
     assert set(result.tickers_updated) == {"AAA", "BBB"}
     assert source.calls.count("BBB") >= 2
+
+
+def test_update_local_price_data_writes_status_when_remote_parse_errors(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "outputs").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    (tmp_path / "data" / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n2026-01-02,SPY,100,1000\n",
+        encoding="utf-8",
+    )
+    source = FakePriceSource({"SPY": pd.DataFrame()})
+
+    def fetch_history(_ticker: str):
+        return pd.DataFrame(), ["SPY: update failed (Error tokenizing data)"]
+
+    source.fetch_history = fetch_history
+    result = update_local_price_data(tmp_path, source=source, tickers=["SPY"])
+
+    status = pd.read_csv(result.status_path)
+    assert status.iloc[0]["status"] == "parse_error"
+    assert status.iloc[0]["fallback_used"] in {True, "True", "true"}
+    assert "data/imports/prices.csv" in status.iloc[0]["recommended_action"]
+
+
+def _write_price_import_fixture(root: Path) -> None:
+    data_dir = root / "data"
+    import_dir = data_dir / "imports"
+    data_dir.mkdir()
+    import_dir.mkdir(parents=True)
+    (root / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    (data_dir / "prices.csv").write_text(
+        "date,ticker,open,high,low,close,adj_close,volume,source\n"
+        "2026-01-02,NVDA,99,101,98,100,100,1000,canonical\n"
+        "2026-01-02,MSFT,199,201,198,200,200,2000,canonical\n",
+        encoding="utf-8",
+    )
+    (import_dir / "prices.csv").write_text(
+        "date,ticker,open,high,low,close,volume,adjusted_close,source,as_of_date,notes,extra\n"
+        "2026-01-02,nvda,100,103,99,102,1500,102,manual,2026-01-03,updated,row-extra\n"
+        "2026-01-03,NVDA,102,104,101,103,1600,103,manual,2026-01-03,new,row-extra\n"
+        "2026-01-02,NVDA,100,103,99,102,1500,102,manual,2026-01-03,duplicate,row-extra\n"
+        "2026-01-04,BAD,10,9,11,10,100,10,manual,2026-01-03,bad-high-low,row-extra\n",
+        encoding="utf-8",
+    )
+
+
+def test_price_import_validation_valid_fixture_and_duplicates(tmp_path: Path):
+    _write_price_import_fixture(tmp_path)
+
+    summary = validate_price_imports(tmp_path)
+
+    assert summary["status"] == "valid_with_warnings"
+    assert summary["valid_rows"] == 2
+    assert summary["duplicate_rows"] == 1
+    assert summary["affected_tickers"] == ["NVDA"]
+    assert "extra" in summary["unknown_columns"]
+
+
+def test_price_import_validation_rejects_missing_required_columns(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    import_dir = data_dir / "imports"
+    import_dir.mkdir(parents=True)
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    (import_dir / "prices.csv").write_text("date,ticker,close\n2026-01-01,NVDA,100\n", encoding="utf-8")
+
+    summary = validate_price_imports(tmp_path)
+
+    assert summary["status"] == "invalid"
+    assert {"open", "high", "low", "volume"}.issubset(set(summary["missing_required_columns"]))
+
+
+def test_preview_price_import_merge_reports_new_updated_and_skipped(tmp_path: Path):
+    _write_price_import_fixture(tmp_path)
+
+    preview = preview_price_import_merge(tmp_path)
+
+    assert preview["new_rows"] == 1
+    assert preview["updated_rows"] == 1
+    assert preview["skipped_rows"] == 2
+    assert preview["unchanged_rows"] == 0
+
+
+def test_apply_price_import_merge_backs_up_and_never_deletes_rows(tmp_path: Path):
+    _write_price_import_fixture(tmp_path)
+
+    result = apply_price_import_merge(tmp_path)
+    prices = pd.read_csv(tmp_path / "data" / "prices.csv")
+
+    assert result["applied"] is True
+    assert result["backup_path"] is not None
+    assert Path(result["backup_path"]).exists()
+    assert len(prices) == 3
+    assert set(prices["ticker"]) == {"NVDA", "MSFT"}
+    updated = prices.loc[(prices["ticker"] == "NVDA") & (prices["date"] == "2026-01-02")].iloc[0]
+    assert updated["close"] == 102

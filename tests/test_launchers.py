@@ -21,6 +21,11 @@ def test_makefile_contains_convenience_targets():
         "coverage",
         "onboarding",
         "templates",
+        "price-status",
+        "price-validate",
+        "price-preview",
+        "price-apply",
+        "price-refresh",
     ):
         assert f"{target}:" in makefile
 

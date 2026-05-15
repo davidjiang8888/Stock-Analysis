@@ -13,6 +13,7 @@ outputs/*stock_report.json
 outputs/*_stock_report.json
 outputs/data_source_status.csv
 outputs/data_gap_report.csv
+outputs/price_update_status.csv
 outputs/ticker_data_coverage.csv
 outputs/data_onboarding_actions.csv
 local_artifacts_backup/

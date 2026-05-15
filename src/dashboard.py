@@ -39,6 +39,7 @@ DATA_ONBOARDING_FILES = {
     "ticker_data_coverage.csv": "Ticker Data Coverage",
     "data_onboarding_actions.csv": "Data Onboarding Actions",
 }
+PRICE_STATUS_FILE = "price_update_status.csv"
 TAB_TO_FILE = {
     "Market Direction": "market_direction.csv",
     "Momentum Leaders": "momentum_leaders.csv",
@@ -123,8 +124,27 @@ def load_data_onboarding_tables(
     return {filename: load_output(outputs_dir / filename) for filename in DATA_ONBOARDING_FILES}
 
 
+def load_price_update_status(
+    outputs_dir: Path = OUTPUTS_DIR,
+) -> tuple[pd.DataFrame | None, str | None]:
+    path = outputs_dir / PRICE_STATUS_FILE
+    if not path.exists():
+        return None, (
+            "`price_update_status.csv` has not been generated yet. Run "
+            "`python3 -m src.data_update --universe-file data/universe.csv` or `make price-refresh`."
+        )
+    return load_output(path)
+
+
 def friendly_data_source_status(value: object) -> str:
     return DATA_SOURCE_STATUS_LABELS.get(format_missing(value, "-"), format_missing(value, "-"))
+
+
+def summarize_price_update_status(status_frame: pd.DataFrame | None) -> dict[str, int]:
+    if status_frame is None or status_frame.empty or "status" not in status_frame.columns:
+        return {}
+    counts = status_frame["status"].astype(str).str.lower().value_counts()
+    return {status: int(count) for status, count in counts.items()}
 
 
 def summarize_ticker_coverage(coverage: pd.DataFrame | None) -> dict[str, int]:
@@ -1152,6 +1172,43 @@ def render_data_health(provider) -> None:
                 st.dataframe(clean_display_frame(display_gaps), width="stretch", hide_index=True)
         else:
             st.info(gap_message or "No data gaps were reported.")
+
+    st.markdown("### Price Update Status")
+    price_status_frame, price_status_message = load_price_update_status()
+    if price_status_frame is None:
+        st.info(
+            (price_status_message or "Price update status is unavailable.")
+            + " If the remote source fails, add verified rows to `data/imports/prices.csv`, then run "
+            "`make price-validate`, `make price-preview`, and `make price-apply`."
+        )
+    else:
+        status_counts = summarize_price_update_status(price_status_frame)
+        if status_counts:
+            statuses = ["fetched", "skipped_fresh", "parse_error", "source_unavailable", "network_error", "no_rows", "failed"]
+            metric_cols = st.columns(4)
+            metric_cols[0].metric("Fetched", status_counts.get("fetched", 0))
+            metric_cols[1].metric("Skipped Fresh", status_counts.get("skipped_fresh", 0))
+            metric_cols[2].metric("Parse / Source Errors", sum(status_counts.get(status, 0) for status in statuses[2:]))
+            metric_cols[3].metric("Fallback Used", int(price_status_frame.get("fallback_used", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"}).sum()))
+        display_columns = [
+            column
+            for column in [
+                "ticker",
+                "status",
+                "rows_fetched",
+                "rows_merged",
+                "error_category",
+                "error_message",
+                "fallback_used",
+                "recommended_action",
+            ]
+            if column in price_status_frame.columns
+        ]
+        st.dataframe(clean_display_frame(price_status_frame[display_columns]), width="stretch", hide_index=True)
+        st.caption(
+            "Manual fallback is CLI-only: fill `data/imports/prices.csv` with verified OHLCV rows, then run "
+            "`make price-validate`, `make price-preview`, and `make price-apply`."
+        )
 
     st.markdown("### Ticker Coverage / Onboarding")
     onboarding_tables = load_data_onboarding_tables()
