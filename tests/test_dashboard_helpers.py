@@ -286,6 +286,33 @@ def test_project_status_cockpit_is_readable_and_research_safe():
     assert "sell" not in html.lower()
 
 
+def test_monthly_pick_card_html_is_product_style_and_clean():
+    html = dashboard.monthly_pick_card_html(
+        {
+            "Rank": 1,
+            "Ticker": "NVDA",
+            "Theme": "AI Semiconductors",
+            "Sector": "SMH",
+            "PrimaryPurpose": "Momentum Leader",
+            "CompositeScore": 52.98,
+            "MomentumScore": 61.52,
+            "SetupStatus": "Watch",
+            "FinalState": "Review Thesis",
+            "Reason": "Composite score uses transparent local components. Missing or incomplete fields reduced confidence.",
+            "MissingDataFields": "Return3M, fundamentals unavailable, peers",
+        }
+    )
+
+    assert "pick-card" in html
+    assert "Rank 1" in html
+    assert "NVDA" in html
+    assert "52.98" in html
+    assert "Needs SEC enrichment" in html
+    assert "Needs peers.csv" in html
+    assert "nan" not in html.lower()
+    assert "none" not in html.lower()
+
+
 def test_onboarding_summary_counts_core_and_optional_gaps():
     coverage = pd.DataFrame(
         [

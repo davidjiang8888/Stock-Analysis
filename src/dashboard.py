@@ -567,6 +567,97 @@ def apply_dashboard_theme() -> None:
           gap: 0.45rem;
           align-items: center;
         }
+        .pick-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+          gap: 0.95rem;
+          margin: 0.8rem 0 1.1rem 0;
+        }
+        .pick-card {
+          position: relative;
+          overflow: hidden;
+          background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,248,239,0.96));
+          border: 1px solid var(--research-border);
+          border-radius: 24px;
+          padding: 1rem 1.05rem;
+          box-shadow: 0 16px 38px rgba(17, 24, 39, 0.08);
+        }
+        .pick-card::before {
+          content: "";
+          position: absolute;
+          inset: 0 auto 0 0;
+          width: 7px;
+          background: linear-gradient(180deg, #0f766e, #99f6e4);
+        }
+        .pick-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 0.75rem;
+        }
+        .pick-rank {
+          color: #0f766e;
+          font-size: 0.75rem;
+          font-weight: 950;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        }
+        .pick-ticker {
+          color: #111827;
+          font-size: 1.65rem;
+          font-weight: 950;
+          letter-spacing: -0.055em;
+          line-height: 1;
+          margin-top: 0.18rem;
+        }
+        .pick-meta {
+          color: #475569;
+          font-size: 0.86rem;
+          margin-top: 0.28rem;
+          line-height: 1.35;
+        }
+        .pick-score {
+          min-width: 74px;
+          text-align: center;
+          border-radius: 18px;
+          padding: 0.55rem 0.6rem;
+          background: #0b3b36;
+          color: #ecfdf5;
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.16);
+        }
+        .pick-score-label {
+          color: #99f6e4;
+          font-size: 0.68rem;
+          font-weight: 900;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+        .pick-score-value {
+          color: #ffffff;
+          font-size: 1.22rem;
+          font-weight: 950;
+          letter-spacing: -0.04em;
+        }
+        .pick-badges {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.45rem;
+          margin-top: 0.8rem;
+        }
+        .pick-reason {
+          color: #1f2937;
+          font-size: 0.92rem;
+          line-height: 1.48;
+          margin-top: 0.82rem;
+        }
+        .pick-missing {
+          color: #475569;
+          font-size: 0.84rem;
+          line-height: 1.38;
+          border-top: 1px solid #e5e7eb;
+          margin-top: 0.85rem;
+          padding-top: 0.72rem;
+        }
         .tiny-badge {
           display: inline-block;
           padding: 0.18rem 0.48rem;
@@ -1494,6 +1585,42 @@ def project_status_cockpit_html(payload: dict[str, Any] | None, health_score: in
     )
 
 
+def monthly_pick_card_html(row: pd.Series | dict[str, object]) -> str:
+    get_value = row.get if hasattr(row, "get") else dict(row).get
+    ticker = format_missing(get_value("Ticker"))
+    rank = format_value(get_value("Rank"), fallback="-")
+    theme = format_missing(get_value("Theme"), "Unclassified")
+    sector = format_missing(get_value("Sector"), "No sector")
+    purpose = format_missing(get_value("PrimaryPurpose"), "Research candidate")
+    reason = compact_reason(get_value("Reason"), max_sentences=2, max_chars=260)
+    score = format_value(get_value("CompositeScore"), fallback="N/A")
+    missing_fields = summarize_missing_fields(get_value("MissingDataFields"), max_items=4)
+    missing_text = "No required gaps flagged" if missing_fields == "Not available" else missing_fields
+    badges = [
+        score_badge(get_value("MomentumScore")),
+        status_badge(get_value("SetupStatus")),
+        status_badge(get_value("FinalState")),
+    ]
+    return (
+        "<div class='pick-card'>"
+        "<div class='pick-head'>"
+        "<div>"
+        f"<div class='pick-rank'>Rank {html.escape(rank)}</div>"
+        f"<div class='pick-ticker'>{html.escape(ticker)}</div>"
+        f"<div class='pick-meta'>{html.escape(theme)} · {html.escape(sector)} · {html.escape(purpose)}</div>"
+        "</div>"
+        "<div class='pick-score'>"
+        "<div class='pick-score-label'>Score</div>"
+        f"<div class='pick-score-value'>{html.escape(score)}</div>"
+        "</div>"
+        "</div>"
+        f"<div class='pick-badges'>{''.join(badges)}</div>"
+        f"<div class='pick-reason'>{html.escape(reason)}</div>"
+        f"<div class='pick-missing'><strong>Data gaps:</strong> {html.escape(missing_text)}</div>"
+        "</div>"
+    )
+
+
 def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
     if action_queue is None or action_queue.empty:
         return []
@@ -1993,28 +2120,13 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         if priority_signals:
             render_signal_cards(priority_signals)
         render_section_header("Research Candidates", "Ranked research candidates, not buy/sell instructions.")
-        for _, row in picks_frame.sort_values(["Rank", "CompositeScore"], ascending=[True, False]).iterrows():
-            ticker = html.escape(format_missing(row.get("Ticker")))
-            rank = html.escape(format_value(row.get("Rank")))
-            theme = html.escape(format_missing(row.get("Theme"), "Unclassified"))
-            sector = html.escape(format_missing(row.get("Sector"), "No sector"))
-            reason = html.escape(compact_reason(row.get("Reason")))
-            body = (
-                f"<div style='display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.55rem;'>"
-                f"{score_badge(row.get('CompositeScore'))}"
-                f"{status_badge(row.get('SetupStatus'))}"
-                f"{status_badge(row.get('FinalState'))}"
-                f"</div>"
-                f"<strong>{ticker}</strong> "
-                f"<span style='color:#334155;'>Rank {rank} · {theme} · {sector}</span>"
-                f"<p style='margin:0.55rem 0 0 0;'>{reason}</p>"
-                f"<p style='margin:0.35rem 0 0 0;color:#475569;font-size:0.88rem;'>Full transparent reason is available in the table below.</p>"
-            )
-            readable_card(
-                title="Research Candidate",
-                body=body,
-                footer=f"Data coverage: {missing_data_notice(row.get('MissingDataFields'))}",
-            )
+        ordered_picks = picks_frame.sort_values(["Rank", "CompositeScore"], ascending=[True, False])
+        st.markdown(
+            "<div class='pick-grid'>"
+            + "".join(monthly_pick_card_html(row) for _, row in ordered_picks.iterrows())
+            + "</div>",
+            unsafe_allow_html=True,
+        )
 
         with st.expander("Monthly candidates table", expanded=False):
             display_columns = [
