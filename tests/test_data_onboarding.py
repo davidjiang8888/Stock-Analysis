@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.data_onboarding import (
+    COMMAND_BUNDLE_COLUMNS,
     COVERAGE_COLUMNS,
     FUNDAMENTALS_PEER_WORKLIST_COLUMNS,
     OPTIONAL_CONTEXT_WORKLIST_COLUMNS,
@@ -175,6 +176,7 @@ def test_write_onboarding_outputs_and_templates(tmp_path: Path):
     assert Path(output_result["peer_mapping_queue_path"]).exists()
     assert Path(output_result["ticker_unlock_ladder_path"]).exists()
     assert Path(output_result["unlock_priority_summary_path"]).exists()
+    assert Path(output_result["command_bundles_path"]).exists()
     wizard_frame = pd.read_csv(output_result["wizard_path"])
     price_worklist_frame = pd.read_csv(output_result["price_worklist_path"])
     fundamentals_peer_frame = pd.read_csv(output_result["fundamentals_peer_worklist_path"])
@@ -183,6 +185,7 @@ def test_write_onboarding_outputs_and_templates(tmp_path: Path):
     peer_mapping_queue_frame = pd.read_csv(output_result["peer_mapping_queue_path"])
     unlock_ladder_frame = pd.read_csv(output_result["ticker_unlock_ladder_path"])
     unlock_summary_frame = pd.read_csv(output_result["unlock_priority_summary_path"])
+    command_bundles_frame = pd.read_csv(output_result["command_bundles_path"])
     assert list(wizard_frame.columns) == WIZARD_COLUMNS
     assert list(price_worklist_frame.columns) == PRICE_WORKLIST_COLUMNS
     assert list(fundamentals_peer_frame.columns) == FUNDAMENTALS_PEER_WORKLIST_COLUMNS
@@ -191,6 +194,7 @@ def test_write_onboarding_outputs_and_templates(tmp_path: Path):
     assert list(peer_mapping_queue_frame.columns) == PEER_MAPPING_QUEUE_COLUMNS
     assert list(unlock_ladder_frame.columns) == TICKER_UNLOCK_LADDER_COLUMNS
     assert list(unlock_summary_frame.columns) == UNLOCK_PRIORITY_SUMMARY_COLUMNS
+    assert list(command_bundles_frame.columns) == COMMAND_BUNDLE_COLUMNS
     assert (tmp_path / "data" / "templates" / "peers.csv").exists()
     assert (tmp_path / "data" / "templates" / "prices.csv").exists()
     assert (tmp_path / "data" / "templates" / "custom_universe.csv").exists()
@@ -422,6 +426,39 @@ def test_unlock_priority_summary_groups_holdings_themes_and_sector_etfs(tmp_path
     assert theme_row["ticker_count"] == 2
     assert theme_row["top_priority_stage"] == "prices"
     assert sector_row["ticker_count"] == 2
+
+
+def test_data_onboarding_cli_command_bundles_json(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--command-bundles", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert "command_bundles" in payload
+    assert payload["command_bundles"][0]["lane"] == "prices"
+    assert "primary_command" in payload["command_bundles"][0]
+
+
+def test_command_bundles_surface_holdings_first_price_and_sec_paths(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    bundles = {row["lane"]: row for row in payload["command_bundles"]}
+
+    assert list(payload["command_bundles"][0].keys()) == COMMAND_BUNDLE_COLUMNS
+    assert bundles["prices"]["scope"] == "broader_queue"
+    assert "AMD" in bundles["prices"]["tickers"]
+    assert "src.data_update --tickers AMD" in bundles["prices"]["primary_command"]
+    assert bundles["fundamentals"]["scope"] == "broader_queue"
+    assert "AMD" in bundles["fundamentals"]["tickers"]
+    assert "make sec-stage" in bundles["fundamentals"]["primary_command"]
+    assert bundles["peers"]["scope"] == "holdings_first"
+    assert "NVDA" in bundles["peers"]["tickers"]
+    assert bundles["peers"]["target_file"] == "data/imports/peers.csv"
 
 
 def test_build_data_coverage_wizard_accepts_empty_coverage():

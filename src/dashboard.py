@@ -59,6 +59,7 @@ DATA_ONBOARDING_FILES = {
     "peer_mapping_queue.csv": "Peer Mapping Queue",
     "ticker_unlock_ladder.csv": "Ticker Unlock Ladder",
     "unlock_priority_summary.csv": "Unlock Priority Summary",
+    "command_bundles.csv": "Command Bundles",
 }
 ACTION_QUEUE_FILE = "research_action_queue.csv"
 RESEARCH_HEALTH_FILES = {
@@ -1987,6 +1988,42 @@ def data_health_action_path_cards(
     if not cards:
         return _fallback_card()
     return cards[:4]
+
+
+def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
+    if bundle_frame is None or bundle_frame.empty:
+        return [
+            {
+                "kicker": "COMMAND BUNDLES",
+                "title": "No bundles yet",
+                "body": "Generate onboarding outputs to surface holdings-first local command bundles for prices, SEC staging, and peer mapping.",
+                "badges": ["read-only"],
+                "command": "python3 -m src.data_onboarding --write-output",
+            }
+        ]
+
+    ordered = bundle_frame.copy()
+    if "ticker_count" in ordered.columns:
+        ordered["ticker_count"] = pd.to_numeric(ordered["ticker_count"], errors="coerce").fillna(0)
+
+    cards: list[dict[str, object]] = []
+    for _, row in ordered.head(limit).iterrows():
+        cards.append(
+            {
+                "kicker": format_missing(row.get("lane"), "bundle").upper(),
+                "title": format_missing(row.get("bundle_name"), "Local bundle"),
+                "body": (
+                    f"{format_missing(row.get('tickers'), 'No tickers')}: "
+                    f"{compact_reason(row.get('why_it_matters'), max_sentences=1, max_chars=150)}"
+                ),
+                "badges": [
+                    format_missing(row.get("scope"), "scope").replace("_", " "),
+                    f"{format_value(row.get('ticker_count'), fallback='0')} tickers",
+                ],
+                "command": format_missing(row.get("primary_command"), ""),
+            }
+        )
+    return cards
 
 
 def data_health_tab_summary_cards(
@@ -5671,6 +5708,7 @@ def render_data_health(provider) -> None:
     peer_mapping_queue_frame, peer_mapping_queue_message = onboarding_tables["peer_mapping_queue.csv"]
     ticker_unlock_ladder_frame, ticker_unlock_ladder_message = onboarding_tables["ticker_unlock_ladder.csv"]
     unlock_priority_summary_frame, unlock_priority_summary_message = onboarding_tables["unlock_priority_summary.csv"]
+    command_bundles_frame, command_bundles_message = onboarding_tables["command_bundles.csv"]
     staged_imports = validate_imports(base_dir=BASE_DIR)
     universe_summary = summarize_universe_manager(BASE_DIR)
     staged_universe = universe_summary["staged_universe"]
@@ -5688,6 +5726,14 @@ def render_data_health(provider) -> None:
     render_action_cards(data_health_fix_first_cards(actions_frame))
     render_section_header("Action Paths", "The clearest local command path for the top overall action and the main prices, fundamentals, and peers lanes.")
     render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
+    render_section_header("Command Bundles", "Holdings-first local command bundles for the next price, SEC fundamentals, and peer-mapping pass.")
+    render_signal_cards(data_health_command_bundle_cards(command_bundles_frame))
+    if command_bundles_frame is None:
+        render_notice_card(
+            "Command bundles have not been generated yet",
+            command_bundles_message or "Write the onboarding outputs to generate holdings-first local command bundles.",
+            "python3 -m src.data_onboarding --write-output",
+        )
 
     if not validation_rows.empty:
         missing_optional = validation_rows.loc[

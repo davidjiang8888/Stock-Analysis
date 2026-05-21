@@ -155,6 +155,19 @@ UNLOCK_PRIORITY_SUMMARY_COLUMNS = [
     "recommended_action",
 ]
 
+COMMAND_BUNDLE_COLUMNS = [
+    "bundle_name",
+    "lane",
+    "scope",
+    "ticker_count",
+    "tickers",
+    "primary_command",
+    "follow_up_command",
+    "target_file",
+    "why_it_matters",
+    "safe_next_step",
+]
+
 WIZARD_COLUMNS = [
     "priority",
     "ticker",
@@ -191,6 +204,23 @@ class TickerCoverage:
     missing_required_for_dcf: str
     missing_required_for_peer_relative: str
     next_best_action: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class CommandBundleRow:
+    bundle_name: str
+    lane: str
+    scope: str
+    ticker_count: int
+    tickers: str
+    primary_command: str
+    follow_up_command: str
+    target_file: str
+    why_it_matters: str
+    safe_next_step: str
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -1246,6 +1276,98 @@ def build_unlock_priority_summary(
     )
 
 
+def build_command_bundles(
+    coverage_rows: list[TickerCoverage],
+    project_root: Path | str | None = None,
+    *,
+    data_dir: Path | str | None = None,
+    output_dir: Path | str | None = None,
+) -> list[CommandBundleRow]:
+    context_lookup = _ticker_context_lookup(project_root, data_dir=data_dir, output_dir=output_dir)
+    sec_queue = build_sec_stage_queue(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
+    peer_queue = build_peer_mapping_queue(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
+
+    holdings_first_prices: list[TickerCoverage] = []
+    broader_price_queue: list[TickerCoverage] = []
+    for coverage in coverage_rows:
+        if coverage.usable_for_momentum:
+            continue
+        context = context_lookup.get(coverage.ticker, {})
+        if bool(context.get("is_holding", False)):
+            holdings_first_prices.append(coverage)
+        else:
+            broader_price_queue.append(coverage)
+
+    holdings_first_prices.sort(key=lambda item: (item.price_history_days > 0, item.price_history_days, item.ticker))
+    broader_price_queue.sort(key=lambda item: (item.price_history_days > 0, item.price_history_days, item.ticker))
+    price_targets = holdings_first_prices[:5] or broader_price_queue[:5]
+
+    holdings_sec = [row for row in sec_queue if row.is_holding][:5]
+    sec_targets = holdings_sec or sec_queue[:5]
+    holdings_peer = [row for row in peer_queue if row.is_holding][:5]
+    peer_targets = holdings_peer or peer_queue[:5]
+
+    bundles: list[CommandBundleRow] = []
+
+    if price_targets:
+        tickers = ",".join(row.ticker for row in price_targets)
+        scope = "holdings_first" if any(bool(context_lookup.get(row.ticker, {}).get("is_holding", False)) for row in price_targets) else "broader_queue"
+        bundles.append(
+            CommandBundleRow(
+                bundle_name="Price Coverage Bundle",
+                lane="prices",
+                scope=scope,
+                ticker_count=len(price_targets),
+                tickers=tickers,
+                primary_command=f"python3 -m src.data_update --tickers {tickers}",
+                follow_up_command="make price-status",
+                target_file="data/imports/prices.csv",
+                why_it_matters="These tickers are still blocking monthly picks or broader local research because price history is missing or too short.",
+                safe_next_step="If the free refresh fails, use data/raw/prices/ plus make price-normalize before price validate/preview/apply.",
+            )
+        )
+
+    if sec_targets:
+        tickers = ",".join(row.ticker for row in sec_targets)
+        scope = "holdings_first" if any(row.is_holding for row in sec_targets) else "broader_queue"
+        bundles.append(
+            CommandBundleRow(
+                bundle_name="SEC Fundamentals Bundle",
+                lane="fundamentals",
+                scope=scope,
+                ticker_count=len(sec_targets),
+                tickers=tickers,
+                primary_command=f"SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS={tickers}",
+                follow_up_command="make sec-preview",
+                target_file="data/imports/fundamentals.csv",
+                why_it_matters="These tickers are the best next candidates for explicit local DCF inputs once price coverage is good enough.",
+                safe_next_step="Keep SEC enrichment staged and review-only until validate/preview/apply confirms the merge.",
+            )
+        )
+
+    if peer_targets:
+        tickers = ",".join(row.ticker for row in peer_targets)
+        scope = "holdings_first" if any(row.is_holding for row in peer_targets) else "broader_queue"
+        bundles.append(
+            CommandBundleRow(
+                bundle_name="Peer Mapping Bundle",
+                lane="peers",
+                scope=scope,
+                ticker_count=len(peer_targets),
+                tickers=tickers,
+                primary_command="make templates",
+                follow_up_command="make onboarding",
+                target_file="data/imports/peers.csv",
+                why_it_matters="These tickers are closest to peer-relative coverage once manually researched peer mappings are added locally.",
+                safe_next_step="Fill only manually researched peers for the listed tickers, then rerun onboarding to refresh readiness and action outputs.",
+            )
+        )
+
+    lane_rank = {"prices": 1, "fundamentals": 2, "peers": 3}
+    scope_rank = {"holdings_first": 1, "broader_queue": 2}
+    return sorted(bundles, key=lambda item: (lane_rank.get(item.lane, 99), scope_rank.get(item.scope, 99), item.bundle_name))
+
+
 def build_onboarding_payload(
     project_root: Path | str | None = None,
     *,
@@ -1269,6 +1391,7 @@ def build_onboarding_payload(
         data_dir=data_dir,
         output_dir=output_dir,
     )
+    command_bundles = build_command_bundles(coverage, project_root, data_dir=data_dir, output_dir=output_dir)
     return {
         "ticker_coverage": [row.to_dict() for row in coverage],
         "onboarding_actions": [row.to_dict() for row in actions],
@@ -1280,6 +1403,7 @@ def build_onboarding_payload(
         "peer_mapping_queue": [row.to_dict() for row in peer_mapping_queue],
         "ticker_unlock_ladder": [row.to_dict() for row in ticker_unlock_ladder],
         "unlock_priority_summary": [row.to_dict() for row in unlock_priority_summary],
+        "command_bundles": [row.to_dict() for row in command_bundles],
     }
 
 
@@ -1304,6 +1428,7 @@ def write_onboarding_outputs(
     peer_mapping_queue_path = output_path / "peer_mapping_queue.csv"
     ticker_unlock_ladder_path = output_path / "ticker_unlock_ladder.csv"
     unlock_priority_summary_path = output_path / "unlock_priority_summary.csv"
+    command_bundles_path = output_path / "command_bundles.csv"
     pd.DataFrame(payload["ticker_coverage"], columns=COVERAGE_COLUMNS).to_csv(coverage_path, index=False)
     pd.DataFrame(payload["onboarding_actions"], columns=ACTION_COLUMNS).to_csv(actions_path, index=False)
     pd.DataFrame(payload["data_coverage_wizard"], columns=WIZARD_COLUMNS).to_csv(wizard_path, index=False)
@@ -1322,6 +1447,7 @@ def write_onboarding_outputs(
     pd.DataFrame(payload["unlock_priority_summary"], columns=UNLOCK_PRIORITY_SUMMARY_COLUMNS).to_csv(
         unlock_priority_summary_path, index=False
     )
+    pd.DataFrame(payload["command_bundles"], columns=COMMAND_BUNDLE_COLUMNS).to_csv(command_bundles_path, index=False)
     return {
         **payload,
         "coverage_path": str(coverage_path),
@@ -1334,6 +1460,7 @@ def write_onboarding_outputs(
         "peer_mapping_queue_path": str(peer_mapping_queue_path),
         "ticker_unlock_ladder_path": str(ticker_unlock_ladder_path),
         "unlock_priority_summary_path": str(unlock_priority_summary_path),
+        "command_bundles_path": str(command_bundles_path),
     }
 
 
@@ -1489,6 +1616,17 @@ def _print_unlock_priority_summary(payload: dict[str, Any]) -> None:
     print(f"Unlock priority summary rows: {len(payload['unlock_priority_summary'])}")
 
 
+def _print_command_bundles(payload: dict[str, Any]) -> None:
+    for row in payload["command_bundles"]:
+        print(
+            f"{row['bundle_name']}: lane={row['lane']} scope={row['scope']} "
+            f"tickers={row['tickers']} count={row['ticker_count']}"
+        )
+        print(f"  command: {row['primary_command']}")
+        print(f"  follow-up: {row['follow_up_command']}")
+    print(f"Command bundle rows: {len(payload['command_bundles'])}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Inspect local ticker-level coverage and onboarding actions.")
     parser.add_argument("--coverage", action="store_true", help="Print ticker-level local data coverage.")
@@ -1524,6 +1662,11 @@ def main() -> None:
         action="store_true",
         help="Print grouped unlock priorities by holdings, theme, and sector ETF.",
     )
+    parser.add_argument(
+        "--command-bundles",
+        action="store_true",
+        help="Print holdings-first local command bundles for prices, SEC staging, and peer mapping.",
+    )
     parser.add_argument("--write-output", action="store_true", help="Write ticker coverage and onboarding action CSVs.")
     parser.add_argument("--write-templates", action="store_true", help="Write header-only onboarding templates under data/templates.")
     parser.add_argument("--tickers", help="Comma-separated tickers to inspect. Defaults to universe and holdings tickers.")
@@ -1554,28 +1697,32 @@ def main() -> None:
         payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path, tickers=tickers)
 
     if args.json:
-        if args.wizard and not args.coverage and not args.write_output and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary:
+        if args.wizard and not args.coverage and not args.write_output and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary and not args.command_bundles:
             print(json.dumps({"data_coverage_wizard": payload["data_coverage_wizard"]}, indent=2))
-        elif args.price_worklist and not args.coverage and not args.write_output and not args.wizard and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary:
+        elif args.price_worklist and not args.coverage and not args.write_output and not args.wizard and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary and not args.command_bundles:
             print(json.dumps({"price_import_worklist": payload["price_import_worklist"]}, indent=2))
-        elif args.fundamentals_peer_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary:
+        elif args.fundamentals_peer_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary and not args.command_bundles:
             print(json.dumps({"fundamentals_peer_worklist": payload["fundamentals_peer_worklist"]}, indent=2))
-        elif args.optional_context_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary:
+        elif args.optional_context_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary and not args.command_bundles:
             print(json.dumps({"optional_context_worklist": payload["optional_context_worklist"]}, indent=2))
-        elif args.sec_stage_queue and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary:
+        elif args.sec_stage_queue and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary and not args.command_bundles:
             print(json.dumps({"sec_stage_queue": payload["sec_stage_queue"]}, indent=2))
-        elif args.peer_mapping_queue and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.unlock_ladder and not args.unlock_summary:
+        elif args.peer_mapping_queue and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.unlock_ladder and not args.unlock_summary and not args.command_bundles:
             print(json.dumps({"peer_mapping_queue": payload["peer_mapping_queue"]}, indent=2))
-        elif args.unlock_ladder and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_summary:
+        elif args.unlock_ladder and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_summary and not args.command_bundles:
             print(json.dumps({"ticker_unlock_ladder": payload["ticker_unlock_ladder"]}, indent=2))
-        elif args.unlock_summary and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder:
+        elif args.unlock_summary and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.command_bundles:
             print(json.dumps({"unlock_priority_summary": payload["unlock_priority_summary"]}, indent=2))
+        elif args.command_bundles and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary:
+            print(json.dumps({"command_bundles": payload["command_bundles"]}, indent=2))
         else:
             print(json.dumps(payload, indent=2))
         return
 
     print(format_path_context(root, data_path, output_path))
-    if args.unlock_summary and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder:
+    if args.command_bundles and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary:
+        _print_command_bundles(payload)
+    elif args.unlock_summary and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder:
         _print_unlock_priority_summary(payload)
     elif args.unlock_ladder and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue:
         _print_ticker_unlock_ladder(payload)
@@ -1604,6 +1751,7 @@ def main() -> None:
         print(f"Wrote: {payload['peer_mapping_queue_path']}")
         print(f"Wrote: {payload['ticker_unlock_ladder_path']}")
         print(f"Wrote: {payload['unlock_priority_summary_path']}")
+        print(f"Wrote: {payload['command_bundles_path']}")
 
 
 if __name__ == "__main__":

@@ -2262,6 +2262,47 @@ def test_data_health_action_path_cards_handle_missing_inputs_gracefully():
     assert "sell" not in rendered
 
 
+def test_data_health_command_bundle_cards_surface_holdings_first_commands():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "ticker_count": 2,
+                "tickers": "AMD,AVGO",
+                "primary_command": "python3 -m src.data_update --tickers AMD,AVGO",
+                "follow_up_command": "make price-status",
+                "target_file": "data/imports/prices.csv",
+                "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
+                "safe_next_step": "Use staged local imports if the free refresh fails.",
+            },
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "ticker_count": 1,
+                "tickers": "NVDA",
+                "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA",
+                "follow_up_command": "make sec-preview",
+                "target_file": "data/imports/fundamentals.csv",
+                "why_it_matters": "This holding is the best next candidate for explicit local DCF inputs.",
+                "safe_next_step": "Keep SEC staging review-only until preview is clean.",
+            },
+        ]
+    )
+
+    cards = dashboard.data_health_command_bundle_cards(bundles)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "PRICES"
+    assert "holdings first" in rendered
+    assert "src.data_update --tickers amd,avgo" in rendered
+    assert "make sec-stage tickers=nvda" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values():
     wizard = pd.DataFrame(
         [

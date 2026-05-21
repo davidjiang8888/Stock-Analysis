@@ -26,4 +26,5 @@ outputs/sec_stage_queue.csv
 outputs/peer_mapping_queue.csv
 outputs/ticker_unlock_ladder.csv
 outputs/unlock_priority_summary.csv
+outputs/command_bundles.csv
 local_artifacts_backup/

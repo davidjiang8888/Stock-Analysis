@@ -253,6 +253,7 @@ Convenience targets:
 
 ```bash
 make coverage
+make command-bundles
 make onboarding
 make templates
 ```
@@ -261,6 +262,7 @@ make templates
 
 - `outputs/ticker_data_coverage.csv`
 - `outputs/data_onboarding_actions.csv`
+- `outputs/command_bundles.csv`
 
 `--write-templates` creates header-only local templates under `data/templates/` for:
 
@@ -1111,6 +1113,7 @@ make onboarding
 - `outputs/sec_stage_queue.csv`
 - `outputs/peer_mapping_queue.csv`
 - `outputs/ticker_unlock_ladder.csv`
+- `outputs/command_bundles.csv`
 
 The wizard is read-only. It does not fetch, stage, merge, or fabricate data. Use the existing safe workflows for actual data changes:
 
@@ -1148,6 +1151,28 @@ This grouped summary is useful when you want to decide whether the next best loc
 - a sector ETF cluster such as `SMH`
 
 It is also written to `outputs/unlock_priority_summary.csv` when you run `python3 -m src.data_onboarding --write-output`.
+
+If you want a smaller, holdings-first command view instead of the full ticker queues, use:
+
+```bash
+python3 -m src.data_onboarding --command-bundles
+python3 -m src.data_onboarding --command-bundles --json
+make command-bundles
+```
+
+This read-only bundle output groups the next practical local passes into:
+
+- a price coverage bundle
+- an SEC fundamentals staging bundle
+- a manual peer-mapping bundle
+
+Each bundle keeps the workflow explicit by showing:
+
+- the exact tickers in scope
+- the primary local command
+- the next follow-up command
+- the target local file
+- the safe next step if the remote path is unreliable
 
 ## SEC Companyfacts staging workflow
 
