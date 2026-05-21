@@ -39,6 +39,7 @@ DATA_SOURCE_FILES = {
 DATA_ONBOARDING_FILES = {
     "ticker_data_coverage.csv": "Ticker Data Coverage",
     "data_onboarding_actions.csv": "Data Onboarding Actions",
+    "data_coverage_wizard.csv": "Data Coverage Wizard",
 }
 ACTION_QUEUE_FILE = "research_action_queue.csv"
 RESEARCH_HEALTH_FILES = {
@@ -1436,6 +1437,50 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
     return cards
 
 
+def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    goals = [
+        ("Unlock Monthly Picks", "MONTHLY"),
+        ("Unlock Track Record", "TRACK RECORD"),
+        ("Unlock DCF", "VALUATION"),
+        ("Unlock Peer Relative", "PEERS"),
+    ]
+    if wizard_frame is None or wizard_frame.empty:
+        return [
+            {
+                "kicker": "DATA WIZARD",
+                "title": "Not generated",
+                "body": "Run the local data wizard to see which verified CSV inputs unlock the most value next.",
+                "badges": ["make data-wizard"],
+            }
+        ]
+    cards: list[dict[str, object]] = []
+    for goal, kicker in goals:
+        subset = wizard_frame.loc[wizard_frame.get("unlock_goal", pd.Series(dtype=object)).astype(str).eq(goal)]
+        if subset.empty:
+            cards.append(
+                {
+                    "kicker": kicker,
+                    "title": "Ready or not blocking",
+                    "body": "No priority wizard rows currently block this research surface.",
+                    "badges": ["local CSV"],
+                }
+            )
+            continue
+        ordered = subset.sort_values(["priority", "ticker", "blocking_dataset"], na_position="last")
+        first = ordered.iloc[0]
+        ticker = format_missing(first.get("ticker"), "portfolio")
+        command = format_missing(first.get("example_command"), "make onboarding")
+        cards.append(
+            {
+                "kicker": kicker,
+                "title": f"{len(subset)} blocker{'s' if len(subset) != 1 else ''}",
+                "body": f"Start with {ticker}: {compact_reason(first.get('why_it_matters'), max_sentences=1, max_chars=150)}",
+                "badges": [format_missing(first.get("blocking_dataset"), "data"), command],
+            }
+        )
+    return cards
+
+
 def universe_workflow_cards(universe_summary: dict[str, Any]) -> list[tuple[str, str, str, str]]:
     current = universe_summary.get("current_universe", {})
     staged = universe_summary.get("staged_universe", {})
@@ -2176,6 +2221,8 @@ def render_overview(
     action_queue_frame, _ = load_action_queue()
     queue_summary = action_queue_summary(action_queue_frame)
     health_score, health_label = workflow_health_score(queue_summary, health_summary)
+    onboarding_tables = load_data_onboarding_tables()
+    wizard_frame, _ = onboarding_tables["data_coverage_wizard.csv"]
 
     render_section_header(
         "Command Center",
@@ -2219,6 +2266,9 @@ def render_overview(
         if command_rows:
             with st.expander("Recommended next commands", expanded=False):
                 st.dataframe(pd.DataFrame(command_rows), width="stretch", hide_index=True)
+
+    render_section_header("Coverage Wizard", "The next local data unlocks for richer research output.")
+    render_signal_cards(data_coverage_wizard_cards(wizard_frame))
 
     priority_signals = top_priority_signals(action_queue_frame, limit=3)
     if priority_signals:
@@ -2714,11 +2764,20 @@ def render_data_health(provider) -> None:
     onboarding_tables = load_data_onboarding_tables()
     coverage_frame, coverage_message = onboarding_tables["ticker_data_coverage.csv"]
     actions_frame, actions_message = onboarding_tables["data_onboarding_actions.csv"]
+    wizard_frame, wizard_message = onboarding_tables["data_coverage_wizard.csv"]
     staged_imports = validate_imports(base_dir=BASE_DIR)
     universe_summary = summarize_universe_manager(BASE_DIR)
     staged_universe = universe_summary["staged_universe"]
 
     render_signal_cards(data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame))
+    render_section_header("Coverage Wizard", "What to unlock next for Monthly Picks, track record, DCF, and peer-relative research.")
+    render_signal_cards(data_coverage_wizard_cards(wizard_frame))
+    if wizard_frame is None:
+        render_notice_card(
+            "Coverage wizard has not been generated",
+            wizard_message or "Generate the local data coverage wizard to see the next best coverage unlocks.",
+            "python3 -m src.data_onboarding --write-output",
+        )
     render_section_header("Fix First", "Highest-priority local data actions. Apply/merge steps remain CLI-only and reviewable.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
 
@@ -2878,6 +2937,23 @@ def render_data_health(provider) -> None:
                     st.dataframe(clean_display_frame(top_actions[action_columns]), width="stretch", hide_index=True)
             elif actions_message:
                 st.info(actions_message)
+
+            if wizard_frame is not None and not wizard_frame.empty:
+                with st.expander("Data Coverage Wizard Rows", expanded=False):
+                    wizard_columns = [
+                        column
+                        for column in [
+                            "priority",
+                            "ticker",
+                            "unlock_goal",
+                            "blocking_dataset",
+                            "current_status",
+                            "recommended_action",
+                            "safe_next_step",
+                        ]
+                        if column in wizard_frame.columns
+                    ]
+                    st.dataframe(clean_display_frame(wizard_frame[wizard_columns].head(20)), width="stretch", hide_index=True)
 
     with health_tabs[2]:
         if status_frame is None and gap_frame is None:

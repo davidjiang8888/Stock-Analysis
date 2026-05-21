@@ -953,6 +953,7 @@ The `Data Health` tab helps you inspect:
 - missing optional files
 - schema warnings
 - staged import status
+- data coverage wizard rows showing what unlocks Monthly Picks, track record, DCF, and peer-relative research next
 
 The `Universe Manager` tab helps you inspect:
 
@@ -1015,6 +1016,38 @@ make action-queue
 ```
 
 The queue stays read-only and research-only. It does not apply imports or write market data for you; it only ranks what to fix next and shows the relevant local file or command.
+
+## Data coverage wizard
+
+The data coverage wizard is the next layer above onboarding. It translates local coverage gaps into explicit unlock paths:
+
+- `Unlock Monthly Picks`: usually blocked by missing or short local price history.
+- `Unlock Track Record`: blocked by insufficient dated local price history for picks and benchmark comparison.
+- `Unlock DCF`: blocked by missing fundamentals such as free cash flow or revenue plus FCF margin, and shares outstanding.
+- `Unlock Peer Relative`: blocked by missing peer mappings or missing peer fundamentals/prices.
+- `Add Earnings Context` and `Add Analyst Estimate Context`: optional local enrichments that do not block the core workflow.
+
+Generate it with:
+
+```bash
+python3 -m src.data_onboarding --wizard
+python3 -m src.data_onboarding --wizard --json
+python3 -m src.data_onboarding --write-output
+make data-wizard
+make onboarding
+```
+
+`python3 -m src.data_onboarding --write-output` writes:
+
+- `outputs/ticker_data_coverage.csv`
+- `outputs/data_onboarding_actions.csv`
+- `outputs/data_coverage_wizard.csv`
+
+The wizard is read-only. It does not fetch, stage, merge, or fabricate data. Use the existing safe workflows for actual data changes:
+
+- prices: `data/raw/prices/` -> `make price-normalize` -> `make price-validate` -> `make price-preview` -> `make price-apply`
+- fundamentals: SEC staging -> validate -> preview -> apply
+- peers/earnings/estimates: fill trusted local CSVs under `data/imports/`, then validate and preview before applying
 
 ## SEC Companyfacts staging workflow
 

@@ -7,7 +7,9 @@ import pandas as pd
 
 from src.data_onboarding import (
     COVERAGE_COLUMNS,
+    WIZARD_COLUMNS,
     build_onboarding_payload,
+    build_data_coverage_wizard,
     main,
     write_onboarding_outputs,
     write_onboarding_templates,
@@ -95,6 +97,32 @@ def test_onboarding_actions_prioritize_prices_fundamentals_peers_before_estimate
     assert any(row["dataset"] == "analyst_estimates" and row["priority"] == 5 for row in amd_actions)
 
 
+def test_data_coverage_wizard_ranks_core_unlocks_before_optional_context(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    amd_rows = [row for row in payload["data_coverage_wizard"] if row["ticker"] == "AMD"]
+    goals = [row["unlock_goal"] for row in amd_rows]
+
+    assert list(payload["data_coverage_wizard"][0].keys()) == WIZARD_COLUMNS
+    assert amd_rows[0]["priority"] == 1
+    assert "Unlock Monthly Picks" in goals
+    assert "Unlock DCF" in goals
+    assert "Unlock Peer Relative" in goals
+    assert goals.index("Add Earnings Context") > goals.index("Unlock Peer Relative")
+    assert goals.index("Add Analyst Estimate Context") > goals.index("Unlock Peer Relative")
+
+
+def test_data_coverage_wizard_includes_track_record_for_short_history(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    nvda_goals = [row["unlock_goal"] for row in payload["data_coverage_wizard"] if row["ticker"] == "NVDA"]
+
+    assert "Unlock Track Record" in nvda_goals
+    assert "Unlock Monthly Picks" not in nvda_goals
+
+
 def test_onboarding_missing_optional_files_do_not_crash(tmp_path: Path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
@@ -132,6 +160,9 @@ def test_write_onboarding_outputs_and_templates(tmp_path: Path):
 
     assert Path(output_result["coverage_path"]).exists()
     assert Path(output_result["actions_path"]).exists()
+    assert Path(output_result["wizard_path"]).exists()
+    wizard_frame = pd.read_csv(output_result["wizard_path"])
+    assert list(wizard_frame.columns) == WIZARD_COLUMNS
     assert (tmp_path / "data" / "templates" / "peers.csv").exists()
     assert (tmp_path / "data" / "templates" / "prices.csv").exists()
     assert (tmp_path / "data" / "templates" / "custom_universe.csv").exists()
@@ -152,3 +183,21 @@ def test_data_onboarding_cli_coverage_json(tmp_path: Path, capsys):
         sys.argv = previous_argv
 
     assert [row["ticker"] for row in payload["ticker_coverage"]] == ["AMD", "NVDA"]
+
+
+def test_data_onboarding_cli_wizard_json(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--wizard", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert "data_coverage_wizard" in payload
+    assert any(row["unlock_goal"] == "Unlock DCF" for row in payload["data_coverage_wizard"])
+
+
+def test_build_data_coverage_wizard_accepts_empty_coverage():
+    assert build_data_coverage_wizard([]) == []

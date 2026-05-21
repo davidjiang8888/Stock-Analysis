@@ -538,6 +538,48 @@ def test_data_health_fix_first_cards_prioritize_actions():
     assert "sell" not in rendered
 
 
+def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values():
+    wizard = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "unlock_goal": "Unlock Monthly Picks",
+                "blocking_dataset": "prices",
+                "why_it_matters": "Monthly ranking needs verified local price history.",
+                "example_command": "python3 -m src.data_update --tickers NVDA",
+            },
+            {
+                "priority": 2,
+                "ticker": "NVDA",
+                "unlock_goal": "Unlock DCF",
+                "blocking_dataset": "fundamentals",
+                "why_it_matters": "DCF needs cash-flow inputs.",
+                "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+            },
+        ]
+    )
+
+    cards = dashboard.data_coverage_wizard_cards(wizard)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "monthly" in rendered
+    assert "valuation" in rendered
+    assert "not blocking" in rendered
+    assert "nan" not in rendered
+    assert "none" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_coverage_wizard_cards_handle_missing_output():
+    cards = dashboard.data_coverage_wizard_cards(None)
+    rendered = " ".join(str(value) for card in cards for value in card.values())
+
+    assert "Not generated" in rendered
+    assert "make data-wizard" in rendered
+
+
 def test_universe_preset_cards_include_preview_commands():
     cards = dashboard.universe_preset_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values())

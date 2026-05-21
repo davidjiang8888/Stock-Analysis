@@ -1,4 +1,4 @@
-.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates price-status price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage data-wizard onboarding templates price-status price-validate price-preview price-apply price-refresh price-normalize
 
 help:
 	@echo "Stock Research Screener convenience commands"
@@ -21,6 +21,7 @@ help:
 	@echo ""
 	@echo "Data onboarding:"
 	@echo "  make onboarding       Write source status, coverage, and action queue outputs"
+	@echo "  make data-wizard      Show prioritized data coverage unlocks"
 	@echo "  make templates        Write local CSV templates"
 	@echo "  make validate-data    Validate local CSV datasets"
 	@echo ""
@@ -71,6 +72,9 @@ validate-all:
 
 coverage:
 	python3 -m src.data_onboarding --coverage
+
+data-wizard:
+	python3 -m src.data_onboarding --wizard
 
 onboarding:
 	python3 -m src.data_sources --write-output

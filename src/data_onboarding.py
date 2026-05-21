@@ -44,6 +44,19 @@ ACTION_COLUMNS = [
     "example_command",
 ]
 
+WIZARD_COLUMNS = [
+    "priority",
+    "ticker",
+    "unlock_goal",
+    "blocking_dataset",
+    "current_status",
+    "why_it_matters",
+    "recommended_action",
+    "target_file",
+    "example_command",
+    "safe_next_step",
+]
+
 TEMPLATE_DATASETS = ("prices", "peers", "fundamentals", "earnings", "analyst_estimates", "custom_universe")
 PRICE_TEMPLATE_COLUMNS = ["date", "ticker", "open", "high", "low", "close", "volume", "adjusted_close", "source", "as_of_date", "notes"]
 
@@ -82,6 +95,23 @@ class OnboardingAction:
     recommended_action: str
     target_file: str
     example_command: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class DataCoverageWizardRow:
+    priority: int
+    ticker: str
+    unlock_goal: str
+    blocking_dataset: str
+    current_status: str
+    why_it_matters: str
+    recommended_action: str
+    target_file: str
+    example_command: str
+    safe_next_step: str
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -360,6 +390,107 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
     return sorted(actions, key=lambda item: (item.priority, item.ticker, item.dataset))
 
 
+def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[DataCoverageWizardRow]:
+    rows: list[DataCoverageWizardRow] = []
+    for row in coverage_rows:
+        price_command = f"python3 -m src.data_update --tickers {row.ticker}"
+        price_action = (
+            f"Refresh {row.ticker} prices, or normalize verified downloaded OHLCV rows into "
+            "data/imports/prices.csv before validate/preview/apply."
+        )
+        if not row.usable_for_momentum:
+            rows.append(
+                DataCoverageWizardRow(
+                    priority=1,
+                    ticker=row.ticker,
+                    unlock_goal="Unlock Monthly Picks",
+                    blocking_dataset="prices",
+                    current_status=row.missing_required_for_momentum or f"{row.price_history_days} local price rows",
+                    why_it_matters="Monthly ranking needs enough verified local price history for momentum and setup context.",
+                    recommended_action=price_action,
+                    target_file="data/imports/prices.csv",
+                    example_command=price_command,
+                    safe_next_step="Use make price-normalize for downloaded CSVs, then make price-validate and make price-preview before applying.",
+                )
+            )
+        if row.price_history_days < 63:
+            rows.append(
+                DataCoverageWizardRow(
+                    priority=1,
+                    ticker=row.ticker,
+                    unlock_goal="Unlock Track Record",
+                    blocking_dataset="prices",
+                    current_status=f"{row.price_history_days} local price rows",
+                    why_it_matters="Track-record comparisons need longer dated local history for picks and benchmark returns.",
+                    recommended_action=price_action,
+                    target_file="data/imports/prices.csv",
+                    example_command=price_command,
+                    safe_next_step="Add verified historical OHLCV rows locally; do not infer or backfill synthetic returns.",
+                )
+            )
+        if not row.usable_for_dcf:
+            rows.append(
+                DataCoverageWizardRow(
+                    priority=2,
+                    ticker=row.ticker,
+                    unlock_goal="Unlock DCF",
+                    blocking_dataset="fundamentals",
+                    current_status=row.missing_required_for_dcf or "DCF inputs incomplete",
+                    why_it_matters="DCF needs free cash flow or revenue plus FCF margin, and shares outstanding.",
+                    recommended_action="Run SEC staging for candidate fundamentals, then validate and preview before applying.",
+                    target_file="data/imports/fundamentals.csv",
+                    example_command=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {row.ticker}",
+                    safe_next_step="Review staged SEC-derived fields before import merge; leave unavailable fields blank.",
+                )
+            )
+        if not row.usable_for_peer_relative:
+            rows.append(
+                DataCoverageWizardRow(
+                    priority=3,
+                    ticker=row.ticker,
+                    unlock_goal="Unlock Peer Relative",
+                    blocking_dataset="peers",
+                    current_status=row.missing_required_for_peer_relative or "Peer-relative inputs incomplete",
+                    why_it_matters="Peer-relative valuation needs manual peer mappings plus peer fundamentals and price or market-cap context.",
+                    recommended_action="Add manually researched peer mappings and peer data through local CSV imports.",
+                    target_file="data/imports/peers.csv",
+                    example_command="python3 -m src.data_onboarding --write-templates",
+                    safe_next_step="Use data/imports/peers.csv for mappings; never fabricate peer relationships.",
+                )
+            )
+        if not row.has_earnings:
+            rows.append(
+                DataCoverageWizardRow(
+                    priority=4,
+                    ticker=row.ticker,
+                    unlock_goal="Add Earnings Context",
+                    blocking_dataset="earnings",
+                    current_status="optional local earnings row missing",
+                    why_it_matters="Earnings context improves the stock report but does not block core ranking or valuation.",
+                    recommended_action="Add earnings rows manually only from a trusted source.",
+                    target_file="data/imports/earnings.csv",
+                    example_command="python3 -m src.data_onboarding --write-templates",
+                    safe_next_step="Leave earnings blank when no trusted local source exists.",
+                )
+            )
+        if not row.has_analyst_estimates:
+            rows.append(
+                DataCoverageWizardRow(
+                    priority=5,
+                    ticker=row.ticker,
+                    unlock_goal="Add Analyst Estimate Context",
+                    blocking_dataset="analyst_estimates",
+                    current_status="optional local analyst-estimate row missing",
+                    why_it_matters="Estimate context is optional and should not be treated as a recommendation.",
+                    recommended_action="Add analyst estimates only if you have a trusted local source.",
+                    target_file="data/imports/analyst_estimates.csv",
+                    example_command="python3 -m src.data_onboarding --write-templates",
+                    safe_next_step="It is safe to leave analyst estimates missing.",
+                )
+            )
+    return sorted(rows, key=lambda item: (item.priority, item.unlock_goal, item.ticker, item.blocking_dataset))
+
+
 def build_onboarding_payload(
     project_root: Path | str | None = None,
     *,
@@ -369,9 +500,11 @@ def build_onboarding_payload(
 ) -> dict[str, Any]:
     coverage = build_ticker_coverage(project_root, data_dir=data_dir, output_dir=output_dir, tickers=tickers)
     actions = build_onboarding_actions(coverage)
+    wizard = build_data_coverage_wizard(coverage)
     return {
         "ticker_coverage": [row.to_dict() for row in coverage],
         "onboarding_actions": [row.to_dict() for row in actions],
+        "data_coverage_wizard": [row.to_dict() for row in wizard],
     }
 
 
@@ -388,12 +521,15 @@ def write_onboarding_outputs(
     output_path.mkdir(parents=True, exist_ok=True)
     coverage_path = output_path / "ticker_data_coverage.csv"
     actions_path = output_path / "data_onboarding_actions.csv"
+    wizard_path = output_path / "data_coverage_wizard.csv"
     pd.DataFrame(payload["ticker_coverage"], columns=COVERAGE_COLUMNS).to_csv(coverage_path, index=False)
     pd.DataFrame(payload["onboarding_actions"], columns=ACTION_COLUMNS).to_csv(actions_path, index=False)
+    pd.DataFrame(payload["data_coverage_wizard"], columns=WIZARD_COLUMNS).to_csv(wizard_path, index=False)
     return {
         **payload,
         "coverage_path": str(coverage_path),
         "actions_path": str(actions_path),
+        "wizard_path": str(wizard_path),
     }
 
 
@@ -456,9 +592,21 @@ def _print_coverage(payload: dict[str, Any]) -> None:
         print(f"- P{row['priority']} {row['dataset']}{ticker}: {row['recommended_action']}")
 
 
+def _print_wizard(payload: dict[str, Any]) -> None:
+    print("Data coverage wizard:")
+    for row in payload["data_coverage_wizard"][:30]:
+        ticker = f" {row['ticker']}" if row["ticker"] else ""
+        print(
+            f"- P{row['priority']} {row['unlock_goal']}{ticker}: "
+            f"{row['blocking_dataset']} - {row['recommended_action']}"
+        )
+    print(f"Wizard rows: {len(payload['data_coverage_wizard'])}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Inspect local ticker-level coverage and onboarding actions.")
     parser.add_argument("--coverage", action="store_true", help="Print ticker-level local data coverage.")
+    parser.add_argument("--wizard", action="store_true", help="Print prioritized data coverage wizard rows.")
     parser.add_argument("--write-output", action="store_true", help="Write ticker coverage and onboarding action CSVs.")
     parser.add_argument("--write-templates", action="store_true", help="Write header-only onboarding templates under data/templates.")
     parser.add_argument("--tickers", help="Comma-separated tickers to inspect. Defaults to universe and holdings tickers.")
@@ -489,14 +637,21 @@ def main() -> None:
         payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path, tickers=tickers)
 
     if args.json:
-        print(json.dumps(payload, indent=2))
+        if args.wizard and not args.coverage and not args.write_output:
+            print(json.dumps({"data_coverage_wizard": payload["data_coverage_wizard"]}, indent=2))
+        else:
+            print(json.dumps(payload, indent=2))
         return
 
     print(format_path_context(root, data_path, output_path))
-    _print_coverage(payload)
+    if args.wizard and not args.coverage:
+        _print_wizard(payload)
+    else:
+        _print_coverage(payload)
     if args.write_output:
         print(f"Wrote: {payload['coverage_path']}")
         print(f"Wrote: {payload['actions_path']}")
+        print(f"Wrote: {payload['wizard_path']}")
 
 
 if __name__ == "__main__":
