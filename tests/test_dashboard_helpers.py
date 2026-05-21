@@ -376,11 +376,14 @@ def test_onboarding_tables_handle_missing_outputs_and_summary():
     assert "has not been generated" in tables["optional_context_worklist.csv"][1]
     assert tables["ticker_unlock_ladder.csv"][0] is None
     assert "has not been generated" in tables["ticker_unlock_ladder.csv"][1]
+    assert tables["unlock_priority_summary.csv"][0] is None
+    assert "has not been generated" in tables["unlock_priority_summary.csv"][1]
     assert dashboard.summarize_ticker_coverage(None)["usable_price_tickers"] == 0
     assert dashboard.summarize_price_worklist(None)["priority_1"] == 0
     assert dashboard.summarize_fundamentals_peer_worklist(None)["fundamentals_priority_1"] == 0
     assert dashboard.summarize_optional_context_worklist(None)["missing_both"] == 0
     assert dashboard.summarize_ticker_unlock_ladder(None)["price_stage"] == 0
+    assert dashboard.summarize_unlock_priority_summary(None)["holdings_groups"] == 0
 
 
 def test_summarize_price_worklist_counts_readiness_levels():
@@ -449,6 +452,23 @@ def test_summarize_ticker_unlock_ladder_counts_stages():
     assert summary["peer_stage"] == 1
     assert summary["optional_stage"] == 1
     assert summary["ready_stage"] == 1
+
+
+def test_summarize_unlock_priority_summary_counts_group_types_and_stages():
+    worklist = pd.DataFrame(
+        {
+            "group_type": ["holdings", "theme", "theme", "sector_etf"],
+            "top_priority_stage": ["prices", "fundamentals", "prices", "peers"],
+        }
+    )
+
+    summary = dashboard.summarize_unlock_priority_summary(worklist)
+
+    assert summary["holdings_groups"] == 1
+    assert summary["theme_groups"] == 2
+    assert summary["sector_groups"] == 1
+    assert summary["price_led_groups"] == 2
+    assert summary["fundamentals_led_groups"] == 1
 
 
 def test_research_health_tables_handle_missing_outputs_and_summary(tmp_path):

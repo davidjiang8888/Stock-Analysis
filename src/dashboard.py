@@ -56,6 +56,7 @@ DATA_ONBOARDING_FILES = {
     "fundamentals_peer_worklist.csv": "Fundamentals Peer Worklist",
     "optional_context_worklist.csv": "Optional Context Worklist",
     "ticker_unlock_ladder.csv": "Ticker Unlock Ladder",
+    "unlock_priority_summary.csv": "Unlock Priority Summary",
 }
 ACTION_QUEUE_FILE = "research_action_queue.csv"
 RESEARCH_HEALTH_FILES = {
@@ -373,6 +374,27 @@ def summarize_ticker_unlock_ladder(worklist: pd.DataFrame | None) -> dict[str, i
         "peer_stage": int(stage_series.eq("peers").sum()),
         "optional_stage": int(stage_series.eq("optional_context").sum()),
         "ready_stage": int(stage_series.eq("ready").sum()),
+    }
+
+
+def summarize_unlock_priority_summary(worklist: pd.DataFrame | None) -> dict[str, int]:
+    if worklist is None or worklist.empty:
+        return {
+            "holdings_groups": 0,
+            "theme_groups": 0,
+            "sector_groups": 0,
+            "price_led_groups": 0,
+            "fundamentals_led_groups": 0,
+        }
+
+    group_type = worklist.get("group_type", pd.Series(dtype=object)).astype(str)
+    top_stage = worklist.get("top_priority_stage", pd.Series(dtype=object)).astype(str)
+    return {
+        "holdings_groups": int(group_type.eq("holdings").sum()),
+        "theme_groups": int(group_type.eq("theme").sum()),
+        "sector_groups": int(group_type.eq("sector_etf").sum()),
+        "price_led_groups": int(top_stage.eq("prices").sum()),
+        "fundamentals_led_groups": int(top_stage.eq("fundamentals").sum()),
     }
 
 
@@ -3869,6 +3891,7 @@ def render_data_health(provider) -> None:
     fundamentals_peer_worklist_frame, fundamentals_peer_worklist_message = onboarding_tables["fundamentals_peer_worklist.csv"]
     optional_context_worklist_frame, optional_context_worklist_message = onboarding_tables["optional_context_worklist.csv"]
     ticker_unlock_ladder_frame, ticker_unlock_ladder_message = onboarding_tables["ticker_unlock_ladder.csv"]
+    unlock_priority_summary_frame, unlock_priority_summary_message = onboarding_tables["unlock_priority_summary.csv"]
     staged_imports = validate_imports(base_dir=BASE_DIR)
     universe_summary = summarize_universe_manager(BASE_DIR)
     staged_universe = universe_summary["staged_universe"]
@@ -4028,6 +4051,14 @@ def render_data_health(provider) -> None:
                 metric_cols[2].metric("Need Peers", ladder_summary["peer_stage"])
                 metric_cols[3].metric("Need Optional Context", ladder_summary["optional_stage"])
                 metric_cols[4].metric("Coverage Ready", ladder_summary["ready_stage"])
+            if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
+                summary = summarize_unlock_priority_summary(unlock_priority_summary_frame)
+                metric_cols = st.columns(5)
+                metric_cols[0].metric("Holdings Groups", summary["holdings_groups"])
+                metric_cols[1].metric("Theme Groups", summary["theme_groups"])
+                metric_cols[2].metric("Sector ETF Groups", summary["sector_groups"])
+                metric_cols[3].metric("Price-Led Groups", summary["price_led_groups"])
+                metric_cols[4].metric("Fundamentals-Led Groups", summary["fundamentals_led_groups"])
 
             if data_quality_frame is not None and not data_quality_frame.empty:
                 data_quality_columns = [
@@ -4189,6 +4220,23 @@ def render_data_health(provider) -> None:
                         if column in ticker_unlock_ladder_frame.columns
                     ]
                     st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(20)), width="stretch", hide_index=True)
+            if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
+                with st.expander("Unlock Priority Summary", expanded=False):
+                    summary_columns = [
+                        column
+                        for column in [
+                            "group_type",
+                            "group_name",
+                            "ticker_count",
+                            "holdings_count",
+                            "top_priority_stage",
+                            "next_unlock_goal",
+                            "representative_tickers",
+                            "recommended_action",
+                        ]
+                        if column in unlock_priority_summary_frame.columns
+                    ]
+                    st.dataframe(clean_display_frame(unlock_priority_summary_frame[summary_columns].head(20)), width="stretch", hide_index=True)
 
     with health_tabs[2]:
         render_signal_cards(
@@ -4408,6 +4456,33 @@ def render_data_health(provider) -> None:
                 "Ticker unlock ladder is not available yet",
                 ticker_unlock_ladder_message
                 or "Generate the onboarding outputs to see the next per-ticker local data unlock stage.",
+                "python3 -m src.data_onboarding --write-output",
+                tone="warning",
+            )
+        if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
+            render_context_note(
+                "Unlock priority summary.",
+                "This grouped summary rolls the ticker ladders up by holdings, theme, and sector ETF so you can unlock the most research value first.",
+            )
+            summary_columns = [
+                column
+                for column in [
+                    "group_type",
+                    "group_name",
+                    "ticker_count",
+                    "holdings_count",
+                    "top_priority_stage",
+                    "next_unlock_goal",
+                    "representative_tickers",
+                ]
+                if column in unlock_priority_summary_frame.columns
+            ]
+            st.dataframe(clean_display_frame(unlock_priority_summary_frame[summary_columns].head(15)), width="stretch", hide_index=True)
+        else:
+            render_notice_card(
+                "Unlock priority summary is not available yet",
+                unlock_priority_summary_message
+                or "Generate the onboarding outputs to see grouped unlock priorities by holdings, theme, and sector ETF.",
                 "python3 -m src.data_onboarding --write-output",
                 tone="warning",
             )

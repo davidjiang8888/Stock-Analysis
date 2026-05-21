@@ -107,6 +107,22 @@ TICKER_UNLOCK_LADDER_COLUMNS = [
     "safe_next_step",
 ]
 
+UNLOCK_PRIORITY_SUMMARY_COLUMNS = [
+    "group_type",
+    "group_name",
+    "ticker_count",
+    "holdings_count",
+    "price_stage_count",
+    "fundamentals_stage_count",
+    "peer_stage_count",
+    "optional_stage_count",
+    "ready_stage_count",
+    "top_priority_stage",
+    "next_unlock_goal",
+    "representative_tickers",
+    "recommended_action",
+]
+
 WIZARD_COLUMNS = [
     "priority",
     "ticker",
@@ -243,6 +259,26 @@ class TickerUnlockLadderRow:
 
 
 @dataclass
+class UnlockPrioritySummaryRow:
+    group_type: str
+    group_name: str
+    ticker_count: int
+    holdings_count: int
+    price_stage_count: int
+    fundamentals_stage_count: int
+    peer_stage_count: int
+    optional_stage_count: int
+    ready_stage_count: int
+    top_priority_stage: str
+    next_unlock_goal: str
+    representative_tickers: str
+    recommended_action: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
 class DataCoverageWizardRow:
     priority: int
     ticker: str
@@ -333,6 +369,10 @@ def _discover_tickers(catalog: LocalDataCatalog, requested: list[str] | None = N
     if requested:
         return sorted({ticker.strip().upper() for ticker in requested if ticker.strip()})
     return catalog.list_tickers(["universe", "holdings"])
+
+
+def _normalize_column_lookup(frame: pd.DataFrame) -> dict[str, str]:
+    return {str(column).strip().lower(): str(column) for column in frame.columns}
 
 
 def _missing_join(items: list[str]) -> str:
@@ -879,6 +919,118 @@ def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[Tick
     return sorted(rows, key=lambda item: (stage_rank.get(item.current_unlock_stage, 99), item.ticker))
 
 
+def build_unlock_priority_summary(
+    coverage_rows: list[TickerCoverage],
+    ticker_unlock_ladder: list[TickerUnlockLadderRow],
+    project_root: Path | str | None = None,
+    *,
+    data_dir: Path | str | None = None,
+    output_dir: Path | str | None = None,
+) -> list[UnlockPrioritySummaryRow]:
+    root = resolve_project_root(project_root)
+    data_path = resolve_data_dir(data_dir, root)
+    output_path = resolve_outputs_dir(output_dir, root)
+    catalog = LocalDataCatalog(root, data_dir=data_path, outputs_dir=output_path)
+    universe = _load_frame(catalog, "universe")
+    holdings = _load_frame(catalog, "holdings")
+
+    universe_lookup = _normalize_column_lookup(universe)
+    holdings_lookup = _normalize_column_lookup(holdings)
+    universe_ticker_col = universe_lookup.get("ticker")
+    holdings_ticker_col = holdings_lookup.get("ticker")
+    theme_col = universe_lookup.get("theme")
+    sector_col = universe_lookup.get("sectoretf") or universe_lookup.get("sector_etf")
+
+    holding_tickers = _ticker_set(holdings, holdings_ticker_col or "ticker")
+    context_rows: list[dict[str, Any]] = []
+    ladder_map = {row.ticker: row for row in ticker_unlock_ladder}
+
+    for coverage in coverage_rows:
+        ladder = ladder_map[coverage.ticker]
+        universe_row = (
+            universe.loc[universe[universe_ticker_col].astype(str).str.upper().str.strip() == coverage.ticker].iloc[-1]
+            if universe_ticker_col and not universe.empty and not universe.loc[universe[universe_ticker_col].astype(str).str.upper().str.strip() == coverage.ticker].empty
+            else pd.Series(dtype=object)
+        )
+        theme = str(universe_row.get(theme_col, "")).strip() if theme_col else ""
+        sector_etf = str(universe_row.get(sector_col, "")).strip() if sector_col else ""
+        context_rows.append(
+            {
+                "ticker": coverage.ticker,
+                "is_holding": coverage.ticker in holding_tickers,
+                "theme": theme or "Unclassified",
+                "sector_etf": sector_etf or "Unclassified",
+                "stage": ladder.current_unlock_stage,
+            }
+        )
+
+    context_frame = pd.DataFrame(context_rows)
+    if context_frame.empty:
+        return []
+
+    stage_goal = {
+        "prices": "Unlock Monthly Picks",
+        "fundamentals": "Unlock DCF",
+        "peers": "Unlock Peer Relative",
+        "optional_context": "Add Optional Context",
+        "ready": "Maintain Coverage",
+    }
+    stage_action = {
+        "prices": "Fill verified local price history first; it unlocks the broadest research workflow.",
+        "fundamentals": "Stage or add verified fundamentals for the blocked names in this group.",
+        "peers": "Add manually researched peer mappings and peer context for this group.",
+        "optional_context": "Add earnings or analyst estimates only if you have trusted local sources.",
+        "ready": "Coverage in this group is already broadly usable; maintain it with normal refreshes.",
+    }
+    stage_order = ["prices", "fundamentals", "peers", "optional_context", "ready"]
+
+    summaries: list[UnlockPrioritySummaryRow] = []
+
+    def add_group(group_type: str, group_name: str, frame: pd.DataFrame) -> None:
+        if frame.empty:
+            return
+        stage_counts = {stage: int(frame["stage"].eq(stage).sum()) for stage in stage_order}
+        top_stage = next((stage for stage in stage_order if stage_counts[stage] > 0), "ready")
+        representative = ", ".join(frame.sort_values(["is_holding", "ticker"], ascending=[False, True])["ticker"].head(5).tolist())
+        summaries.append(
+            UnlockPrioritySummaryRow(
+                group_type=group_type,
+                group_name=group_name,
+                ticker_count=int(len(frame)),
+                holdings_count=int(frame["is_holding"].sum()),
+                price_stage_count=stage_counts["prices"],
+                fundamentals_stage_count=stage_counts["fundamentals"],
+                peer_stage_count=stage_counts["peers"],
+                optional_stage_count=stage_counts["optional_context"],
+                ready_stage_count=stage_counts["ready"],
+                top_priority_stage=top_stage,
+                next_unlock_goal=stage_goal[top_stage],
+                representative_tickers=representative,
+                recommended_action=stage_action[top_stage],
+            )
+        )
+
+    if context_frame["is_holding"].any():
+        add_group("holdings", "Current Holdings", context_frame.loc[context_frame["is_holding"]].copy())
+    for theme, frame in context_frame.groupby("theme", dropna=False):
+        add_group("theme", str(theme), frame.copy())
+    for sector_etf, frame in context_frame.groupby("sector_etf", dropna=False):
+        add_group("sector_etf", str(sector_etf), frame.copy())
+
+    group_rank = {"holdings": 1, "theme": 2, "sector_etf": 3}
+    stage_rank = {stage: index + 1 for index, stage in enumerate(stage_order)}
+    return sorted(
+        summaries,
+        key=lambda item: (
+            group_rank.get(item.group_type, 99),
+            stage_rank.get(item.top_priority_stage, 99),
+            -item.holdings_count,
+            -item.ticker_count,
+            item.group_name,
+        ),
+    )
+
+
 def build_onboarding_payload(
     project_root: Path | str | None = None,
     *,
@@ -893,6 +1045,13 @@ def build_onboarding_payload(
     fundamentals_peer_worklist = build_fundamentals_peer_worklist(coverage)
     optional_context_worklist = build_optional_context_worklist(coverage)
     ticker_unlock_ladder = build_ticker_unlock_ladder(coverage)
+    unlock_priority_summary = build_unlock_priority_summary(
+        coverage,
+        ticker_unlock_ladder,
+        project_root,
+        data_dir=data_dir,
+        output_dir=output_dir,
+    )
     return {
         "ticker_coverage": [row.to_dict() for row in coverage],
         "onboarding_actions": [row.to_dict() for row in actions],
@@ -901,6 +1060,7 @@ def build_onboarding_payload(
         "fundamentals_peer_worklist": [row.to_dict() for row in fundamentals_peer_worklist],
         "optional_context_worklist": [row.to_dict() for row in optional_context_worklist],
         "ticker_unlock_ladder": [row.to_dict() for row in ticker_unlock_ladder],
+        "unlock_priority_summary": [row.to_dict() for row in unlock_priority_summary],
     }
 
 
@@ -922,6 +1082,7 @@ def write_onboarding_outputs(
     fundamentals_peer_worklist_path = output_path / "fundamentals_peer_worklist.csv"
     optional_context_worklist_path = output_path / "optional_context_worklist.csv"
     ticker_unlock_ladder_path = output_path / "ticker_unlock_ladder.csv"
+    unlock_priority_summary_path = output_path / "unlock_priority_summary.csv"
     pd.DataFrame(payload["ticker_coverage"], columns=COVERAGE_COLUMNS).to_csv(coverage_path, index=False)
     pd.DataFrame(payload["onboarding_actions"], columns=ACTION_COLUMNS).to_csv(actions_path, index=False)
     pd.DataFrame(payload["data_coverage_wizard"], columns=WIZARD_COLUMNS).to_csv(wizard_path, index=False)
@@ -935,6 +1096,9 @@ def write_onboarding_outputs(
     pd.DataFrame(payload["ticker_unlock_ladder"], columns=TICKER_UNLOCK_LADDER_COLUMNS).to_csv(
         ticker_unlock_ladder_path, index=False
     )
+    pd.DataFrame(payload["unlock_priority_summary"], columns=UNLOCK_PRIORITY_SUMMARY_COLUMNS).to_csv(
+        unlock_priority_summary_path, index=False
+    )
     return {
         **payload,
         "coverage_path": str(coverage_path),
@@ -944,6 +1108,7 @@ def write_onboarding_outputs(
         "fundamentals_peer_worklist_path": str(fundamentals_peer_worklist_path),
         "optional_context_worklist_path": str(optional_context_worklist_path),
         "ticker_unlock_ladder_path": str(ticker_unlock_ladder_path),
+        "unlock_priority_summary_path": str(unlock_priority_summary_path),
     }
 
 
@@ -1064,6 +1229,17 @@ def _print_ticker_unlock_ladder(payload: dict[str, Any]) -> None:
     print(f"Ticker unlock ladder rows: {len(payload['ticker_unlock_ladder'])}")
 
 
+def _print_unlock_priority_summary(payload: dict[str, Any]) -> None:
+    print("Unlock priority summary:")
+    for row in payload["unlock_priority_summary"][:30]:
+        print(
+            f"- {row['group_type']} {row['group_name']}: top_stage={row['top_priority_stage']} "
+            f"goal={row['next_unlock_goal']} tickers={row['ticker_count']} holdings={row['holdings_count']}"
+        )
+        print(f"  next: {row['recommended_action']}")
+    print(f"Unlock priority summary rows: {len(payload['unlock_priority_summary'])}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Inspect local ticker-level coverage and onboarding actions.")
     parser.add_argument("--coverage", action="store_true", help="Print ticker-level local data coverage.")
@@ -1083,6 +1259,11 @@ def main() -> None:
         "--unlock-ladder",
         action="store_true",
         help="Print one row per ticker showing the next core local data unlock stage.",
+    )
+    parser.add_argument(
+        "--unlock-summary",
+        action="store_true",
+        help="Print grouped unlock priorities by holdings, theme, and sector ETF.",
     )
     parser.add_argument("--write-output", action="store_true", help="Write ticker coverage and onboarding action CSVs.")
     parser.add_argument("--write-templates", action="store_true", help="Write header-only onboarding templates under data/templates.")
@@ -1114,22 +1295,26 @@ def main() -> None:
         payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path, tickers=tickers)
 
     if args.json:
-        if args.wizard and not args.coverage and not args.write_output and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.unlock_ladder:
+        if args.wizard and not args.coverage and not args.write_output and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.unlock_ladder and not args.unlock_summary:
             print(json.dumps({"data_coverage_wizard": payload["data_coverage_wizard"]}, indent=2))
-        elif args.price_worklist and not args.coverage and not args.write_output and not args.wizard and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.unlock_ladder:
+        elif args.price_worklist and not args.coverage and not args.write_output and not args.wizard and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.unlock_ladder and not args.unlock_summary:
             print(json.dumps({"price_import_worklist": payload["price_import_worklist"]}, indent=2))
-        elif args.fundamentals_peer_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.optional_context_worklist and not args.unlock_ladder:
+        elif args.fundamentals_peer_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.optional_context_worklist and not args.unlock_ladder and not args.unlock_summary:
             print(json.dumps({"fundamentals_peer_worklist": payload["fundamentals_peer_worklist"]}, indent=2))
-        elif args.optional_context_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.unlock_ladder:
+        elif args.optional_context_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.unlock_ladder and not args.unlock_summary:
             print(json.dumps({"optional_context_worklist": payload["optional_context_worklist"]}, indent=2))
-        elif args.unlock_ladder and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist:
+        elif args.unlock_ladder and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.unlock_summary:
             print(json.dumps({"ticker_unlock_ladder": payload["ticker_unlock_ladder"]}, indent=2))
+        elif args.unlock_summary and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.unlock_ladder:
+            print(json.dumps({"unlock_priority_summary": payload["unlock_priority_summary"]}, indent=2))
         else:
             print(json.dumps(payload, indent=2))
         return
 
     print(format_path_context(root, data_path, output_path))
-    if args.unlock_ladder and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist:
+    if args.unlock_summary and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.unlock_ladder:
+        _print_unlock_priority_summary(payload)
+    elif args.unlock_ladder and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist:
         _print_ticker_unlock_ladder(payload)
     elif args.optional_context_worklist and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist:
         _print_optional_context_worklist(payload)
@@ -1149,6 +1334,7 @@ def main() -> None:
         print(f"Wrote: {payload['fundamentals_peer_worklist_path']}")
         print(f"Wrote: {payload['optional_context_worklist_path']}")
         print(f"Wrote: {payload['ticker_unlock_ladder_path']}")
+        print(f"Wrote: {payload['unlock_priority_summary_path']}")
 
 
 if __name__ == "__main__":

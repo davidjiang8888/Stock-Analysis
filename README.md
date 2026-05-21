@@ -1124,6 +1124,21 @@ This combines the current next-step stage for each ticker in order:
 
 The unlock ladder is also read-only and never fabricates missing data.
 
+If you want to see where local data gaps are most concentrated by holdings, theme, or sector ETF, use:
+
+```bash
+python3 -m src.data_onboarding --unlock-summary
+make unlock-summary
+```
+
+This grouped summary is useful when you want to decide whether the next best local work should focus on:
+
+- current holdings first
+- a theme such as AI / semiconductors
+- a sector ETF cluster such as `SMH`
+
+It is also written to `outputs/unlock_priority_summary.csv` when you run `python3 -m src.data_onboarding --write-output`.
+
 ## SEC Companyfacts staging workflow
 
 The project now includes a read-only SEC Companyfacts adapter that can stage candidate fundamentals into:

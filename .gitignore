@@ -23,4 +23,5 @@ outputs/price_import_worklist.csv
 outputs/fundamentals_peer_worklist.csv
 outputs/optional_context_worklist.csv
 outputs/ticker_unlock_ladder.csv
+outputs/unlock_priority_summary.csv
 local_artifacts_backup/

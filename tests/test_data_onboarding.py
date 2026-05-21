@@ -11,6 +11,7 @@ from src.data_onboarding import (
     OPTIONAL_CONTEXT_WORKLIST_COLUMNS,
     PRICE_WORKLIST_COLUMNS,
     TICKER_UNLOCK_LADDER_COLUMNS,
+    UNLOCK_PRIORITY_SUMMARY_COLUMNS,
     WIZARD_COLUMNS,
     build_onboarding_payload,
     build_data_coverage_wizard,
@@ -169,16 +170,19 @@ def test_write_onboarding_outputs_and_templates(tmp_path: Path):
     assert Path(output_result["fundamentals_peer_worklist_path"]).exists()
     assert Path(output_result["optional_context_worklist_path"]).exists()
     assert Path(output_result["ticker_unlock_ladder_path"]).exists()
+    assert Path(output_result["unlock_priority_summary_path"]).exists()
     wizard_frame = pd.read_csv(output_result["wizard_path"])
     price_worklist_frame = pd.read_csv(output_result["price_worklist_path"])
     fundamentals_peer_frame = pd.read_csv(output_result["fundamentals_peer_worklist_path"])
     optional_context_frame = pd.read_csv(output_result["optional_context_worklist_path"])
     unlock_ladder_frame = pd.read_csv(output_result["ticker_unlock_ladder_path"])
+    unlock_summary_frame = pd.read_csv(output_result["unlock_priority_summary_path"])
     assert list(wizard_frame.columns) == WIZARD_COLUMNS
     assert list(price_worklist_frame.columns) == PRICE_WORKLIST_COLUMNS
     assert list(fundamentals_peer_frame.columns) == FUNDAMENTALS_PEER_WORKLIST_COLUMNS
     assert list(optional_context_frame.columns) == OPTIONAL_CONTEXT_WORKLIST_COLUMNS
     assert list(unlock_ladder_frame.columns) == TICKER_UNLOCK_LADDER_COLUMNS
+    assert list(unlock_summary_frame.columns) == UNLOCK_PRIORITY_SUMMARY_COLUMNS
     assert (tmp_path / "data" / "templates" / "peers.csv").exists()
     assert (tmp_path / "data" / "templates" / "prices.csv").exists()
     assert (tmp_path / "data" / "templates" / "custom_universe.csv").exists()
@@ -325,6 +329,38 @@ def test_ticker_unlock_ladder_orders_price_then_peer_then_optional(tmp_path: Pat
     assert ladder["AMD"]["next_unlock_goal"] == "Unlock Monthly Picks"
     assert ladder["NVDA"]["current_unlock_stage"] == "peers"
     assert ladder["NVDA"]["next_unlock_goal"] == "Unlock Peer Relative"
+
+
+def test_data_onboarding_cli_unlock_summary_json(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--unlock-summary", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert "unlock_priority_summary" in payload
+    assert payload["unlock_priority_summary"][0]["group_type"] == "holdings"
+    assert "top_priority_stage" in payload["unlock_priority_summary"][0]
+
+
+def test_unlock_priority_summary_groups_holdings_themes_and_sector_etfs(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    summary = payload["unlock_priority_summary"]
+
+    holdings_row = next(row for row in summary if row["group_type"] == "holdings")
+    theme_row = next(row for row in summary if row["group_type"] == "theme" and row["group_name"] == "AI")
+    sector_row = next(row for row in summary if row["group_type"] == "sector_etf" and row["group_name"] == "SMH")
+
+    assert holdings_row["holdings_count"] == 1
+    assert holdings_row["top_priority_stage"] == "peers"
+    assert theme_row["ticker_count"] == 2
+    assert theme_row["top_priority_stage"] == "prices"
+    assert sector_row["ticker_count"] == 2
 
 
 def test_build_data_coverage_wizard_accepts_empty_coverage():
