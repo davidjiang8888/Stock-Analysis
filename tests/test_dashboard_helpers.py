@@ -663,6 +663,32 @@ def test_stock_report_summary_cards_are_readable_and_research_only():
     assert "sell" not in rendered.lower()
 
 
+def test_stock_report_local_context_cards_summarize_local_and_peer_readiness():
+    coverage = pd.DataFrame(
+        [
+            {"ticker_present": True, "validation_status": "valid"},
+            {"ticker_present": True, "validation_status": "valid_with_warnings"},
+            {"ticker_present": False, "validation_status": "missing_file"},
+        ]
+    )
+    peer_summary = {
+        "peer_dataset_present": False,
+        "peer_count": 0,
+        "peer_fundamentals_available": 0,
+        "peer_market_context_available": 1,
+    }
+
+    cards = dashboard.stock_report_local_context_cards(coverage, peer_summary)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 4
+    assert "2 available" in rendered
+    assert "missing" in rendered
+    assert "no fabrication" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_stock_report_source_frame_hides_raw_missing_values():
     frame = dashboard.stock_report_source_frame(
         [
@@ -750,6 +776,41 @@ def test_data_health_overview_cards_prioritize_price_and_actions():
     assert "1 price issue" in rendered
     assert "1 critical actions" in rendered
     assert "1 price-ready tickers" in rendered
+
+
+def test_data_health_tab_summary_cards_cover_price_and_staged_imports():
+    validation = pd.DataFrame({"validation_status": ["valid", "missing_file"]})
+    coverage = pd.DataFrame(
+        {
+            "usable_for_momentum": [True, False],
+            "dcf_ready": [False, False],
+            "peer_ready": [False, False],
+            "has_earnings": [False, False],
+            "has_analyst_estimates": [False, False],
+            "missing_required_for_momentum": ["", "prices"],
+            "missing_required_for_dcf": ["fundamentals", "fundamentals"],
+            "missing_required_for_peer_relative": ["peer mapping", "peer mapping"],
+        }
+    )
+    status = pd.DataFrame({"availability_status": ["available", "partial", "manual_only"]})
+    price_status = pd.DataFrame({"status": ["fetched", "parse_error", "failed"]})
+    staged_imports = {"files": [{"file_name": "fundamentals.csv"}]}
+
+    coverage_cards = dashboard.data_health_tab_summary_cards("Coverage", validation, coverage, status, price_status, staged_imports)
+    price_cards = dashboard.data_health_tab_summary_cards("Price Refresh", validation, coverage, status, price_status, staged_imports)
+    staged_cards = dashboard.data_health_tab_summary_cards("Staged Imports", validation, coverage, status, price_status, staged_imports)
+    rendered = " ".join(
+        str(value)
+        for group in [coverage_cards, price_cards, staged_cards]
+        for card in group
+        for value in card.values()
+    ).lower()
+
+    assert "1" in rendered
+    assert "manual fallback" in rendered
+    assert "preview first" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_data_health_fix_first_cards_prioritize_actions():

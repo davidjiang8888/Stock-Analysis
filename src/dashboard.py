@@ -1340,6 +1340,43 @@ def stock_report_summary_cards(report_payload: dict[str, object]) -> list[dict[s
     ]
 
 
+def stock_report_local_context_cards(
+    coverage: pd.DataFrame,
+    peer_summary: dict[str, object],
+) -> list[dict[str, object]]:
+    available_datasets = 0 if coverage.empty else int(coverage.get("ticker_present", pd.Series(dtype=object)).astype(bool).sum())
+    validation_warnings = 0
+    if not coverage.empty and "validation_status" in coverage.columns:
+        validation_warnings = int(coverage["validation_status"].astype(str).eq("valid_with_warnings").sum())
+    peer_count = int(peer_summary.get("peer_count") or 0)
+    return [
+        {
+            "kicker": "LOCAL DATASETS",
+            "title": f"{available_datasets} available",
+            "body": f"{validation_warnings} dataset warning{'s' if validation_warnings != 1 else ''} remain for this ticker's local coverage view.",
+            "badges": ["csv-first"],
+        },
+        {
+            "kicker": "PEER MAPPING",
+            "title": "Present" if peer_summary.get("peer_dataset_present") else "Missing",
+            "body": f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} configured for local peer-relative context.",
+            "badges": ["manual research"],
+        },
+        {
+            "kicker": "PEER FUNDAMENTALS",
+            "title": format_missing(peer_summary.get("peer_fundamentals_available"), "0"),
+            "body": "Peer-relative valuation only uses locally available peer fundamentals and market context.",
+            "badges": ["no fabrication"],
+        },
+        {
+            "kicker": "PEER MARKET",
+            "title": format_missing(peer_summary.get("peer_market_context_available"), "0"),
+            "body": "Price and peer readiness remain explicit instead of being inferred from missing local files.",
+            "badges": ["research only"],
+        },
+    ]
+
+
 def stock_report_missing_data_text(warnings: list[object]) -> str:
     if not warnings:
         return "No explicit missing-data warnings were assembled from the current inputs."
@@ -1449,6 +1486,114 @@ def data_health_overview_cards(
         {"kicker": "PRICES", "title": price_title, "body": price_body, "badges": price_badges},
         {"kicker": "NEXT ACTIONS", "title": action_title, "body": action_body, "badges": action_badges},
         {"kicker": "COVERAGE", "title": coverage_title, "body": coverage_body, "badges": coverage_badges},
+    ]
+
+
+def data_health_tab_summary_cards(
+    tab_name: str,
+    validation_rows: pd.DataFrame,
+    coverage_frame: pd.DataFrame | None,
+    status_frame: pd.DataFrame | None,
+    price_status_frame: pd.DataFrame | None,
+    staged_imports: dict[str, object],
+) -> list[dict[str, object]]:
+    coverage_summary = summarize_ticker_coverage(coverage_frame)
+    if tab_name == "Coverage":
+        return [
+            {
+                "kicker": "PRICE READY",
+                "title": str(coverage_summary["usable_price_tickers"]),
+                "body": "Tickers with enough local price history for momentum and monthly research surfaces.",
+                "badges": ["local prices"],
+            },
+            {
+                "kicker": "DCF READY",
+                "title": str(coverage_summary["dcf_ready_tickers"]),
+                "body": "Tickers with sufficient local valuation fields for DCF calculations.",
+                "badges": ["fundamentals"],
+            },
+            {
+                "kicker": "PEER READY",
+                "title": str(coverage_summary["peer_ready_tickers"]),
+                "body": "Tickers with manual peer mapping plus enough peer context for relative valuation.",
+                "badges": ["peers.csv"],
+            },
+            {
+                "kicker": "OPTIONAL ONLY",
+                "title": str(coverage_summary["optional_only_missing_tickers"]),
+                "body": "Tickers missing only optional earnings or analyst-estimate files rather than core research inputs.",
+                "badges": ["safe partials"],
+            },
+        ]
+    if tab_name == "Sources":
+        available = 0
+        partial = 0
+        if status_frame is not None and not status_frame.empty and "availability_status" in status_frame.columns:
+            series = status_frame["availability_status"].astype(str)
+            available = int(series.eq("available").sum())
+            partial = int(series.eq("partial").sum())
+        return [
+            {
+                "kicker": "AVAILABLE",
+                "title": str(available),
+                "body": "Local or source-backed datasets that currently look usable in the status registry.",
+                "badges": ["registry"],
+            },
+            {
+                "kicker": "PARTIAL",
+                "title": str(partial),
+                "body": "Datasets where the project can proceed, but freshness or completeness is still limited.",
+                "badges": ["transparent gaps"],
+            },
+        ]
+    if tab_name == "Price Refresh":
+        counts = summarize_price_update_status(price_status_frame)
+        problem_total = sum(counts.get(status, 0) for status in ["parse_error", "source_unavailable", "network_error", "no_rows", "failed"])
+        return [
+            {
+                "kicker": "FETCHED",
+                "title": str(counts.get("fetched", 0)),
+                "body": "Rows fetched in the last machine-readable price refresh run.",
+                "badges": ["remote attempt"],
+            },
+            {
+                "kicker": "SKIPPED",
+                "title": str(counts.get("skipped_fresh", 0)),
+                "body": "Tickers skipped because local rows already looked fresh enough.",
+                "badges": ["fresh local data"],
+            },
+            {
+                "kicker": "ISSUES",
+                "title": str(problem_total),
+                "body": "Parse, source, or network failures now surface here instead of hiding in logs.",
+                "badges": ["manual fallback"],
+            },
+        ]
+    if tab_name == "Staged Imports":
+        file_count = len(staged_imports.get("files", [])) if isinstance(staged_imports, dict) else 0
+        return [
+            {
+                "kicker": "STAGED FILES",
+                "title": str(file_count),
+                "body": "Local staged imports waiting for review before any canonical CSV apply step.",
+                "badges": ["preview first"],
+            }
+        ]
+    valid_count = int(validation_rows.get("validation_status", pd.Series(dtype=object)).astype(str).isin({"valid", "valid_with_warnings"}).sum()) if not validation_rows.empty else 0
+    missing_count = int(validation_rows.get("validation_status", pd.Series(dtype=object)).astype(str).eq("missing_file").sum()) if not validation_rows.empty else 0
+    return [
+        {
+            "kicker": "VALIDATED",
+            "title": str(valid_count),
+            "body": "Datasets that loaded cleanly or with visible warnings in the local validator.",
+            "badges": ["schema checks"],
+        },
+        {
+            "kicker": "OPTIONAL MISSING",
+            "title": str(missing_count),
+            "body": "Optional files can stay missing without breaking the research pipeline.",
+            "badges": ["partial safe"],
+        },
     ]
 
 
@@ -2921,14 +3066,15 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
 
     if provider is not None and ticker:
         coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))
+        peer_summary = provider.get_peer_summary(ticker)
         render_context_note(
             "Local coverage.",
             "Dataset readiness for the selected ticker based on local CSV availability and schema validation.",
         )
+        render_signal_cards(stock_report_local_context_cards(coverage, peer_summary))
         st.dataframe(style_frame(clean_display_frame(ticker_coverage_display_frame(coverage))), width="stretch", hide_index=True)
         with st.expander("Full local coverage details", expanded=False):
             st.dataframe(clean_display_frame(coverage), width="stretch", hide_index=True)
-        peer_summary = provider.get_peer_summary(ticker)
         readiness_cols = st.columns(4)
         readiness_cols[0].metric("Peer Dataset", "Present" if peer_summary["peer_dataset_present"] else "Missing")
         readiness_cols[1].metric("Peer Count", peer_summary["peer_count"])
@@ -2983,6 +3129,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
     )
 
     with snapshot_tab:
+        render_context_note("Snapshot view.", "Price, performance, and local financial context appear here first so you can confirm basic coverage before reading valuation detail.")
         price_columns = st.columns(3)
         price_columns[0].metric("Last Price", report_display_value(price.get("price"), "currency"))
         price_columns[1].metric("Previous Close", report_display_value(price.get("previous_close"), "currency"))
@@ -3017,6 +3164,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
 
     with valuation_tab:
         base_dcf = valuation["dcf_result"]
+        render_context_note("Valuation view.", "DCF, peer-relative context, and sensitivity stay informational only. Missing assumptions remain visible instead of being guessed.")
         valuation_columns = st.columns(4)
         valuation_columns[0].metric("Valuation Status", format_missing(valuation.get("status")))
         valuation_columns[1].metric("Coverage", format_missing(valuation.get("coverage")))
@@ -3095,6 +3243,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
     with earnings_tab:
         earnings = report_payload["earnings_summary"]
         estimates = report_payload["analyst_estimate_summary"]
+        render_context_note("Optional context.", "Earnings and analyst estimates only appear when trusted local files exist. Missing files are safe and stay explicit.")
         earnings_col, estimates_col = st.columns(2)
         with earnings_col:
             st.markdown("#### Earnings")
@@ -3128,6 +3277,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
                 st.dataframe(stock_report_detail_frame(estimates), width="stretch", hide_index=True)
 
     with sources_tab:
+        render_context_note("Source and gaps.", "Use this tab to verify freshness, missing inputs, and how much of the report is based on local coverage versus unavailable optional files.")
         st.markdown("#### Missing Data")
         warning_text = stock_report_missing_data_text(report_payload.get("missing_data_warnings", []))
         if report_payload.get("missing_data_warnings"):
@@ -3234,6 +3384,16 @@ def render_data_health(provider) -> None:
     health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Refresh", "Staged Imports"])
 
     with health_tabs[0]:
+        render_signal_cards(
+            data_health_tab_summary_cards(
+                "Actions",
+                validation_rows,
+                coverage_frame,
+                status_frame,
+                price_status_frame,
+                staged_imports,
+            )
+        )
         if action_queue_frame is None:
             st.info(action_queue_message or "No action queue is available yet.")
         else:
@@ -3260,6 +3420,16 @@ def render_data_health(provider) -> None:
             st.dataframe(clean_display_frame(action_queue_frame[queue_columns].head(15)), width="stretch", hide_index=True)
 
     with health_tabs[1]:
+        render_signal_cards(
+            data_health_tab_summary_cards(
+                "Coverage",
+                validation_rows,
+                coverage_frame,
+                status_frame,
+                price_status_frame,
+                staged_imports,
+            )
+        )
         if data_quality_frame is None and liquidity_frame is None and correlation_frame is None:
             st.info(
                 "Research health outputs have not been generated yet. Run "
@@ -3371,6 +3541,16 @@ def render_data_health(provider) -> None:
                     st.dataframe(clean_display_frame(wizard_frame[wizard_columns].head(20)), width="stretch", hide_index=True)
 
     with health_tabs[2]:
+        render_signal_cards(
+            data_health_tab_summary_cards(
+                "Sources",
+                validation_rows,
+                coverage_frame,
+                status_frame,
+                price_status_frame,
+                staged_imports,
+            )
+        )
         if status_frame is None and gap_frame is None:
             st.info(
                 "Data source status outputs have not been generated yet. Run "
@@ -3407,6 +3587,16 @@ def render_data_health(provider) -> None:
                 st.info(gap_message or "No data gaps were reported.")
 
     with health_tabs[3]:
+        render_signal_cards(
+            data_health_tab_summary_cards(
+                "Price Refresh",
+                validation_rows,
+                coverage_frame,
+                status_frame,
+                price_status_frame,
+                staged_imports,
+            )
+        )
         if price_status_frame is None:
             st.info(
                 (price_status_message or "Price update status is unavailable.")
@@ -3451,6 +3641,16 @@ def render_data_health(provider) -> None:
             )
 
     with health_tabs[4]:
+        render_signal_cards(
+            data_health_tab_summary_cards(
+                "Staged Imports",
+                validation_rows,
+                coverage_frame,
+                status_frame,
+                price_status_frame,
+                staged_imports,
+            )
+        )
         if staged_imports["status"] == "no_staged_files":
             st.info(staged_imports["warnings"][0])
         else:
