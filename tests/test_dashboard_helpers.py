@@ -860,6 +860,49 @@ def test_theme_deep_research_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_overview_research_pressure_cards_compare_price_fundamentals_and_peers():
+    price_worklist = pd.DataFrame(
+        {
+            "priority": [1, 1, 2],
+            "momentum_ready": [False, True, True],
+            "track_record_ready": [False, False, True],
+        }
+    )
+    sec_queue = pd.DataFrame(
+        {
+            "priority": [1, 2, 2],
+            "is_holding": [True, False, True],
+            "has_fundamentals": [False, True, False],
+        }
+    )
+    peer_queue = pd.DataFrame(
+        {
+            "priority": [1, 2, 4],
+            "is_holding": [True, False, True],
+            "has_peer_mapping": [False, True, False],
+        }
+    )
+    unlock_summary = pd.DataFrame(
+        {
+            "group_type": ["theme", "sector_etf", "holdings"],
+            "top_priority_stage": ["prices", "prices", "fundamentals"],
+        }
+    )
+
+    cards = dashboard.overview_research_pressure_cards(price_worklist, sec_queue, peer_queue, unlock_summary)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 3
+    assert cards[0]["kicker"] == "PRICE PRESSURE"
+    assert cards[1]["kicker"] == "DCF PRESSURE"
+    assert cards[2]["kicker"] == "PEER PRESSURE"
+    assert "2 urgent price gaps" in rendered
+    assert "1 holdings-first dcf unlocks" in rendered
+    assert "2 missing peer mappings" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_market_context_cards_surface_local_theme_strength():
     market_direction = pd.DataFrame(
         [

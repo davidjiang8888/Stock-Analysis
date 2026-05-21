@@ -3011,6 +3011,69 @@ def theme_deep_research_cards(
     return trimmed
 
 
+def overview_research_pressure_cards(
+    price_worklist: pd.DataFrame | None,
+    sec_stage_queue: pd.DataFrame | None,
+    peer_mapping_queue: pd.DataFrame | None,
+    unlock_priority_summary: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    theme_price_led = 0
+    if unlock_priority_summary is not None and not unlock_priority_summary.empty:
+        summary = unlock_priority_summary.copy()
+        theme_mask = summary.get("group_type", pd.Series(dtype=object)).astype(str).isin(["theme", "sector_etf"])
+        theme_price_led = int(
+            (
+                theme_mask
+                & summary.get("top_priority_stage", pd.Series(dtype=object)).astype(str).eq("prices")
+            ).sum()
+        )
+
+    cards: list[dict[str, object]] = []
+
+    price_summary = summarize_price_worklist(price_worklist)
+    price_priority = price_summary.get("priority_1", 0)
+    cards.append(
+        {
+            "kicker": "PRICE PRESSURE",
+            "title": f"{price_priority} urgent price gaps",
+            "body": (
+                f"{price_summary.get('momentum_ready', 0)} tickers are momentum-ready, "
+                f"{price_summary.get('track_record_ready', 0)} support track-record work, and "
+                f"{theme_price_led} grouped themes are still price-led."
+            ),
+            "badges": ["prices", "highest leverage" if price_priority else "monitor"],
+        }
+    )
+
+    sec_summary = summarize_sec_stage_queue(sec_stage_queue)
+    cards.append(
+        {
+            "kicker": "DCF PRESSURE",
+            "title": f"{sec_summary.get('priority_1', 0)} holdings-first DCF unlocks",
+            "body": (
+                f"{sec_summary.get('priority_2', 0)} more price-supported names are queued next, and "
+                f"{sec_summary.get('missing_fundamentals', 0)} tickers still lack a local fundamentals row."
+            ),
+            "badges": ["fundamentals", "sec queue"],
+        }
+    )
+
+    peer_summary = summarize_peer_mapping_queue(peer_mapping_queue)
+    cards.append(
+        {
+            "kicker": "PEER PRESSURE",
+            "title": f"{peer_summary.get('missing_peer_mapping', 0)} missing peer mappings",
+            "body": (
+                f"{peer_summary.get('priority_1', 0)} holdings-first peer unlocks and "
+                f"{peer_summary.get('priority_2', 0)} theme-level follow-ons are visible in the local queue."
+            ),
+            "badges": ["peers", "manual research"],
+        }
+    )
+
+    return cards
+
+
 def overview_market_context_cards(
     market_direction: pd.DataFrame | None,
     limit: int = 3,
@@ -4021,6 +4084,7 @@ def render_overview(
     health_score, health_label = workflow_health_score(queue_summary, health_summary)
     onboarding_tables = load_data_onboarding_tables()
     wizard_frame, _ = onboarding_tables["data_coverage_wizard.csv"]
+    price_worklist_frame, _ = onboarding_tables["price_import_worklist.csv"]
     ticker_unlock_ladder_frame, _ = onboarding_tables["ticker_unlock_ladder.csv"]
     unlock_priority_summary_frame, _ = onboarding_tables["unlock_priority_summary.csv"]
     sec_stage_queue_frame, _ = onboarding_tables["sec_stage_queue.csv"]
@@ -4047,6 +4111,15 @@ def render_overview(
     render_signal_cards([overview_interpretation_guardrail_card(project_status_payload, queue_summary, health_summary)])
     render_section_header("Coverage Hotspots", "Which dataset types are currently causing the most research friction across the local workflow.")
     render_signal_cards(overview_coverage_hotspot_cards(action_queue_frame))
+    render_section_header("Research Unlock Pressure", "A side-by-side read on whether prices, fundamentals, or peers are currently the main constraint on deeper local research.")
+    render_signal_cards(
+        overview_research_pressure_cards(
+            price_worklist_frame,
+            sec_stage_queue_frame,
+            peer_mapping_queue_frame,
+            unlock_priority_summary_frame,
+        )
+    )
     render_section_header("Holdings First", "Blocked portfolio names and the next local unlock stage before broader universe work.")
     render_signal_cards(holdings_unlock_cards(holdings, ticker_unlock_ladder_frame, unlock_priority_summary_frame))
     render_section_header("Holdings DCF / Peers", "Which portfolio names next benefit from SEC fundamentals staging or manual peer research once price blockers are understood.")
