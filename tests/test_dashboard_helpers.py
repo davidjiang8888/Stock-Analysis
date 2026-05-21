@@ -370,8 +370,11 @@ def test_onboarding_tables_handle_missing_outputs_and_summary():
     assert "has not been generated" in tables["ticker_data_coverage.csv"][1]
     assert tables["price_import_worklist.csv"][0] is None
     assert "has not been generated" in tables["price_import_worklist.csv"][1]
+    assert tables["fundamentals_peer_worklist.csv"][0] is None
+    assert "has not been generated" in tables["fundamentals_peer_worklist.csv"][1]
     assert dashboard.summarize_ticker_coverage(None)["usable_price_tickers"] == 0
     assert dashboard.summarize_price_worklist(None)["priority_1"] == 0
+    assert dashboard.summarize_fundamentals_peer_worklist(None)["fundamentals_priority_1"] == 0
 
 
 def test_summarize_price_worklist_counts_readiness_levels():
@@ -390,6 +393,23 @@ def test_summarize_price_worklist_counts_readiness_levels():
     assert summary["track_record_ready"] == 1
     assert summary["preferred_history_ready"] == 0
     assert summary["priority_1"] == 2
+
+
+def test_summarize_fundamentals_peer_worklist_counts_blockers():
+    worklist = pd.DataFrame(
+        {
+            "dcf_ready": [True, False, False],
+            "peer_ready": [False, False, True],
+            "priority": [2, 1, 4],
+        }
+    )
+
+    summary = dashboard.summarize_fundamentals_peer_worklist(worklist)
+
+    assert summary["dcf_ready"] == 1
+    assert summary["peer_ready"] == 1
+    assert summary["fundamentals_priority_1"] == 1
+    assert summary["peer_priority_2"] == 1
 
 
 def test_research_health_tables_handle_missing_outputs_and_summary(tmp_path):

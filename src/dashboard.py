@@ -53,6 +53,7 @@ DATA_ONBOARDING_FILES = {
     "data_onboarding_actions.csv": "Data Onboarding Actions",
     "data_coverage_wizard.csv": "Data Coverage Wizard",
     "price_import_worklist.csv": "Price Import Worklist",
+    "fundamentals_peer_worklist.csv": "Fundamentals Peer Worklist",
 }
 ACTION_QUEUE_FILE = "research_action_queue.csv"
 RESEARCH_HEALTH_FILES = {
@@ -300,6 +301,32 @@ def summarize_price_worklist(worklist: pd.DataFrame | None) -> dict[str, int]:
         "track_record_ready": count_true("track_record_ready"),
         "preferred_history_ready": count_true("preferred_history_ready"),
         "priority_1": priority_1,
+    }
+
+
+def summarize_fundamentals_peer_worklist(worklist: pd.DataFrame | None) -> dict[str, int]:
+    if worklist is None or worklist.empty:
+        return {
+            "dcf_ready": 0,
+            "peer_ready": 0,
+            "fundamentals_priority_1": 0,
+            "peer_priority_2": 0,
+        }
+
+    def count_true(column: str) -> int:
+        if column not in worklist.columns:
+            return 0
+        return int(worklist[column].astype(str).str.lower().isin({"true", "1", "yes"}).sum())
+
+    priorities = pd.to_numeric(worklist.get("priority", pd.Series(dtype=float)), errors="coerce").fillna(0)
+    dcf_ready_mask = worklist.get("dcf_ready", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"})
+    peer_ready_mask = worklist.get("peer_ready", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"})
+
+    return {
+        "dcf_ready": count_true("dcf_ready"),
+        "peer_ready": count_true("peer_ready"),
+        "fundamentals_priority_1": int((priorities.eq(1) & ~dcf_ready_mask).sum()),
+        "peer_priority_2": int((priorities.eq(2) & ~peer_ready_mask).sum()),
     }
 
 
@@ -3793,6 +3820,7 @@ def render_data_health(provider) -> None:
     actions_frame, actions_message = onboarding_tables["data_onboarding_actions.csv"]
     wizard_frame, wizard_message = onboarding_tables["data_coverage_wizard.csv"]
     price_worklist_frame, price_worklist_message = onboarding_tables["price_import_worklist.csv"]
+    fundamentals_peer_worklist_frame, fundamentals_peer_worklist_message = onboarding_tables["fundamentals_peer_worklist.csv"]
     staged_imports = validate_imports(base_dir=BASE_DIR)
     universe_summary = summarize_universe_manager(BASE_DIR)
     staged_universe = universe_summary["staged_universe"]
@@ -3930,6 +3958,13 @@ def render_data_health(provider) -> None:
                 metric_cols[1].metric("Track Record Ready", worklist_summary["track_record_ready"])
                 metric_cols[2].metric("1Y History Ready", worklist_summary["preferred_history_ready"])
                 metric_cols[3].metric("Urgent Price Gaps", worklist_summary["priority_1"])
+            if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
+                fp_summary = summarize_fundamentals_peer_worklist(fundamentals_peer_worklist_frame)
+                metric_cols = st.columns(4)
+                metric_cols[0].metric("DCF Ready", fp_summary["dcf_ready"])
+                metric_cols[1].metric("Peer Ready", fp_summary["peer_ready"])
+                metric_cols[2].metric("Need Fundamentals", fp_summary["fundamentals_priority_1"])
+                metric_cols[3].metric("Need Peer Context", fp_summary["peer_priority_2"])
 
             if data_quality_frame is not None and not data_quality_frame.empty:
                 data_quality_columns = [
@@ -4040,6 +4075,24 @@ def render_data_health(provider) -> None:
                         if column in price_worklist_frame.columns
                     ]
                     st.dataframe(clean_display_frame(price_worklist_frame[worklist_columns].head(20)), width="stretch", hide_index=True)
+            if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
+                with st.expander("Fundamentals / Peer Worklist", expanded=False):
+                    fp_columns = [
+                        column
+                        for column in [
+                            "priority",
+                            "ticker",
+                            "has_fundamentals",
+                            "dcf_ready",
+                            "has_peer_mapping",
+                            "peer_ready",
+                            "missing_required_for_dcf",
+                            "missing_required_for_peer_relative",
+                            "example_command",
+                        ]
+                        if column in fundamentals_peer_worklist_frame.columns
+                    ]
+                    st.dataframe(clean_display_frame(fundamentals_peer_worklist_frame[fp_columns].head(20)), width="stretch", hide_index=True)
 
     with health_tabs[2]:
         render_signal_cards(
@@ -4177,6 +4230,35 @@ def render_data_health(provider) -> None:
                 "Price history worklist is not available yet",
                 price_worklist_message
                 or "Generate the onboarding outputs to see exact local price-history gaps and the safe manual-import path.",
+                "python3 -m src.data_onboarding --write-output",
+                tone="warning",
+            )
+        if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
+            render_context_note(
+                "Fundamentals and peer worklist.",
+                "This local worklist shows which tickers are blocked on SEC-stageable fundamentals versus manual peer mappings and peer context.",
+            )
+            fp_columns = [
+                column
+                for column in [
+                    "priority",
+                    "ticker",
+                    "has_fundamentals",
+                    "dcf_ready",
+                    "has_peer_mapping",
+                    "peer_ready",
+                    "missing_required_for_dcf",
+                    "missing_required_for_peer_relative",
+                    "example_command",
+                ]
+                if column in fundamentals_peer_worklist_frame.columns
+            ]
+            st.dataframe(clean_display_frame(fundamentals_peer_worklist_frame[fp_columns].head(15)), width="stretch", hide_index=True)
+        else:
+            render_notice_card(
+                "Fundamentals and peer worklist is not available yet",
+                fundamentals_peer_worklist_message
+                or "Generate the onboarding outputs to see which tickers still need SEC fundamentals or manual peer mappings.",
                 "python3 -m src.data_onboarding --write-output",
                 tone="warning",
             )

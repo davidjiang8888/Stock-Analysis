@@ -63,6 +63,21 @@ PRICE_WORKLIST_COLUMNS = [
     "safe_next_step",
 ]
 
+FUNDAMENTALS_PEER_WORKLIST_COLUMNS = [
+    "priority",
+    "ticker",
+    "has_fundamentals",
+    "dcf_ready",
+    "has_peer_mapping",
+    "peer_ready",
+    "missing_required_for_dcf",
+    "missing_required_for_peer_relative",
+    "recommended_action",
+    "target_file",
+    "example_command",
+    "safe_next_step",
+]
+
 WIZARD_COLUMNS = [
     "priority",
     "ticker",
@@ -133,6 +148,25 @@ class PriceWorklistRow:
     missing_for_momentum: str
     missing_for_track_record: str
     missing_for_preferred_history: str
+    recommended_action: str
+    target_file: str
+    example_command: str
+    safe_next_step: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class FundamentalsPeerWorklistRow:
+    priority: int
+    ticker: str
+    has_fundamentals: bool
+    dcf_ready: bool
+    has_peer_mapping: bool
+    peer_ready: bool
+    missing_required_for_dcf: str
+    missing_required_for_peer_relative: str
     recommended_action: str
     target_file: str
     example_command: str
@@ -597,6 +631,52 @@ def build_price_import_worklist(
     return sorted(rows, key=lambda item: (item.priority, item.price_history_days, item.ticker))
 
 
+def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> list[FundamentalsPeerWorklistRow]:
+    rows: list[FundamentalsPeerWorklistRow] = []
+    for coverage in coverage_rows:
+        if coverage.dcf_ready and coverage.peer_ready:
+            priority = 4
+            recommended_action = "Coverage is already sufficient for DCF and peer-relative local research."
+        elif not coverage.dcf_ready:
+            priority = 1
+            recommended_action = "Run SEC staging for fundamentals, then validate and preview before applying."
+        elif not coverage.has_peer_mapping or not coverage.peer_ready:
+            priority = 2
+            recommended_action = "Add manually researched peer mappings and fill peer fundamentals/prices through local CSV imports."
+        else:
+            priority = 3
+            recommended_action = "Review local fundamentals and peer inputs for completeness."
+
+        target_file = "data/imports/fundamentals.csv" if not coverage.dcf_ready else "data/imports/peers.csv"
+        example_command = (
+            f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {coverage.ticker}"
+            if not coverage.dcf_ready
+            else "python3 -m src.data_onboarding --write-templates"
+        )
+        safe_next_step = (
+            "Review staged SEC-derived fundamentals before import merge; keep unavailable fields blank."
+            if not coverage.dcf_ready
+            else "Use data/imports/peers.csv for manual peer mappings and keep peer-relative gaps explicit."
+        )
+        rows.append(
+            FundamentalsPeerWorklistRow(
+                priority=priority,
+                ticker=coverage.ticker,
+                has_fundamentals=coverage.has_fundamentals,
+                dcf_ready=coverage.dcf_ready,
+                has_peer_mapping=coverage.has_peer_mapping,
+                peer_ready=coverage.peer_ready,
+                missing_required_for_dcf=coverage.missing_required_for_dcf,
+                missing_required_for_peer_relative=coverage.missing_required_for_peer_relative,
+                recommended_action=recommended_action,
+                target_file=target_file,
+                example_command=example_command,
+                safe_next_step=safe_next_step,
+            )
+        )
+    return sorted(rows, key=lambda item: (item.priority, item.ticker))
+
+
 def build_onboarding_payload(
     project_root: Path | str | None = None,
     *,
@@ -608,11 +688,13 @@ def build_onboarding_payload(
     actions = build_onboarding_actions(coverage)
     wizard = build_data_coverage_wizard(coverage)
     price_worklist = build_price_import_worklist(coverage, project_root, data_dir=data_dir, output_dir=output_dir)
+    fundamentals_peer_worklist = build_fundamentals_peer_worklist(coverage)
     return {
         "ticker_coverage": [row.to_dict() for row in coverage],
         "onboarding_actions": [row.to_dict() for row in actions],
         "data_coverage_wizard": [row.to_dict() for row in wizard],
         "price_import_worklist": [row.to_dict() for row in price_worklist],
+        "fundamentals_peer_worklist": [row.to_dict() for row in fundamentals_peer_worklist],
     }
 
 
@@ -631,16 +713,21 @@ def write_onboarding_outputs(
     actions_path = output_path / "data_onboarding_actions.csv"
     wizard_path = output_path / "data_coverage_wizard.csv"
     price_worklist_path = output_path / "price_import_worklist.csv"
+    fundamentals_peer_worklist_path = output_path / "fundamentals_peer_worklist.csv"
     pd.DataFrame(payload["ticker_coverage"], columns=COVERAGE_COLUMNS).to_csv(coverage_path, index=False)
     pd.DataFrame(payload["onboarding_actions"], columns=ACTION_COLUMNS).to_csv(actions_path, index=False)
     pd.DataFrame(payload["data_coverage_wizard"], columns=WIZARD_COLUMNS).to_csv(wizard_path, index=False)
     pd.DataFrame(payload["price_import_worklist"], columns=PRICE_WORKLIST_COLUMNS).to_csv(price_worklist_path, index=False)
+    pd.DataFrame(payload["fundamentals_peer_worklist"], columns=FUNDAMENTALS_PEER_WORKLIST_COLUMNS).to_csv(
+        fundamentals_peer_worklist_path, index=False
+    )
     return {
         **payload,
         "coverage_path": str(coverage_path),
         "actions_path": str(actions_path),
         "wizard_path": str(wizard_path),
         "price_worklist_path": str(price_worklist_path),
+        "fundamentals_peer_worklist_path": str(fundamentals_peer_worklist_path),
     }
 
 
@@ -726,11 +813,28 @@ def _print_price_worklist(payload: dict[str, Any]) -> None:
     print(f"Price worklist rows: {len(payload['price_import_worklist'])}")
 
 
+def _print_fundamentals_peer_worklist(payload: dict[str, Any]) -> None:
+    print("Fundamentals and peer worklist:")
+    for row in payload["fundamentals_peer_worklist"][:30]:
+        print(
+            f"- P{row['priority']} {row['ticker']}: dcf_ready={row['dcf_ready']} "
+            f"peer_ready={row['peer_ready']} missing_dcf={row['missing_required_for_dcf'] or '-'} "
+            f"missing_peer={row['missing_required_for_peer_relative'] or '-'}"
+        )
+        print(f"  next: {row['recommended_action']}")
+    print(f"Fundamentals/peer worklist rows: {len(payload['fundamentals_peer_worklist'])}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Inspect local ticker-level coverage and onboarding actions.")
     parser.add_argument("--coverage", action="store_true", help="Print ticker-level local data coverage.")
     parser.add_argument("--wizard", action="store_true", help="Print prioritized data coverage wizard rows.")
     parser.add_argument("--price-worklist", action="store_true", help="Print prioritized local price-history worklist rows.")
+    parser.add_argument(
+        "--fundamentals-peer-worklist",
+        action="store_true",
+        help="Print prioritized fundamentals and peer-readiness worklist rows.",
+    )
     parser.add_argument("--write-output", action="store_true", help="Write ticker coverage and onboarding action CSVs.")
     parser.add_argument("--write-templates", action="store_true", help="Write header-only onboarding templates under data/templates.")
     parser.add_argument("--tickers", help="Comma-separated tickers to inspect. Defaults to universe and holdings tickers.")
@@ -761,16 +865,20 @@ def main() -> None:
         payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path, tickers=tickers)
 
     if args.json:
-        if args.wizard and not args.coverage and not args.write_output and not args.price_worklist:
+        if args.wizard and not args.coverage and not args.write_output and not args.price_worklist and not args.fundamentals_peer_worklist:
             print(json.dumps({"data_coverage_wizard": payload["data_coverage_wizard"]}, indent=2))
-        elif args.price_worklist and not args.coverage and not args.write_output and not args.wizard:
+        elif args.price_worklist and not args.coverage and not args.write_output and not args.wizard and not args.fundamentals_peer_worklist:
             print(json.dumps({"price_import_worklist": payload["price_import_worklist"]}, indent=2))
+        elif args.fundamentals_peer_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist:
+            print(json.dumps({"fundamentals_peer_worklist": payload["fundamentals_peer_worklist"]}, indent=2))
         else:
             print(json.dumps(payload, indent=2))
         return
 
     print(format_path_context(root, data_path, output_path))
-    if args.price_worklist and not args.coverage and not args.wizard:
+    if args.fundamentals_peer_worklist and not args.coverage and not args.wizard and not args.price_worklist:
+        _print_fundamentals_peer_worklist(payload)
+    elif args.price_worklist and not args.coverage and not args.wizard:
         _print_price_worklist(payload)
     elif args.wizard and not args.coverage:
         _print_wizard(payload)
@@ -781,6 +889,7 @@ def main() -> None:
         print(f"Wrote: {payload['actions_path']}")
         print(f"Wrote: {payload['wizard_path']}")
         print(f"Wrote: {payload['price_worklist_path']}")
+        print(f"Wrote: {payload['fundamentals_peer_worklist_path']}")
 
 
 if __name__ == "__main__":

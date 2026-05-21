@@ -7,6 +7,7 @@ import pandas as pd
 
 from src.data_onboarding import (
     COVERAGE_COLUMNS,
+    FUNDAMENTALS_PEER_WORKLIST_COLUMNS,
     PRICE_WORKLIST_COLUMNS,
     WIZARD_COLUMNS,
     build_onboarding_payload,
@@ -163,10 +164,13 @@ def test_write_onboarding_outputs_and_templates(tmp_path: Path):
     assert Path(output_result["actions_path"]).exists()
     assert Path(output_result["wizard_path"]).exists()
     assert Path(output_result["price_worklist_path"]).exists()
+    assert Path(output_result["fundamentals_peer_worklist_path"]).exists()
     wizard_frame = pd.read_csv(output_result["wizard_path"])
     price_worklist_frame = pd.read_csv(output_result["price_worklist_path"])
+    fundamentals_peer_frame = pd.read_csv(output_result["fundamentals_peer_worklist_path"])
     assert list(wizard_frame.columns) == WIZARD_COLUMNS
     assert list(price_worklist_frame.columns) == PRICE_WORKLIST_COLUMNS
+    assert list(fundamentals_peer_frame.columns) == FUNDAMENTALS_PEER_WORKLIST_COLUMNS
     assert (tmp_path / "data" / "templates" / "peers.csv").exists()
     assert (tmp_path / "data" / "templates" / "prices.csv").exists()
     assert (tmp_path / "data" / "templates" / "custom_universe.csv").exists()
@@ -228,6 +232,35 @@ def test_price_worklist_prioritizes_sparse_price_history(tmp_path: Path):
     assert worklist["AMD"]["momentum_ready"] is False
     assert "more verified rows needed" in worklist["AMD"]["missing_for_momentum"]
     assert worklist["NVDA"]["track_record_ready"] is False
+
+
+def test_data_onboarding_cli_fundamentals_peer_worklist_json(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--fundamentals-peer-worklist", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert "fundamentals_peer_worklist" in payload
+    assert payload["fundamentals_peer_worklist"][0]["ticker"] == "AMD"
+    assert "missing_required_for_dcf" in payload["fundamentals_peer_worklist"][0]
+
+
+def test_fundamentals_peer_worklist_prioritizes_dcf_then_peer_gaps(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    worklist = {row["ticker"]: row for row in payload["fundamentals_peer_worklist"]}
+
+    assert worklist["AMD"]["priority"] == 1
+    assert worklist["AMD"]["dcf_ready"] is False
+    assert "fundamentals row" in worklist["AMD"]["missing_required_for_dcf"]
+    assert worklist["NVDA"]["priority"] == 2
+    assert worklist["NVDA"]["dcf_ready"] is True
+    assert worklist["NVDA"]["peer_ready"] is False
 
 
 def test_build_data_coverage_wizard_accepts_empty_coverage():

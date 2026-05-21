@@ -602,6 +602,18 @@ make price-apply
 
 `make price-worklist` shows the current ticker-by-ticker local history gap list, including which names are not yet ready for momentum, track record, or longer-horizon research context.
 
+For DCF and peer-relative blockers, use:
+
+```bash
+make fundamentals-peer-worklist
+```
+
+This prints which tickers still need:
+
+- SEC-stageable fundamentals for DCF readiness
+- manual peer mappings in `data/imports/peers.csv`
+- peer fundamentals or peer price / market-cap context for peer-relative valuation
+
 Generic OHLCV CSVs are also supported when they include `date`, `ticker`, `open`, `high`, `low`, `close`, and `volume` columns:
 
 ```bash
@@ -694,6 +706,19 @@ This prints the exact local price-history shortfall for each ticker and points b
 - `make price-validate`
 - `make price-preview`
 - `make price-apply`
+
+If valuation coverage is the main blocker, run:
+
+```bash
+make fundamentals-peer-worklist
+```
+
+This complements `make price-worklist` by showing which tickers are blocked on:
+
+- missing local fundamentals rows
+- incomplete DCF inputs such as free cash flow or shares outstanding
+- missing peer mappings
+- incomplete peer-relative inputs
 
 If you prefer the explicit commands, the equivalent workflow is:
 
