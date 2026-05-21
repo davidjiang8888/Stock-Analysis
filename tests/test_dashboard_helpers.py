@@ -617,6 +617,66 @@ def test_overview_landing_cards_surface_workflow_and_gap_context():
     assert "sell" not in rendered
 
 
+def test_holdings_unlock_cards_surface_portfolio_blockers():
+    holdings = pd.DataFrame(
+        [
+            {"Ticker": "NVDA", "PrimaryPurpose": "Momentum Leader"},
+            {"Ticker": "TSLA", "PrimaryPurpose": "Speculative Optionality"},
+        ]
+    )
+    ladder = pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "current_unlock_stage": "fundamentals",
+                "next_unlock_goal": "Unlock DCF",
+                "recommended_action": "Stage verified fundamentals.",
+                "example_command": "make sec-stage TICKERS=NVDA",
+                "price_stage_status": "momentum_ready_short_history",
+            },
+            {
+                "ticker": "TSLA",
+                "current_unlock_stage": "prices",
+                "next_unlock_goal": "Unlock Monthly Picks",
+                "recommended_action": "Add more verified local price history.",
+                "example_command": "make price-refresh",
+                "price_stage_status": "partial_price_history",
+            },
+        ]
+    )
+    summary = pd.DataFrame(
+        [
+            {
+                "group_type": "holdings",
+                "group_name": "Current Holdings",
+                "ticker_count": 2,
+                "holdings_count": 2,
+                "top_priority_stage": "prices",
+                "next_unlock_goal": "Unlock Monthly Picks",
+                "representative_tickers": "TSLA, NVDA",
+            }
+        ]
+    )
+
+    cards = dashboard.holdings_unlock_cards(holdings, ladder, summary, limit=2)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "HOLDINGS FIRST"
+    assert "unlock monthly picks" in rendered
+    assert "nvda" in rendered
+    assert "tsla" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_holdings_unlock_cards_handle_missing_inputs_gracefully():
+    cards = dashboard.holdings_unlock_cards(None, None, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "no holdings unlock board yet" in rendered
+    assert "buy" not in rendered
+
+
 def test_monthly_pick_card_html_is_product_style_and_clean():
     html = dashboard.monthly_pick_card_html(
         {

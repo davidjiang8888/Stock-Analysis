@@ -2555,6 +2555,86 @@ def overview_landing_cards(
     ]
 
 
+def holdings_unlock_cards(
+    holdings: pd.DataFrame | None,
+    ticker_unlock_ladder: pd.DataFrame | None,
+    unlock_priority_summary: pd.DataFrame | None,
+    limit: int = 3,
+) -> list[dict[str, object]]:
+    if holdings is None or holdings.empty or ticker_unlock_ladder is None or ticker_unlock_ladder.empty:
+        return [
+            {
+                "kicker": "HOLDINGS FIRST",
+                "title": "No holdings unlock board yet",
+                "body": "Add holdings rows and generate onboarding outputs to surface blocked portfolio names before broader universe work.",
+                "badges": ["read-only"],
+            }
+        ]
+
+    holdings_lookup = {str(column).strip().lower(): str(column) for column in holdings.columns}
+    ticker_col = holdings_lookup.get("ticker")
+    purpose_col = holdings_lookup.get("primarypurpose")
+    if not ticker_col:
+        return []
+
+    holding_tickers = holdings[ticker_col].dropna().astype(str).str.upper().str.strip().tolist()
+    ladder = ticker_unlock_ladder.copy()
+    if "ticker" not in ladder.columns:
+        return []
+    ladder["ticker"] = ladder["ticker"].astype(str).str.upper().str.strip()
+    holding_rows = ladder.loc[ladder["ticker"].isin(holding_tickers)].copy()
+    if holding_rows.empty:
+        return []
+
+    stage_rank = {"prices": 1, "fundamentals": 2, "peers": 3, "optional_context": 4, "ready": 5}
+    holding_rows["stage_rank"] = holding_rows.get("current_unlock_stage", pd.Series(dtype=object)).map(stage_rank).fillna(99)
+    cards: list[dict[str, object]] = []
+
+    if unlock_priority_summary is not None and not unlock_priority_summary.empty and "group_type" in unlock_priority_summary.columns:
+        holdings_summary = unlock_priority_summary.loc[unlock_priority_summary["group_type"].astype(str).eq("holdings")]
+        if not holdings_summary.empty:
+            row = holdings_summary.iloc[0]
+            cards.append(
+                {
+                    "kicker": "HOLDINGS FIRST",
+                    "title": format_missing(row.get("next_unlock_goal"), "Unlock holdings"),
+                    "body": (
+                        f"{format_missing(row.get('ticker_count'), '0')} holding names are currently led by "
+                        f"{format_missing(row.get('top_priority_stage'), 'coverage')} gaps. "
+                        f"Representative names: {format_missing(row.get('representative_tickers'), 'Not available')}."
+                    ),
+                    "badges": [format_missing(row.get("top_priority_stage"), "stage"), "portfolio"],
+                }
+            )
+
+    holding_context = holdings.copy()
+    holding_context[ticker_col] = holding_context[ticker_col].astype(str).str.upper().str.strip()
+    purpose_map = (
+        holding_context.set_index(ticker_col)[purpose_col].astype(str).to_dict()
+        if purpose_col and purpose_col in holding_context.columns
+        else {}
+    )
+
+    for _, row in holding_rows.sort_values(["stage_rank", "ticker"]).head(limit).iterrows():
+        ticker = format_missing(row.get("ticker"), "Holding")
+        stage = format_missing(row.get("current_unlock_stage"), "coverage")
+        goal = format_missing(row.get("next_unlock_goal"), "Unlock data")
+        purpose = format_missing(purpose_map.get(ticker), "Portfolio holding")
+        cards.append(
+            {
+                "kicker": ticker,
+                "title": goal,
+                "body": (
+                    f"{purpose}. Current stage: {stage}. "
+                    f"Next action: {compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
+                ),
+                "badges": [stage, format_missing(row.get("price_stage_status"), "prices")],
+                "command": format_missing(row.get("example_command"), ""),
+            }
+        )
+    return cards
+
+
 def monthly_pick_card_html(row: pd.Series | dict[str, object]) -> str:
     get_value = row.get if hasattr(row, "get") else dict(row).get
     ticker = format_missing(get_value("Ticker"))
@@ -3263,6 +3343,8 @@ def render_overview(
     health_score, health_label = workflow_health_score(queue_summary, health_summary)
     onboarding_tables = load_data_onboarding_tables()
     wizard_frame, _ = onboarding_tables["data_coverage_wizard.csv"]
+    ticker_unlock_ladder_frame, _ = onboarding_tables["ticker_unlock_ladder.csv"]
+    unlock_priority_summary_frame, _ = onboarding_tables["unlock_priority_summary.csv"]
     latest_price = _latest_local_price_date(catalog)
     watchlist_count = 0 if final_watchlist_frame is None else len(final_watchlist_frame)
     monthly_frame, _ = load_output(OUTPUTS_DIR / "monthly_research_picks.csv")
@@ -3282,6 +3364,8 @@ def render_overview(
             monthly_count,
         )
     )
+    render_section_header("Holdings First", "Blocked portfolio names and the next local unlock stage before broader universe work.")
+    render_signal_cards(holdings_unlock_cards(holdings, ticker_unlock_ladder_frame, unlock_priority_summary_frame))
     render_metric_cards(
         [
             ("Workflow Health", f"{health_score}/100", health_label),
