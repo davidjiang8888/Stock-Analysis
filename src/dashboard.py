@@ -2815,6 +2815,82 @@ def overview_benchmark_pressure_cards(
     ]
 
 
+def overview_next_command_cards(
+    project_status_payload: dict[str, Any] | None,
+    action_queue: pd.DataFrame | None,
+    limit: int = 3,
+) -> list[dict[str, object]]:
+    commands = project_status_command_rows(project_status_payload)
+    cards: list[dict[str, object]] = []
+
+    if commands:
+        for row in commands[:limit]:
+            command = format_missing(row.get("Command"), "")
+            title = command if command else "Recommended command"
+            body = (
+                "Repo-native next step from the current read-only project status snapshot."
+                if command
+                else "No explicit command was available from project status."
+            )
+            badges = ["command", "research only"]
+            lowered = command.lower()
+            if "onboarding" in lowered:
+                body = "Refresh local data coverage, onboarding outputs, and action guidance before broader research work."
+                badges = ["data moat", "command"]
+            elif "verify" in lowered:
+                body = "Run deterministic local verification before trusting the current dashboard and CSV outputs."
+                badges = ["verification", "command"]
+            elif "dashboard" in lowered:
+                body = "Open the Streamlit surface after local outputs and onboarding artifacts are refreshed."
+                badges = ["ui", "command"]
+            cards.append(
+                {
+                    "kicker": format_missing(row.get("Step"), "Next"),
+                    "title": title,
+                    "body": body,
+                    "badges": badges,
+                    "command": command,
+                }
+            )
+
+    if len(cards) < limit:
+        for signal in top_priority_signals(action_queue, limit=limit):
+            command = format_missing(signal.get("command"), "")
+            title = command or format_missing(signal.get("title"), "Priority action")
+            cards.append(
+                {
+                    "kicker": format_missing(signal.get("kicker"), "Priority"),
+                    "title": title,
+                    "body": compact_reason(signal.get("body"), max_sentences=1, max_chars=160),
+                    "badges": [str(item) for item in signal.get("badges", [])][:2],
+                    "command": command,
+                }
+            )
+            if len(cards) >= limit:
+                break
+
+    if not cards:
+        cards.append(
+            {
+                "kicker": "NEXT COMMAND",
+                "title": "make help",
+                "body": "Start with the local command map if no project-status or action-queue guidance is available yet.",
+                "badges": ["safe default"],
+                "command": "make help",
+            }
+        )
+
+    deduped: list[dict[str, object]] = []
+    seen: set[str] = set()
+    for card in cards:
+        key = str(card.get("title", "")) + "|" + str(card.get("command", ""))
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(card)
+    return deduped[:limit]
+
+
 def monthly_pick_card_html(row: pd.Series | dict[str, object]) -> str:
     get_value = row.get if hasattr(row, "get") else dict(row).get
     ticker = format_missing(get_value("Ticker"))
@@ -3554,6 +3630,8 @@ def render_overview(
     render_signal_cards(overview_market_context_cards(market_direction_frame))
     render_section_header("Benchmark Pressure", "Whether weak coverage is mostly a local price-history issue or a broader benchmark-relative context issue.")
     render_signal_cards(overview_benchmark_pressure_cards(market_direction_frame, price_status_frame, project_status_payload))
+    render_section_header("Best Next Commands", "A few repo-native commands that best match the current local blockers and verification state.")
+    render_signal_cards(overview_next_command_cards(project_status_payload, action_queue_frame))
     render_metric_cards(
         [
             ("Workflow Health", f"{health_score}/100", health_label),

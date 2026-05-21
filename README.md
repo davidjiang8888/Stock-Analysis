@@ -678,7 +678,7 @@ Tabs:
 
 What each tab is for:
 
-- `Overview`: quick metrics for universe size, holdings count, output coverage, missing-data warnings, local fundamentals coverage, DCF-ready count, peer-ready count, research-health readiness, a holdings-first unlock board for blocked portfolio names, a theme-first unlock board for grouped research priorities, a compact market-context strip from local benchmark-relative theme output, and a benchmark-pressure strip that distinguishes missing-price coverage from broader context
+- `Overview`: quick metrics for universe size, holdings count, output coverage, missing-data warnings, local fundamentals coverage, DCF-ready count, peer-ready count, research-health readiness, a holdings-first unlock board for blocked portfolio names, a theme-first unlock board for grouped research priorities, a compact market-context strip from local benchmark-relative theme output, a benchmark-pressure strip that distinguishes missing-price coverage from broader context, and a short best-next-commands strip
 - `Monthly Picks`: top-five local research candidates, transparent scoring components, local track record, and archive views when enough local history exists
 - `Market Direction`, `Momentum Leaders`, `Portfolio Review`, `Value / Re-rating`, `Final Watchlist`: filterable research tables with search, status filters, and highlighted explanation/risk fields
 - `Stock Report Beta`: user-triggered structured stock reports with local CSV data first and optional yfinance clearly labeled as unofficial / research-grade

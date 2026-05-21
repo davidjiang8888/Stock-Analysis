@@ -793,6 +793,58 @@ def test_overview_benchmark_pressure_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_overview_next_command_cards_prioritize_project_status_commands():
+    payload = {
+        "recommended_next_commands": ["make onboarding", "make verify", "make dashboard"],
+    }
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "NVDA",
+                "title": "Repair prices",
+                "reason": "Need more local rows.",
+                "example_command": "make price-worklist",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_next_command_cards(payload, queue, limit=3)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 3
+    assert cards[0]["title"] == "make onboarding"
+    assert "make verify" in rendered
+    assert "make dashboard" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_next_command_cards_fall_back_to_action_queue():
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "NVDA",
+                "title": "Repair prices",
+                "reason": "Need more local rows.",
+                "example_command": "make price-worklist",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_next_command_cards(None, queue, limit=2)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "make price-worklist" in rendered
+    assert "repair prices" in rendered or "need more local rows" in rendered
+    assert "buy" not in rendered
+
+
 def test_monthly_pick_card_html_is_product_style_and_clean():
     html = dashboard.monthly_pick_card_html(
         {
