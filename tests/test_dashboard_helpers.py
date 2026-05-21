@@ -149,6 +149,25 @@ def test_onboarding_tables_handle_missing_outputs_and_summary():
     assert dashboard.summarize_ticker_coverage(None)["usable_price_tickers"] == 0
 
 
+def test_research_health_tables_handle_missing_outputs_and_summary(tmp_path):
+    tables = dashboard.load_research_health_tables(tmp_path)
+
+    assert tables["data_quality_wizard.csv"][0] is None
+    assert "has not been generated" in tables["data_quality_wizard.csv"][1]
+
+    summary = dashboard.summarize_research_health_tables(
+        pd.DataFrame({"ReadinessStatus": ["Research Ready", "Needs Price Data"]}),
+        pd.DataFrame({"LiquidityStatus": ["Liquid", "Thin / Needs Review"]}),
+        pd.DataFrame({"CorrelationStatus": ["High Co-movement", "Low Co-movement"]}),
+    )
+
+    assert summary["research_ready"] == 1
+    assert summary["needs_price_data"] == 1
+    assert summary["liquid"] == 1
+    assert summary["thin_liquidity"] == 1
+    assert summary["high_correlation"] == 1
+
+
 def test_onboarding_summary_counts_core_and_optional_gaps():
     coverage = pd.DataFrame(
         [

@@ -39,6 +39,11 @@ DATA_ONBOARDING_FILES = {
     "ticker_data_coverage.csv": "Ticker Data Coverage",
     "data_onboarding_actions.csv": "Data Onboarding Actions",
 }
+RESEARCH_HEALTH_FILES = {
+    "data_quality_wizard.csv": "Data Quality Wizard",
+    "liquidity_risk.csv": "Liquidity Risk",
+    "correlation_risk.csv": "Correlation Risk",
+}
 PRICE_STATUS_FILE = "price_update_status.csv"
 TAB_TO_FILE = {
     "Market Direction": "market_direction.csv",
@@ -77,6 +82,17 @@ STATE_COLORS = {
     "peer_premium": ("#ffedd5", "#9a3412"),
     "mixed": ("#e2e8f0", "#334155"),
     "insufficient_peer_data": ("#e2e8f0", "#334155"),
+    "Research Ready": ("#dcfce7", "#14532d"),
+    "Partial Coverage": ("#fef9c3", "#713f12"),
+    "Needs Price Data": ("#fee2e2", "#991b1b"),
+    "Needs Enrichment": ("#ffedd5", "#9a3412"),
+    "Liquid": ("#dcfce7", "#14532d"),
+    "Moderate Liquidity": ("#dbeafe", "#1e3a8a"),
+    "Thin / Needs Review": ("#ffedd5", "#9a3412"),
+    "High Co-movement": ("#fee2e2", "#991b1b"),
+    "Moderate Co-movement": ("#fef9c3", "#713f12"),
+    "Low Co-movement": ("#dcfce7", "#14532d"),
+    "Insufficient Overlap": ("#e2e8f0", "#334155"),
 }
 BADGE_COLORS = {
     "positive": ("#064e3b", "#d1fae5"),
@@ -122,6 +138,12 @@ def load_data_onboarding_tables(
     outputs_dir: Path = OUTPUTS_DIR,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     return {filename: load_output(outputs_dir / filename) for filename in DATA_ONBOARDING_FILES}
+
+
+def load_research_health_tables(
+    outputs_dir: Path = OUTPUTS_DIR,
+) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
+    return {filename: load_output(outputs_dir / filename) for filename in RESEARCH_HEALTH_FILES}
 
 
 def load_price_update_status(
@@ -180,6 +202,26 @@ def summarize_ticker_coverage(coverage: pd.DataFrame | None) -> dict[str, int]:
         "dcf_ready_tickers": count_true("dcf_ready"),
         "peer_ready_tickers": count_true("peer_ready"),
         "optional_only_missing_tickers": optional_only,
+    }
+
+
+def summarize_research_health_tables(
+    data_quality: pd.DataFrame | None,
+    liquidity: pd.DataFrame | None,
+    correlation: pd.DataFrame | None,
+) -> dict[str, int]:
+    def count_status(frame: pd.DataFrame | None, column: str, status: str) -> int:
+        if frame is None or frame.empty or column not in frame.columns:
+            return 0
+        return int(frame[column].astype(str).str.casefold().eq(status.casefold()).sum())
+
+    return {
+        "research_ready": count_status(data_quality, "ReadinessStatus", "Research Ready"),
+        "partial_coverage": count_status(data_quality, "ReadinessStatus", "Partial Coverage"),
+        "needs_price_data": count_status(data_quality, "ReadinessStatus", "Needs Price Data"),
+        "liquid": count_status(liquidity, "LiquidityStatus", "Liquid"),
+        "thin_liquidity": count_status(liquidity, "LiquidityStatus", "Thin / Needs Review"),
+        "high_correlation": count_status(correlation, "CorrelationStatus", "High Co-movement"),
     }
 
 
@@ -955,9 +997,15 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
     holdings = catalog.load_dataframe("holdings")
     final_watchlist_frame, _ = output_frames.get("final_watchlist.csv", (None, None))
     monthly_file_count = sum(1 for filename in MONTHLY_FILES if (OUTPUTS_DIR / filename).exists())
-    output_file_count = sum(1 for frame, _message in output_frames.values() if frame is not None) + monthly_file_count
+    health_tables = load_research_health_tables()
+    health_file_count = sum(1 for frame, _message in health_tables.values() if frame is not None)
+    output_file_count = sum(1 for frame, _message in output_frames.values() if frame is not None) + monthly_file_count + health_file_count
     missing_warning_count = _count_missing_warning_rows(output_frames)
     current_universe = universe_summary["current_universe"]
+    data_quality_frame, _ = health_tables["data_quality_wizard.csv"]
+    liquidity_frame, _ = health_tables["liquidity_risk.csv"]
+    correlation_frame, _ = health_tables["correlation_risk.csv"]
+    health_summary = summarize_research_health_tables(data_quality_frame, liquidity_frame, correlation_frame)
 
     render_section_header(
         "Command Center",
@@ -974,6 +1022,9 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
             ("Fundamentals", _fundamentals_coverage_count(catalog), "Tickers with local fundamentals"),
             ("DCF Ready", _dcf_ready_count(catalog), "Enough local fields for DCF path"),
             ("Peer Ready", _peer_ready_count(catalog), "Local peer mapping + peer context"),
+            ("Research Ready", health_summary["research_ready"], "Data Quality Wizard rows"),
+            ("Thin Liquidity", health_summary["thin_liquidity"], "Local liquidity context rows"),
+            ("High Correlation", health_summary["high_correlation"], "Local co-movement context rows"),
         ]
     )
 
@@ -1031,6 +1082,17 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
         )
     for filename, label in MONTHLY_FILES.items():
         frame, message = load_output(OUTPUTS_DIR / filename)
+        output_rows.append(
+            {
+                "Output": label,
+                "File": filename,
+                "Present": frame is not None,
+                "Rows": 0 if frame is None else len(frame),
+                "Message": message or "",
+            }
+        )
+    for filename, label in RESEARCH_HEALTH_FILES.items():
+        frame, message = health_tables[filename]
         output_rows.append(
             {
                 "Output": label,
@@ -1411,6 +1473,84 @@ def render_data_health(provider) -> None:
         st.dataframe(clean_display_frame(validation_rows[display_columns]), width="stretch", hide_index=True)
     else:
         st.info("No local data validation rows are available.")
+
+    st.markdown("### Research Health")
+    health_tables = load_research_health_tables()
+    data_quality_frame, data_quality_message = health_tables["data_quality_wizard.csv"]
+    liquidity_frame, liquidity_message = health_tables["liquidity_risk.csv"]
+    correlation_frame, correlation_message = health_tables["correlation_risk.csv"]
+    if data_quality_frame is None and liquidity_frame is None and correlation_frame is None:
+        st.info(
+            "Research health outputs have not been generated yet. Run "
+            "`python3 -m src.research_health --write-output` or `python3 -m src.report_generator`."
+        )
+    else:
+        health_summary = summarize_research_health_tables(data_quality_frame, liquidity_frame, correlation_frame)
+        metric_cols = st.columns(4)
+        metric_cols[0].metric("Research Ready", health_summary["research_ready"])
+        metric_cols[1].metric("Partial Coverage", health_summary["partial_coverage"])
+        metric_cols[2].metric("Needs Price Data", health_summary["needs_price_data"])
+        metric_cols[3].metric("High Co-movement", health_summary["high_correlation"])
+
+        if data_quality_frame is not None and not data_quality_frame.empty:
+            data_quality_columns = [
+                column
+                for column in [
+                    "Ticker",
+                    "ReadinessStatus",
+                    "DataQualityScore",
+                    "MomentumReady",
+                    "DCFReady",
+                    "PeerReady",
+                    "PriceHistoryDays",
+                    "MissingDataFields",
+                    "NextBestAction",
+                    "Reason",
+                ]
+                if column in data_quality_frame.columns
+            ]
+            st.dataframe(style_frame(clean_display_frame(data_quality_frame[data_quality_columns])), width="stretch", hide_index=True)
+        else:
+            st.info(data_quality_message or "No data-quality rows are available.")
+
+        with st.expander("Liquidity Context", expanded=False):
+            if liquidity_frame is not None and not liquidity_frame.empty:
+                liquidity_columns = [
+                    column
+                    for column in [
+                        "Ticker",
+                        "LiquidityStatus",
+                        "AvgDollarVolume20D",
+                        "AvgVolume20D",
+                        "VolumeTrend5DVs20D",
+                        "VolatilityProxy20D",
+                        "MissingDataFields",
+                        "Reason",
+                    ]
+                    if column in liquidity_frame.columns
+                ]
+                st.dataframe(style_frame(clean_display_frame(liquidity_frame[liquidity_columns])), width="stretch", hide_index=True)
+            else:
+                st.info(liquidity_message or "No liquidity rows are available.")
+
+        with st.expander("Correlation Concentration Context", expanded=False):
+            if correlation_frame is not None and not correlation_frame.empty:
+                correlation_columns = [
+                    column
+                    for column in [
+                        "Ticker",
+                        "CorrelationStatus",
+                        "MostCorrelatedTicker",
+                        "Correlation",
+                        "OverlapDays",
+                        "MissingDataFields",
+                        "Reason",
+                    ]
+                    if column in correlation_frame.columns
+                ]
+                st.dataframe(style_frame(clean_display_frame(correlation_frame[correlation_columns])), width="stretch", hide_index=True)
+            else:
+                st.info(correlation_message or "No correlation rows are available.")
 
     st.markdown("### Data Source Availability")
     source_tables = load_data_source_status_tables()

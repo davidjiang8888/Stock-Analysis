@@ -1,0 +1,13 @@
+Ticker,LiquidityStatus,AvgVolume20D,AvgDollarVolume20D,LatestClose,LatestVolume,VolumeTrend5DVs20D,VolatilityProxy20D,MissingDataFields,Reason
+AMD,Insufficient Price Data,,,,,,,prices,"AMD has no valid local price/volume rows, so liquidity context is unavailable."
+AVGO,Insufficient Price Data,,,,,,,prices,"AVGO has no valid local price/volume rows, so liquidity context is unavailable."
+COHR,Insufficient Price Data,,,,,,,prices,"COHR has no valid local price/volume rows, so liquidity context is unavailable."
+CRDO,Insufficient Price Data,,,,,,,prices,"CRDO has no valid local price/volume rows, so liquidity context is unavailable."
+HOOD,Insufficient Price Data,,,,,,,prices,"HOOD has no valid local price/volume rows, so liquidity context is unavailable."
+LITE,Insufficient Price Data,,,,,,,prices,"LITE has no valid local price/volume rows, so liquidity context is unavailable."
+META,Insufficient Price Data,,,,,,,prices,"META has no valid local price/volume rows, so liquidity context is unavailable."
+MU,Insufficient Price Data,,,,,,,prices,"MU has no valid local price/volume rows, so liquidity context is unavailable."
+NVDA,Liquid,68745000.0,11365885000.0,189.0,73200000.0,0.05084006109535233,0.0029709365585144872,,"NVDA liquidity status is Liquid using local close and volume rows only. Average 20-day dollar volume is 11,365,885,000 when calculable."
+QQQ,Liquid,51220000.0,28117555000.0,570.0,53700000.0,0.03787582975400228,0.0017305996068909145,,"QQQ liquidity status is Liquid using local close and volume rows only. Average 20-day dollar volume is 28,117,555,000 when calculable."
+SMH,Insufficient Price Data,,,,,,,prices,"SMH has no valid local price/volume rows, so liquidity context is unavailable."
+TSLA,Liquid,93575000.0,26703640000.0,265.0,91600000.0,-0.016831418648143193,0.001334482965512,,"TSLA liquidity status is Liquid using local close and volume rows only. Average 20-day dollar volume is 26,703,640,000 when calculable."

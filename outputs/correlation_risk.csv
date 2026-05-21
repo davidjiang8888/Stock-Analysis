@@ -1,0 +1,13 @@
+Ticker,CorrelationStatus,MostCorrelatedTicker,Correlation,OverlapDays,MissingDataFields,Reason
+AMD,Insufficient Data,,,0,price returns,AMD has no local return series for correlation context.
+AVGO,Insufficient Data,,,0,price returns,AVGO has no local return series for correlation context.
+COHR,Insufficient Data,,,0,price returns,COHR has no local return series for correlation context.
+CRDO,Insufficient Data,,,0,price returns,CRDO has no local return series for correlation context.
+HOOD,Insufficient Data,,,0,price returns,HOOD has no local return series for correlation context.
+LITE,Insufficient Data,,,0,price returns,LITE has no local return series for correlation context.
+META,Insufficient Data,,,0,price returns,META has no local return series for correlation context.
+MU,Insufficient Data,,,0,price returns,MU has no local return series for correlation context.
+NVDA,Low Co-movement,QQQ,0.3017703289048553,24,,"NVDA is most correlated with QQQ at 0.30 over 24 overlapping local return days. This is concentration context, not a trade instruction."
+QQQ,Low Co-movement,TSLA,0.43509906130706955,24,,"QQQ is most correlated with TSLA at 0.44 over 24 overlapping local return days. This is concentration context, not a trade instruction."
+SMH,Insufficient Data,,,0,price returns,SMH has no local return series for correlation context.
+TSLA,Low Co-movement,QQQ,0.43509906130706955,24,,"TSLA is most correlated with QQQ at 0.44 over 24 overlapping local return days. This is concentration context, not a trade instruction."

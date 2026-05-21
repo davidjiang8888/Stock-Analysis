@@ -12,6 +12,7 @@ from src.portfolio_review import review_holdings
 from src.providers.csv_provider import CSVDataFetcher
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.purpose_router import route_purposes
+from src.research_health import build_research_health_outputs
 from src.state_machine import build_final_watchlist
 from src.value_engine import run as run_value
 
@@ -94,6 +95,22 @@ def run(
     value_df = run_value(snapshot, purpose_df, loaded.fundamentals, loaded.config, peers=loaded.peers)
     portfolio_df = review_holdings(loaded.holdings, purpose_df, momentum_df, loaded.config)
     final_watchlist_df = build_final_watchlist(purpose_df, momentum_df, portfolio_df, value_df=value_df)
+    coverage_rows = []
+    try:
+        from src.data_onboarding import build_ticker_coverage
+
+        coverage_rows = [
+            row.to_dict()
+            for row in build_ticker_coverage(base_dir, data_dir=data_dir, output_dir=output_dir)
+        ]
+    except Exception as exc:  # pragma: no cover - defensive reporting path
+        backfill_warnings.append(f"Research health coverage could not be assembled: {exc}")
+    research_health_outputs = build_research_health_outputs(
+        loaded.prices,
+        loaded.universe,
+        loaded.holdings,
+        coverage_rows,
+    )
 
     outputs_dir = output_dir
     outputs_dir.mkdir(parents=True, exist_ok=True)
@@ -104,6 +121,9 @@ def run(
         "portfolio_review": outputs_dir / "portfolio_review.csv",
         "undervalued_candidates": outputs_dir / "undervalued_candidates.csv",
         "final_watchlist": outputs_dir / "final_watchlist.csv",
+        "data_quality_wizard": outputs_dir / "data_quality_wizard.csv",
+        "liquidity_risk": outputs_dir / "liquidity_risk.csv",
+        "correlation_risk": outputs_dir / "correlation_risk.csv",
     }
     purpose_df.to_csv(files["purpose_classification"], index=False)
     market_direction_df.to_csv(files["market_direction"], index=False)
@@ -111,6 +131,8 @@ def run(
     portfolio_df.to_csv(files["portfolio_review"], index=False)
     value_df.to_csv(files["undervalued_candidates"], index=False)
     final_watchlist_df.to_csv(files["final_watchlist"], index=False)
+    for output_name, output_frame in research_health_outputs.items():
+        output_frame.to_csv(files[output_name], index=False)
 
     warnings = sorted(set(loaded.warnings + indicator_warnings + backfill_warnings))
     return {
@@ -123,6 +145,7 @@ def run(
             "portfolio_review": len(portfolio_df),
             "undervalued_candidates": len(value_df),
             "final_watchlist": len(final_watchlist_df),
+            **{name: len(frame) for name, frame in research_health_outputs.items()},
         },
     }
 

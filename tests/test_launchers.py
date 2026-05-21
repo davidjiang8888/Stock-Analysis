@@ -10,6 +10,7 @@ def test_makefile_contains_convenience_targets():
         "monthly",
         "track-record",
         "validate-data",
+        "research-health",
         "daily",
         "dashboard",
         "sec-stage",

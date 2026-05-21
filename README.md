@@ -84,6 +84,7 @@ make pipeline
 make monthly
 make track-record
 make validate-data
+make research-health
 make coverage
 make onboarding
 make templates
@@ -645,11 +646,11 @@ Tabs:
 
 What each tab is for:
 
-- `Overview`: quick metrics for universe size, holdings count, output coverage, missing-data warnings, local fundamentals coverage, DCF-ready count, and peer-ready count
+- `Overview`: quick metrics for universe size, holdings count, output coverage, missing-data warnings, local fundamentals coverage, DCF-ready count, peer-ready count, and research-health readiness
 - `Monthly Picks`: top-five local research candidates, transparent scoring components, local track record, and archive views when enough local history exists
 - `Market Direction`, `Momentum Leaders`, `Portfolio Review`, `Value / Re-rating`, `Final Watchlist`: filterable research tables with search, status filters, and highlighted explanation/risk fields
 - `Stock Report Beta`: user-triggered structured stock reports with local CSV data first and optional yfinance clearly labeled as unofficial / research-grade
-- `Data Health`: local dataset validation, row counts, freshness timestamps, staged import status, and schema warnings
+- `Data Health`: local dataset validation, research-health readiness, liquidity context, correlation concentration context, row counts, freshness timestamps, staged import status, and schema warnings
 - `Universe Manager`: current universe size, source membership counts, staged universe import visibility, and CLI guidance for safe preview/write/apply flows
 
 It reads from local files and `outputs/*.csv`, shows friendly messages when files are missing, and surfaces explanation columns such as `Reason`, `MissingDataFields`, and `ConflictReasons` when available.
@@ -673,6 +674,7 @@ If you prefer the explicit commands, the equivalent workflow is:
 ```bash
 python3 -m src.data_update --universe-file data/universe.csv
 python3 -m src.report_generator
+python3 -m src.research_health --write-output
 python3 -m src.monthly_picks --generate --top-n 5
 python3 -m src.track_record --monthly-picks
 python3 -m src.stock_report --validate-local-data
@@ -685,6 +687,7 @@ This keeps the project on its local research path:
 
 - refresh local prices if you want newer research inputs
 - regenerate the core screener CSV outputs
+- generate local-only research-health outputs for data readiness, liquidity context, and correlation concentration
 - generate the monthly research-candidate layer and local track-record files
 - validate local enrichment coverage before relying on valuation-heavy reports
 - create Data Health coverage/action reports so missing data has clear next steps
@@ -963,6 +966,24 @@ The dashboard is designed to look usable even when local data is sparse:
 - `Not enough price history` means the local `data/prices.csv` window is too short for that return, technical context, or track-record calculation.
 - Monthly Picks may show fewer than the configured `top_n` when conservative filters reject weak or ignored names.
 - Track-record panels stay informational until local historical prices support month-end selection and next-month return calculations.
+
+## Research Health outputs
+
+The pipeline also writes local-only research health files:
+
+- `outputs/data_quality_wizard.csv`: ticker-level readiness for momentum, monthly picks, DCF, peer-relative valuation, earnings, and analyst-estimate coverage
+- `outputs/liquidity_risk.csv`: local volume and dollar-volume context using only local price rows
+- `outputs/correlation_risk.csv`: local co-movement context based on overlapping local return history
+
+Generate them through the normal pipeline or directly:
+
+```bash
+python3 -m src.report_generator
+python3 -m src.research_health --write-output
+make research-health
+```
+
+These files are diagnostic. They do not change ticker classifications, do not execute trades, and do not turn missing data into synthetic values. Liquidity and correlation rows are research context only; they are not buy/sell/hold instructions.
 
 ## SEC Companyfacts staging workflow
 
