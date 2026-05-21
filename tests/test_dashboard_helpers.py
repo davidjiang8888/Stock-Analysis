@@ -51,6 +51,16 @@ def test_context_note_html_is_readable_and_escaped():
     assert "&lt;trusted&gt;" in html
 
 
+def test_section_header_html_uses_shell_and_escapes_content():
+    html = dashboard.section_header_html("<Monthly Picks>", "Use <local> research coverage.")
+
+    assert "section-shell" in html
+    assert "section-kicker" in html
+    assert "Research View" in html
+    assert "&lt;Monthly Picks&gt;" in html
+    assert "&lt;local&gt;" in html
+
+
 def test_chart_panel_title_normalizes_spacing_and_trailing_punctuation():
     assert dashboard.chart_panel_title(" Score context. ") == "Score context"
     assert dashboard.chart_panel_title("Price history chart:") == "Price history chart"

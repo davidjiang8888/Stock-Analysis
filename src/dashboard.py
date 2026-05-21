@@ -592,8 +592,34 @@ def apply_dashboard_theme() -> None:
           font-size: 0.82rem;
           font-weight: 750;
         }
+        .section-shell {
+          margin: 1.35rem 0 0.95rem 0;
+          padding: 0.85rem 1rem 0.9rem 1rem;
+          border-radius: 18px;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(249, 251, 247, 0.9));
+          box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+          position: relative;
+        }
+        .section-shell::before {
+          content: "";
+          position: absolute;
+          inset: 0 auto 0 0;
+          width: 5px;
+          border-radius: 18px 0 0 18px;
+          background: linear-gradient(180deg, #0f766e, #14b8a6);
+        }
+        .section-kicker {
+          color: #0f766e;
+          font-size: 0.7rem;
+          font-weight: 900;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          margin-left: 0.05rem;
+        }
         .section-title {
-          margin: 1.35rem 0 0.42rem 0;
+          margin: 0.24rem 0 0.25rem 0;
           font-size: 1.28rem;
           font-weight: 900;
           letter-spacing: -0.035em;
@@ -601,7 +627,7 @@ def apply_dashboard_theme() -> None:
         }
         .section-caption {
           margin-top: 0;
-          margin-bottom: 0.92rem;
+          margin-bottom: 0;
           color: #526071;
           font-size: 0.93rem;
           line-height: 1.45;
@@ -1190,12 +1216,19 @@ def score_badge(score: object) -> str:
     return _badge(f"{float(number):.1f}", tone)
 
 
-def render_section_header(title: str, caption: str = "") -> None:
+def section_header_html(title: str, caption: str = "") -> str:
     caption_html = f"<div class='section-caption'>{html.escape(caption)}</div>" if caption else ""
-    st.markdown(
-        f"<div class='section-title'>{html.escape(title)}</div>{caption_html}",
-        unsafe_allow_html=True,
+    return (
+        "<div class='section-shell'>"
+        "<div class='section-kicker'>Research View</div>"
+        f"<div class='section-title'>{html.escape(title)}</div>"
+        f"{caption_html}"
+        "</div>"
     )
+
+
+def render_section_header(title: str, caption: str = "") -> None:
+    st.markdown(section_header_html(title, caption), unsafe_allow_html=True)
 
 
 def metric_card_html(label: str, value: object, note: str = "") -> str:
