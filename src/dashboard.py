@@ -889,6 +889,24 @@ def action_queue_summary(queue: pd.DataFrame | None) -> dict[str, int]:
     }
 
 
+def workflow_health_score(
+    queue_summary: dict[str, int],
+    health_summary: dict[str, int],
+) -> tuple[int, str]:
+    score = 100
+    score -= queue_summary.get("critical", 0) * 4
+    score -= queue_summary.get("high", 0) * 2
+    score -= health_summary.get("needs_price_data", 0) * 3
+    score -= health_summary.get("thin_liquidity", 0)
+    score -= health_summary.get("high_correlation", 0) * 2
+    score = max(0, min(100, int(score)))
+    if score >= 80:
+        return score, "Ready"
+    if score >= 55:
+        return score, "Partial"
+    return score, "Needs Data"
+
+
 def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
     if action_queue is None or action_queue.empty:
         return []
@@ -1148,6 +1166,7 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
     health_summary = summarize_research_health_tables(data_quality_frame, liquidity_frame, correlation_frame)
     action_queue_frame, _ = load_action_queue()
     queue_summary = action_queue_summary(action_queue_frame)
+    health_score, health_label = workflow_health_score(queue_summary, health_summary)
 
     render_section_header(
         "Command Center",
@@ -1155,6 +1174,7 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
     )
     render_metric_cards(
         [
+            ("Workflow Health", f"{health_score}/100", health_label),
             ("Universe", current_universe["row_count"], "Tickers in data/universe.csv"),
             ("Holdings", 0 if holdings is None or holdings.empty else len(holdings), "Rows in holdings.csv"),
             ("Final Watchlist", 0 if final_watchlist_frame is None else len(final_watchlist_frame), "Current state-machine rows"),
@@ -1182,20 +1202,8 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
     if priority_signals:
         render_section_header("Priority Now", "The fastest way to improve the local research workflow today.")
         render_signal_cards(priority_signals)
-
-    actions: list[tuple[str, str, str, str]] = []
-    if action_queue_frame is not None and not action_queue_frame.empty:
-        for _, row in action_queue_frame.head(4).iterrows():
-            tone = "danger" if str(row.get("urgency", "")).lower() == "critical" else "warning" if str(row.get("urgency", "")).lower() == "high" else "neutral"
-            actions.append(
-                (
-                    format_missing(row.get("title"), "Research action"),
-                    compact_reason(row.get("reason"), max_sentences=1, max_chars=180),
-                    format_missing(row.get("example_command"), ""),
-                    tone,
-                )
-            )
     else:
+        actions: list[tuple[str, str, str, str]] = []
         if missing_warning_count:
             actions.append(
                 (
@@ -1232,9 +1240,8 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
                     "neutral",
                 )
             )
-    render_action_cards(actions)
+        render_action_cards(actions)
 
-    render_section_header("Output Snapshot", "Generated files and row counts from the active CSV-first pipeline.")
     output_rows = []
     for filename, label in PIPELINE_FILES.items():
         frame, message = output_frames[filename]
@@ -1269,12 +1276,15 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
                 "Message": message or "",
             }
         )
-    st.dataframe(pd.DataFrame(output_rows), width="stretch", hide_index=True)
+    with st.expander("Generated output files", expanded=False):
+        st.dataframe(pd.DataFrame(output_rows), width="stretch", hide_index=True)
 
     if final_watchlist_frame is not None and not final_watchlist_frame.empty:
         render_section_header("Final Watchlist Snapshot", "Top-level state and reason context without opening the full table.")
         snapshot_columns = [column for column in ["Ticker", "FinalState", "SetupStatus", "FinalValueCategory", "WatchlistRank", "RankReason", "Reason"] if column in final_watchlist_frame.columns]
-        st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns]), width="stretch", hide_index=True)
+        st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns].head(8)), width="stretch", hide_index=True)
+        with st.expander("Full final watchlist snapshot", expanded=False):
+            st.dataframe(clean_display_frame(final_watchlist_frame[snapshot_columns]), width="stretch", hide_index=True)
 
 
 def render_monthly_picks(catalog: LocalDataCatalog) -> None:

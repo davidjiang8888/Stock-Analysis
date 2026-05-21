@@ -200,6 +200,22 @@ def test_top_priority_signals_are_compact_and_sorted():
     assert signals[1]["title"] == "Improve fundamentals"
 
 
+def test_workflow_health_score_reflects_action_pressure():
+    strong_score, strong_label = dashboard.workflow_health_score(
+        {"critical": 0, "high": 0, "medium": 1},
+        {"needs_price_data": 0, "thin_liquidity": 0, "high_correlation": 0},
+    )
+    weak_score, weak_label = dashboard.workflow_health_score(
+        {"critical": 8, "high": 4, "medium": 0},
+        {"needs_price_data": 6, "thin_liquidity": 2, "high_correlation": 1},
+    )
+
+    assert strong_score == 100
+    assert strong_label == "Ready"
+    assert weak_score < strong_score
+    assert weak_label in {"Partial", "Needs Data"}
+
+
 def test_onboarding_summary_counts_core_and_optional_gaps():
     coverage = pd.DataFrame(
         [
