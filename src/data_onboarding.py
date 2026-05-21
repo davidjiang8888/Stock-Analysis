@@ -78,6 +78,20 @@ FUNDAMENTALS_PEER_WORKLIST_COLUMNS = [
     "safe_next_step",
 ]
 
+OPTIONAL_CONTEXT_WORKLIST_COLUMNS = [
+    "priority",
+    "ticker",
+    "has_earnings",
+    "has_analyst_estimates",
+    "earnings_context_ready",
+    "estimate_context_ready",
+    "missing_optional_context",
+    "recommended_action",
+    "target_file",
+    "example_command",
+    "safe_next_step",
+]
+
 WIZARD_COLUMNS = [
     "priority",
     "ticker",
@@ -167,6 +181,24 @@ class FundamentalsPeerWorklistRow:
     peer_ready: bool
     missing_required_for_dcf: str
     missing_required_for_peer_relative: str
+    recommended_action: str
+    target_file: str
+    example_command: str
+    safe_next_step: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class OptionalContextWorklistRow:
+    priority: int
+    ticker: str
+    has_earnings: bool
+    has_analyst_estimates: bool
+    earnings_context_ready: bool
+    estimate_context_ready: bool
+    missing_optional_context: str
     recommended_action: str
     target_file: str
     example_command: str
@@ -677,6 +709,53 @@ def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> lis
     return sorted(rows, key=lambda item: (item.priority, item.ticker))
 
 
+def build_optional_context_worklist(coverage_rows: list[TickerCoverage]) -> list[OptionalContextWorklistRow]:
+    rows: list[OptionalContextWorklistRow] = []
+    for coverage in coverage_rows:
+        missing_context: list[str] = []
+        if not coverage.has_earnings:
+            missing_context.append("earnings")
+        if not coverage.has_analyst_estimates:
+            missing_context.append("analyst_estimates")
+
+        if not missing_context:
+            priority = 7
+            recommended_action = "Optional context is already available locally."
+            target_file = ""
+            example_command = ""
+            safe_next_step = "No optional context action is required for this ticker."
+        else:
+            priority = 5 if len(missing_context) == 2 else 6
+            if missing_context == ["earnings"]:
+                recommended_action = "Add local earnings rows only if you have a trusted source."
+                target_file = "data/imports/earnings.csv"
+            elif missing_context == ["analyst_estimates"]:
+                recommended_action = "Add analyst estimates only if you have a trusted local source."
+                target_file = "data/imports/analyst_estimates.csv"
+            else:
+                recommended_action = "Optional earnings and analyst-estimate context are missing; add them only from trusted local sources."
+                target_file = "data/imports/earnings.csv and data/imports/analyst_estimates.csv"
+            example_command = "python3 -m src.data_onboarding --write-templates"
+            safe_next_step = "It is safe to leave optional context missing until you have verified local data."
+
+        rows.append(
+            OptionalContextWorklistRow(
+                priority=priority,
+                ticker=coverage.ticker,
+                has_earnings=coverage.has_earnings,
+                has_analyst_estimates=coverage.has_analyst_estimates,
+                earnings_context_ready=coverage.has_earnings,
+                estimate_context_ready=coverage.has_analyst_estimates,
+                missing_optional_context=", ".join(missing_context),
+                recommended_action=recommended_action,
+                target_file=target_file,
+                example_command=example_command,
+                safe_next_step=safe_next_step,
+            )
+        )
+    return sorted(rows, key=lambda item: (item.priority, item.ticker))
+
+
 def build_onboarding_payload(
     project_root: Path | str | None = None,
     *,
@@ -689,12 +768,14 @@ def build_onboarding_payload(
     wizard = build_data_coverage_wizard(coverage)
     price_worklist = build_price_import_worklist(coverage, project_root, data_dir=data_dir, output_dir=output_dir)
     fundamentals_peer_worklist = build_fundamentals_peer_worklist(coverage)
+    optional_context_worklist = build_optional_context_worklist(coverage)
     return {
         "ticker_coverage": [row.to_dict() for row in coverage],
         "onboarding_actions": [row.to_dict() for row in actions],
         "data_coverage_wizard": [row.to_dict() for row in wizard],
         "price_import_worklist": [row.to_dict() for row in price_worklist],
         "fundamentals_peer_worklist": [row.to_dict() for row in fundamentals_peer_worklist],
+        "optional_context_worklist": [row.to_dict() for row in optional_context_worklist],
     }
 
 
@@ -714,12 +795,16 @@ def write_onboarding_outputs(
     wizard_path = output_path / "data_coverage_wizard.csv"
     price_worklist_path = output_path / "price_import_worklist.csv"
     fundamentals_peer_worklist_path = output_path / "fundamentals_peer_worklist.csv"
+    optional_context_worklist_path = output_path / "optional_context_worklist.csv"
     pd.DataFrame(payload["ticker_coverage"], columns=COVERAGE_COLUMNS).to_csv(coverage_path, index=False)
     pd.DataFrame(payload["onboarding_actions"], columns=ACTION_COLUMNS).to_csv(actions_path, index=False)
     pd.DataFrame(payload["data_coverage_wizard"], columns=WIZARD_COLUMNS).to_csv(wizard_path, index=False)
     pd.DataFrame(payload["price_import_worklist"], columns=PRICE_WORKLIST_COLUMNS).to_csv(price_worklist_path, index=False)
     pd.DataFrame(payload["fundamentals_peer_worklist"], columns=FUNDAMENTALS_PEER_WORKLIST_COLUMNS).to_csv(
         fundamentals_peer_worklist_path, index=False
+    )
+    pd.DataFrame(payload["optional_context_worklist"], columns=OPTIONAL_CONTEXT_WORKLIST_COLUMNS).to_csv(
+        optional_context_worklist_path, index=False
     )
     return {
         **payload,
@@ -728,6 +813,7 @@ def write_onboarding_outputs(
         "wizard_path": str(wizard_path),
         "price_worklist_path": str(price_worklist_path),
         "fundamentals_peer_worklist_path": str(fundamentals_peer_worklist_path),
+        "optional_context_worklist_path": str(optional_context_worklist_path),
     }
 
 
@@ -825,6 +911,17 @@ def _print_fundamentals_peer_worklist(payload: dict[str, Any]) -> None:
     print(f"Fundamentals/peer worklist rows: {len(payload['fundamentals_peer_worklist'])}")
 
 
+def _print_optional_context_worklist(payload: dict[str, Any]) -> None:
+    print("Optional context worklist:")
+    for row in payload["optional_context_worklist"][:30]:
+        print(
+            f"- P{row['priority']} {row['ticker']}: earnings={row['has_earnings']} "
+            f"estimates={row['has_analyst_estimates']} missing={row['missing_optional_context'] or '-'}"
+        )
+        print(f"  next: {row['recommended_action']}")
+    print(f"Optional context worklist rows: {len(payload['optional_context_worklist'])}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Inspect local ticker-level coverage and onboarding actions.")
     parser.add_argument("--coverage", action="store_true", help="Print ticker-level local data coverage.")
@@ -834,6 +931,11 @@ def main() -> None:
         "--fundamentals-peer-worklist",
         action="store_true",
         help="Print prioritized fundamentals and peer-readiness worklist rows.",
+    )
+    parser.add_argument(
+        "--optional-context-worklist",
+        action="store_true",
+        help="Print prioritized optional earnings and analyst-estimate worklist rows.",
     )
     parser.add_argument("--write-output", action="store_true", help="Write ticker coverage and onboarding action CSVs.")
     parser.add_argument("--write-templates", action="store_true", help="Write header-only onboarding templates under data/templates.")
@@ -865,18 +967,22 @@ def main() -> None:
         payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path, tickers=tickers)
 
     if args.json:
-        if args.wizard and not args.coverage and not args.write_output and not args.price_worklist and not args.fundamentals_peer_worklist:
+        if args.wizard and not args.coverage and not args.write_output and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist:
             print(json.dumps({"data_coverage_wizard": payload["data_coverage_wizard"]}, indent=2))
-        elif args.price_worklist and not args.coverage and not args.write_output and not args.wizard and not args.fundamentals_peer_worklist:
+        elif args.price_worklist and not args.coverage and not args.write_output and not args.wizard and not args.fundamentals_peer_worklist and not args.optional_context_worklist:
             print(json.dumps({"price_import_worklist": payload["price_import_worklist"]}, indent=2))
-        elif args.fundamentals_peer_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist:
+        elif args.fundamentals_peer_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.optional_context_worklist:
             print(json.dumps({"fundamentals_peer_worklist": payload["fundamentals_peer_worklist"]}, indent=2))
+        elif args.optional_context_worklist and not args.coverage and not args.write_output and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist:
+            print(json.dumps({"optional_context_worklist": payload["optional_context_worklist"]}, indent=2))
         else:
             print(json.dumps(payload, indent=2))
         return
 
     print(format_path_context(root, data_path, output_path))
-    if args.fundamentals_peer_worklist and not args.coverage and not args.wizard and not args.price_worklist:
+    if args.optional_context_worklist and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist:
+        _print_optional_context_worklist(payload)
+    elif args.fundamentals_peer_worklist and not args.coverage and not args.wizard and not args.price_worklist:
         _print_fundamentals_peer_worklist(payload)
     elif args.price_worklist and not args.coverage and not args.wizard:
         _print_price_worklist(payload)
@@ -890,6 +996,7 @@ def main() -> None:
         print(f"Wrote: {payload['wizard_path']}")
         print(f"Wrote: {payload['price_worklist_path']}")
         print(f"Wrote: {payload['fundamentals_peer_worklist_path']}")
+        print(f"Wrote: {payload['optional_context_worklist_path']}")
 
 
 if __name__ == "__main__":

@@ -614,6 +614,14 @@ This prints which tickers still need:
 - manual peer mappings in `data/imports/peers.csv`
 - peer fundamentals or peer price / market-cap context for peer-relative valuation
 
+For optional earnings and analyst-estimate context, use:
+
+```bash
+make optional-context-worklist
+```
+
+This keeps non-blocking enrichment explicit without treating it like a core pipeline failure. The output shows which tickers still have optional local context gaps and points back to `data/imports/earnings.csv` or `data/imports/analyst_estimates.csv` only when you have trusted local data.
+
 Generic OHLCV CSVs are also supported when they include `date`, `ticker`, `open`, `high`, `low`, `close`, and `volume` columns:
 
 ```bash
@@ -719,6 +727,14 @@ This complements `make price-worklist` by showing which tickers are blocked on:
 - incomplete DCF inputs such as free cash flow or shares outstanding
 - missing peer mappings
 - incomplete peer-relative inputs
+
+If you want a clean list of optional earnings and analyst-estimate gaps, run:
+
+```bash
+make optional-context-worklist
+```
+
+This keeps optional enrichment visible while preserving the rule that missing earnings or estimates should never be fabricated and should not block the core local workflow.
 
 If you prefer the explicit commands, the equivalent workflow is:
 

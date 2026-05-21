@@ -1,4 +1,4 @@
-.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage data-wizard onboarding templates price-status price-worklist fundamentals-peer-worklist price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage data-wizard onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist price-validate price-preview price-apply price-refresh price-normalize
 
 help:
 	@echo "Stock Research Screener convenience commands"
@@ -24,6 +24,7 @@ help:
 	@echo "  make data-wizard      Show prioritized data coverage unlocks"
 	@echo "  make price-worklist   Show ticker-by-ticker local price-history gaps"
 	@echo "  make fundamentals-peer-worklist Show DCF and peer-relative local blockers"
+	@echo "  make optional-context-worklist Show optional earnings and estimate gaps"
 	@echo "  make templates        Write local CSV templates"
 	@echo "  make validate-data    Validate local CSV datasets"
 	@echo ""
@@ -94,6 +95,9 @@ price-worklist:
 
 fundamentals-peer-worklist:
 	python3 -m src.data_onboarding --fundamentals-peer-worklist
+
+optional-context-worklist:
+	python3 -m src.data_onboarding --optional-context-worklist
 
 price-validate:
 	python3 -m src.data_update --validate-price-imports

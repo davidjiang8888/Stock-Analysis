@@ -54,6 +54,7 @@ DATA_ONBOARDING_FILES = {
     "data_coverage_wizard.csv": "Data Coverage Wizard",
     "price_import_worklist.csv": "Price Import Worklist",
     "fundamentals_peer_worklist.csv": "Fundamentals Peer Worklist",
+    "optional_context_worklist.csv": "Optional Context Worklist",
 }
 ACTION_QUEUE_FILE = "research_action_queue.csv"
 RESEARCH_HEALTH_FILES = {
@@ -327,6 +328,30 @@ def summarize_fundamentals_peer_worklist(worklist: pd.DataFrame | None) -> dict[
         "peer_ready": count_true("peer_ready"),
         "fundamentals_priority_1": int((priorities.eq(1) & ~dcf_ready_mask).sum()),
         "peer_priority_2": int((priorities.eq(2) & ~peer_ready_mask).sum()),
+    }
+
+
+def summarize_optional_context_worklist(worklist: pd.DataFrame | None) -> dict[str, int]:
+    if worklist is None or worklist.empty:
+        return {
+            "earnings_ready": 0,
+            "estimates_ready": 0,
+            "missing_both": 0,
+            "missing_one": 0,
+        }
+
+    priorities = pd.to_numeric(worklist.get("priority", pd.Series(dtype=float)), errors="coerce").fillna(0)
+
+    def count_true(column: str) -> int:
+        if column not in worklist.columns:
+            return 0
+        return int(worklist[column].astype(str).str.lower().isin({"true", "1", "yes"}).sum())
+
+    return {
+        "earnings_ready": count_true("has_earnings"),
+        "estimates_ready": count_true("has_analyst_estimates"),
+        "missing_both": int(priorities.eq(5).sum()),
+        "missing_one": int(priorities.eq(6).sum()),
     }
 
 
@@ -3821,6 +3846,7 @@ def render_data_health(provider) -> None:
     wizard_frame, wizard_message = onboarding_tables["data_coverage_wizard.csv"]
     price_worklist_frame, price_worklist_message = onboarding_tables["price_import_worklist.csv"]
     fundamentals_peer_worklist_frame, fundamentals_peer_worklist_message = onboarding_tables["fundamentals_peer_worklist.csv"]
+    optional_context_worklist_frame, optional_context_worklist_message = onboarding_tables["optional_context_worklist.csv"]
     staged_imports = validate_imports(base_dir=BASE_DIR)
     universe_summary = summarize_universe_manager(BASE_DIR)
     staged_universe = universe_summary["staged_universe"]
@@ -3965,6 +3991,13 @@ def render_data_health(provider) -> None:
                 metric_cols[1].metric("Peer Ready", fp_summary["peer_ready"])
                 metric_cols[2].metric("Need Fundamentals", fp_summary["fundamentals_priority_1"])
                 metric_cols[3].metric("Need Peer Context", fp_summary["peer_priority_2"])
+            if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
+                oc_summary = summarize_optional_context_worklist(optional_context_worklist_frame)
+                metric_cols = st.columns(4)
+                metric_cols[0].metric("Earnings Ready", oc_summary["earnings_ready"])
+                metric_cols[1].metric("Estimates Ready", oc_summary["estimates_ready"])
+                metric_cols[2].metric("Missing Both Optional", oc_summary["missing_both"])
+                metric_cols[3].metric("Missing One Optional", oc_summary["missing_one"])
 
             if data_quality_frame is not None and not data_quality_frame.empty:
                 data_quality_columns = [
@@ -4093,6 +4126,22 @@ def render_data_health(provider) -> None:
                         if column in fundamentals_peer_worklist_frame.columns
                     ]
                     st.dataframe(clean_display_frame(fundamentals_peer_worklist_frame[fp_columns].head(20)), width="stretch", hide_index=True)
+            if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
+                with st.expander("Optional Context Worklist", expanded=False):
+                    oc_columns = [
+                        column
+                        for column in [
+                            "priority",
+                            "ticker",
+                            "has_earnings",
+                            "has_analyst_estimates",
+                            "missing_optional_context",
+                            "recommended_action",
+                            "example_command",
+                        ]
+                        if column in optional_context_worklist_frame.columns
+                    ]
+                    st.dataframe(clean_display_frame(optional_context_worklist_frame[oc_columns].head(20)), width="stretch", hide_index=True)
 
     with health_tabs[2]:
         render_signal_cards(
@@ -4259,6 +4308,33 @@ def render_data_health(provider) -> None:
                 "Fundamentals and peer worklist is not available yet",
                 fundamentals_peer_worklist_message
                 or "Generate the onboarding outputs to see which tickers still need SEC fundamentals or manual peer mappings.",
+                "python3 -m src.data_onboarding --write-output",
+                tone="warning",
+            )
+        if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
+            render_context_note(
+                "Optional context worklist.",
+                "This queue keeps optional earnings and analyst-estimate enrichment explicit and lower priority than prices, fundamentals, and peers.",
+            )
+            oc_columns = [
+                column
+                for column in [
+                    "priority",
+                    "ticker",
+                    "has_earnings",
+                    "has_analyst_estimates",
+                    "missing_optional_context",
+                    "recommended_action",
+                    "example_command",
+                ]
+                if column in optional_context_worklist_frame.columns
+            ]
+            st.dataframe(clean_display_frame(optional_context_worklist_frame[oc_columns].head(15)), width="stretch", hide_index=True)
+        else:
+            render_notice_card(
+                "Optional context worklist is not available yet",
+                optional_context_worklist_message
+                or "Generate the onboarding outputs to see which tickers still have optional earnings or analyst-estimate gaps.",
                 "python3 -m src.data_onboarding --write-output",
                 tone="warning",
             )

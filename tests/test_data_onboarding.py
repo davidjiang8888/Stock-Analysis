@@ -8,6 +8,7 @@ import pandas as pd
 from src.data_onboarding import (
     COVERAGE_COLUMNS,
     FUNDAMENTALS_PEER_WORKLIST_COLUMNS,
+    OPTIONAL_CONTEXT_WORKLIST_COLUMNS,
     PRICE_WORKLIST_COLUMNS,
     WIZARD_COLUMNS,
     build_onboarding_payload,
@@ -165,12 +166,15 @@ def test_write_onboarding_outputs_and_templates(tmp_path: Path):
     assert Path(output_result["wizard_path"]).exists()
     assert Path(output_result["price_worklist_path"]).exists()
     assert Path(output_result["fundamentals_peer_worklist_path"]).exists()
+    assert Path(output_result["optional_context_worklist_path"]).exists()
     wizard_frame = pd.read_csv(output_result["wizard_path"])
     price_worklist_frame = pd.read_csv(output_result["price_worklist_path"])
     fundamentals_peer_frame = pd.read_csv(output_result["fundamentals_peer_worklist_path"])
+    optional_context_frame = pd.read_csv(output_result["optional_context_worklist_path"])
     assert list(wizard_frame.columns) == WIZARD_COLUMNS
     assert list(price_worklist_frame.columns) == PRICE_WORKLIST_COLUMNS
     assert list(fundamentals_peer_frame.columns) == FUNDAMENTALS_PEER_WORKLIST_COLUMNS
+    assert list(optional_context_frame.columns) == OPTIONAL_CONTEXT_WORKLIST_COLUMNS
     assert (tmp_path / "data" / "templates" / "peers.csv").exists()
     assert (tmp_path / "data" / "templates" / "prices.csv").exists()
     assert (tmp_path / "data" / "templates" / "custom_universe.csv").exists()
@@ -261,6 +265,35 @@ def test_fundamentals_peer_worklist_prioritizes_dcf_then_peer_gaps(tmp_path: Pat
     assert worklist["NVDA"]["priority"] == 2
     assert worklist["NVDA"]["dcf_ready"] is True
     assert worklist["NVDA"]["peer_ready"] is False
+
+
+def test_data_onboarding_cli_optional_context_worklist_json(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--optional-context-worklist", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert "optional_context_worklist" in payload
+    assert payload["optional_context_worklist"][0]["ticker"] == "AMD"
+    assert "missing_optional_context" in payload["optional_context_worklist"][0]
+
+
+def test_optional_context_worklist_keeps_optional_gaps_lower_priority(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    worklist = {row["ticker"]: row for row in payload["optional_context_worklist"]}
+
+    assert worklist["AMD"]["priority"] == 5
+    assert "earnings" in worklist["AMD"]["missing_optional_context"]
+    assert "analyst_estimates" in worklist["AMD"]["missing_optional_context"]
+    assert worklist["NVDA"]["priority"] == 6
+    assert worklist["NVDA"]["has_earnings"] is True
+    assert worklist["NVDA"]["has_analyst_estimates"] is False
 
 
 def test_build_data_coverage_wizard_accepts_empty_coverage():
