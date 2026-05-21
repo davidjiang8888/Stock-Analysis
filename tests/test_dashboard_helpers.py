@@ -2714,13 +2714,54 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
             }
         ]
     )
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Run bundle command",
+                "command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=META,NVDA,TSLA",
+                "tickers": "META,NVDA,TSLA",
+                "target_file": "data/imports/fundamentals.csv",
+                "why_it_matters": "These tickers are the best next candidates for explicit local DCF inputs.",
+                "safe_next_step": "Keep SEC enrichment staged and review-only until preview is clean.",
+            },
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "step_order": 2,
+                "step_label": "Review follow-up output",
+                "command": "make sec-preview",
+                "tickers": "META,NVDA,TSLA",
+                "target_file": "data/imports/fundamentals.csv",
+                "why_it_matters": "These tickers are the best next candidates for explicit local DCF inputs.",
+                "safe_next_step": "Keep SEC enrichment staged and review-only until preview is clean.",
+            },
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "step_order": 3,
+                "step_label": "Refresh onboarding outputs",
+                "command": "make onboarding",
+                "tickers": "META,NVDA,TSLA",
+                "target_file": "data/imports/fundamentals.csv",
+                "why_it_matters": "These tickers are the best next candidates for explicit local DCF inputs.",
+                "safe_next_step": "Reopen Data Health or Overview after refreshing outputs.",
+            },
+        ]
+    )
 
-    cards = dashboard.overview_bundle_handoff_cards(bundles, details)
+    cards = dashboard.overview_bundle_handoff_cards(bundles, details, runbook)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["kicker"] == "FUNDAMENTALS HANDOFF"
     assert "make sec-stage" in rendered
     assert "make sec-preview" in rendered
+    assert "make onboarding" in rendered
     assert "meta" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
