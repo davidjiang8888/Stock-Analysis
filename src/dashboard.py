@@ -1437,6 +1437,78 @@ def monthly_pick_score_chart_frame(picks_frame: pd.DataFrame | None, max_rows: i
     return chart_frame.rename(columns={"ValuationContextScore": "ValuationScore"})
 
 
+def _technical_distance_label(value: object, label: str) -> str:
+    number = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+    if pd.isna(number):
+        return f"{label} unavailable"
+    relation = "Above" if float(number) >= 0 else "Below"
+    return f"{relation} {label}"
+
+
+def stock_report_technical_context_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
+    screener_context = report_payload.get("screener_context", {}) or {}
+    momentum = screener_context.get("momentum_leaders", {}) or {}
+    watchlist = screener_context.get("final_watchlist", {}) or {}
+    setup_status = format_missing(momentum.get("SetupStatus") or watchlist.get("SetupStatus"), "Not available")
+    final_state = format_missing(watchlist.get("FinalState"), "Not available")
+    rs_percentile = momentum.get("RSPercentile")
+    relative_spy = momentum.get("RelativeReturnVsSPY")
+    relative_qqq = momentum.get("RelativeReturnVsQQQ")
+    volume_ratio = momentum.get("VolumeRatio")
+    volatility_proxy = momentum.get("ATRorVolatilityPct")
+    ma_stack = [
+        _technical_distance_label(momentum.get("DistanceFrom10EMA"), "10 EMA"),
+        _technical_distance_label(momentum.get("DistanceFrom21EMA"), "21 EMA"),
+        _technical_distance_label(momentum.get("DistanceFrom50SMA"), "50 SMA"),
+    ]
+    return [
+        {
+            "kicker": "SETUP",
+            "title": setup_status,
+            "body": f"Current watchlist state: {final_state}. Momentum setup remains research context, not a trade instruction.",
+            "badges": [final_state],
+        },
+        {
+            "kicker": "RELATIVE STRENGTH",
+            "title": report_display_value(rs_percentile, "number"),
+            "body": f"vs SPY {report_display_value(relative_spy, 'percent')} · vs QQQ {report_display_value(relative_qqq, 'percent')}.",
+            "badges": ["RS percentile"],
+        },
+        {
+            "kicker": "TREND STACK",
+            "title": ma_stack[0],
+            "body": " · ".join(ma_stack[1:]),
+            "badges": ["moving averages"],
+        },
+        {
+            "kicker": "FLOW / VOLATILITY",
+            "title": f"Volume {report_display_value(volume_ratio, 'number')}x",
+            "body": f"ATR / volatility proxy {report_display_value(volatility_proxy, 'percent')}. Missing values stay visible instead of guessed.",
+            "badges": ["local screener"],
+        },
+    ]
+
+
+def stock_report_technical_context_frame(report_payload: dict[str, object]) -> pd.DataFrame:
+    screener_context = report_payload.get("screener_context", {}) or {}
+    momentum = screener_context.get("momentum_leaders", {}) or {}
+    watchlist = screener_context.get("final_watchlist", {}) or {}
+    rows = [
+        {"Metric": "Setup Status", "Value": format_missing(momentum.get("SetupStatus") or watchlist.get("SetupStatus"))},
+        {"Metric": "Final State", "Value": format_missing(watchlist.get("FinalState"))},
+        {"Metric": "RS Percentile", "Value": report_display_value(momentum.get("RSPercentile"), "number")},
+        {"Metric": "Relative Return vs SPY", "Value": report_display_value(momentum.get("RelativeReturnVsSPY"), "percent")},
+        {"Metric": "Relative Return vs QQQ", "Value": report_display_value(momentum.get("RelativeReturnVsQQQ"), "percent")},
+        {"Metric": "10 EMA Distance", "Value": report_display_value(momentum.get("DistanceFrom10EMA"), "percent")},
+        {"Metric": "21 EMA Distance", "Value": report_display_value(momentum.get("DistanceFrom21EMA"), "percent")},
+        {"Metric": "50 SMA Distance", "Value": report_display_value(momentum.get("DistanceFrom50SMA"), "percent")},
+        {"Metric": "Average Volume 20D", "Value": report_display_value(momentum.get("AvgVolume20D"), "integer")},
+        {"Metric": "Volume Ratio", "Value": report_display_value(momentum.get("VolumeRatio"), "number")},
+        {"Metric": "ATR / Volatility Proxy", "Value": report_display_value(momentum.get("ATRorVolatilityPct"), "percent")},
+    ]
+    return pd.DataFrame(rows)
+
+
 def stock_report_missing_data_text(warnings: list[object]) -> str:
     if not warnings:
         return "No explicit missing-data warnings were assembled from the current inputs."
@@ -3267,6 +3339,18 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
         performance_columns[0].metric("1M Return", report_display_value(performance.get("one_month"), "percent"))
         performance_columns[1].metric("3M Return", report_display_value(performance.get("three_month"), "percent"))
         performance_columns[2].metric("1Y Return", report_display_value(performance.get("one_year"), "percent"))
+
+        st.markdown("#### Technical Context")
+        render_context_note(
+            "Technical context.",
+            "These fields come from the current local momentum and watchlist outputs. They summarize setup quality and trend context without implying a buy or sell action.",
+        )
+        render_signal_cards(stock_report_technical_context_cards(report_payload))
+        st.dataframe(
+            clean_display_frame(stock_report_technical_context_frame(report_payload)),
+            width="stretch",
+            hide_index=True,
+        )
 
         st.markdown("#### Financial Context")
         financial_fields = [

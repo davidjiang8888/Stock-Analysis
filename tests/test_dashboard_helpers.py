@@ -739,6 +739,49 @@ def test_monthly_pick_score_chart_frame_returns_empty_without_score_columns():
     assert chart.empty
 
 
+def test_stock_report_technical_context_cards_are_readable_and_research_only():
+    payload = {
+        "screener_context": {
+            "momentum_leaders": {
+                "SetupStatus": "Watch",
+                "RSPercentile": 92,
+                "RelativeReturnVsSPY": 0.18,
+                "RelativeReturnVsQQQ": 0.11,
+                "DistanceFrom10EMA": 0.04,
+                "DistanceFrom21EMA": 0.08,
+                "DistanceFrom50SMA": -0.03,
+                "VolumeRatio": 1.2,
+                "ATRorVolatilityPct": 0.025,
+            },
+            "final_watchlist": {
+                "FinalState": "Review Thesis",
+                "SetupStatus": "Watch",
+            },
+        }
+    }
+
+    cards = dashboard.stock_report_technical_context_cards(payload)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 4
+    assert "watch" in rendered
+    assert "review thesis" in rendered
+    assert "vs spy 18.0%" in rendered
+    assert "above 10 ema" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_stock_report_technical_context_frame_formats_missing_values_cleanly():
+    frame = dashboard.stock_report_technical_context_frame({"screener_context": {}})
+
+    assert list(frame.columns) == ["Metric", "Value"]
+    rendered = " ".join(frame["Value"].astype(str)).lower()
+    assert "not available" in rendered
+    assert "none" not in rendered
+    assert "nan" not in rendered
+
+
 def test_stock_report_source_frame_hides_raw_missing_values():
     frame = dashboard.stock_report_source_frame(
         [
