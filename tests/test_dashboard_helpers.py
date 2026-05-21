@@ -2303,6 +2303,59 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
     assert "sell" not in rendered
 
 
+def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Run bundle command",
+                "command": "python3 -m src.data_update --tickers AMD,AVGO",
+                "target_file": "data/imports/prices.csv",
+                "tickers": "AMD,AVGO",
+                "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
+                "safe_next_step": "Use staged local imports if the free refresh fails.",
+            },
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 2,
+                "step_label": "Review follow-up output",
+                "command": "make price-status",
+                "target_file": "data/imports/prices.csv",
+                "tickers": "AMD,AVGO",
+                "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
+                "safe_next_step": "Use staged local imports if the free refresh fails.",
+            },
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 3,
+                "step_label": "Refresh onboarding outputs",
+                "command": "make onboarding",
+                "target_file": "data/imports/prices.csv",
+                "tickers": "AMD,AVGO",
+                "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
+                "safe_next_step": "Reopen Data Health or Overview after refreshing outputs.",
+            },
+        ]
+    )
+
+    cards = dashboard.data_health_command_bundle_runbook_cards(runbook)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "PRICES RUNBOOK"
+    assert "run bundle command" in rendered
+    assert "make price-status" in rendered
+    assert "make onboarding" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values():
     wizard = pd.DataFrame(
         [

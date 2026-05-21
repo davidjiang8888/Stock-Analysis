@@ -2028,6 +2028,60 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
     return cards
 
 
+def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
+    if runbook_frame is None or runbook_frame.empty:
+        return [
+            {
+                "kicker": "RUNBOOK",
+                "title": "No bundle runbook yet",
+                "body": "Generate onboarding outputs to surface ordered bundle command steps for prices, SEC staging, and peer mapping.",
+                "badges": ["read-only"],
+                "command": "python3 -m src.data_onboarding --write-output",
+            }
+        ]
+
+    ordered = runbook_frame.copy()
+    if "step_order" in ordered.columns:
+        ordered["step_order"] = pd.to_numeric(ordered["step_order"], errors="coerce")
+        ordered = ordered.sort_values(["lane", "step_order", "bundle_name"], kind="stable")
+
+    cards: list[dict[str, object]] = []
+    for lane in ("prices", "fundamentals", "peers"):
+        lane_rows = ordered.loc[ordered.get("lane", pd.Series(dtype=str)).astype(str).eq(lane)]
+        if lane_rows.empty:
+            continue
+        bundle_name = format_missing(lane_rows.iloc[0].get("bundle_name"), "Local bundle")
+        steps = []
+        for _, row in lane_rows.head(3).iterrows():
+            step_label = format_missing(row.get("step_label"), "Step")
+            command = format_missing(row.get("command"), "")
+            if command:
+                steps.append(f"{step_label}: {command}")
+        cards.append(
+            {
+                "kicker": f"{lane.upper()} RUNBOOK",
+                "title": bundle_name,
+                "body": " | ".join(steps) if steps else "No runbook steps available.",
+                "badges": [
+                    format_missing(lane_rows.iloc[0].get("scope"), "scope").replace("_", " "),
+                    format_missing(lane_rows.iloc[0].get("tickers"), "No tickers"),
+                ],
+                "command": format_missing(lane_rows.iloc[0].get("command"), ""),
+            }
+        )
+        if len(cards) >= limit:
+            break
+    return cards or [
+        {
+            "kicker": "RUNBOOK",
+            "title": "No bundle runbook yet",
+            "body": "Generate onboarding outputs to surface ordered bundle command steps for prices, SEC staging, and peer mapping.",
+            "badges": ["read-only"],
+            "command": "python3 -m src.data_onboarding --write-output",
+        }
+    ]
+
+
 def data_health_tab_summary_cards(
     tab_name: str,
     validation_rows: pd.DataFrame,
@@ -5853,6 +5907,8 @@ def render_data_health(provider) -> None:
     render_signal_cards(data_health_action_path_cards(actions_frame, action_queue_frame))
     render_section_header("Command Bundles", "Holdings-first local command bundles for the next price, SEC fundamentals, and peer-mapping pass.")
     render_signal_cards(data_health_command_bundle_cards(command_bundles_frame))
+    render_section_header("Bundle Runbook", "Ordered command steps for each current bundle lane so the local follow-through stays explicit.")
+    render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame))
     if command_bundles_frame is None:
         render_notice_card(
             "Command bundles have not been generated yet",
