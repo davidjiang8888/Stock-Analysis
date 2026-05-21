@@ -319,3 +319,43 @@ def test_stock_report_missing_data_text_stays_friendly():
     assert "Needs SEC enrichment" in text
     assert "Needs peers.csv" in text
     assert "Not enough price history" in text
+
+
+def test_data_health_overview_cards_prioritize_price_and_actions():
+    validation = pd.DataFrame(
+        {
+            "validation_status": ["valid", "valid_with_warnings", "missing_file"],
+        }
+    )
+    price_status = pd.DataFrame({"status": ["parse_error", "fetched"]})
+    action_queue = pd.DataFrame({"urgency": ["critical", "high", "medium"]})
+    coverage = pd.DataFrame(
+        {
+            "usable_for_momentum": [True, False],
+            "dcf_ready": [True, False],
+            "peer_ready": [False, False],
+            "has_earnings": [False, False],
+            "has_analyst_estimates": [False, False],
+            "missing_required_for_momentum": ["", "prices"],
+            "missing_required_for_dcf": ["", "fundamentals"],
+            "missing_required_for_peer_relative": ["peer mapping", "peer mapping"],
+        }
+    )
+
+    cards = dashboard.data_health_overview_cards(validation, price_status, action_queue, coverage)
+    rendered = " ".join(str(value) for card in cards for value in card.values())
+
+    assert len(cards) == 4
+    assert "2 usable datasets" in rendered
+    assert "1 price issue" in rendered
+    assert "1 critical actions" in rendered
+    assert "1 price-ready tickers" in rendered
+
+
+def test_universe_preset_cards_include_preview_commands():
+    cards = dashboard.universe_preset_cards()
+    rendered = " ".join(str(value) for card in cards for value in card.values())
+
+    assert cards
+    assert "preview --preset" in rendered
+    assert "apply-import" not in rendered

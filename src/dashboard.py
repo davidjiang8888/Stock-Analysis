@@ -973,6 +973,84 @@ def stock_report_source_frame(source_rows: list[dict[str, object]]) -> pd.DataFr
     return pd.DataFrame(rows)
 
 
+def data_health_overview_cards(
+    validation_rows: pd.DataFrame,
+    price_status_frame: pd.DataFrame | None,
+    action_queue_frame: pd.DataFrame | None,
+    coverage_frame: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    if validation_rows.empty:
+        dataset_title = "No validation rows"
+        dataset_body = "Run local validation to inspect configured CSV datasets."
+        dataset_badges = ["make validate-data"]
+    else:
+        status_series = validation_rows.get("validation_status", pd.Series(dtype=object)).astype(str)
+        valid_count = int(status_series.isin({"valid", "valid_with_warnings"}).sum())
+        missing_count = int(status_series.eq("missing_file").sum())
+        dataset_title = f"{valid_count} usable datasets"
+        dataset_body = f"{missing_count} optional local file{'s' if missing_count != 1 else ''} missing. Partial reports remain safe."
+        dataset_badges = ["CSV-first", f"{len(validation_rows)} checked"]
+
+    price_counts = summarize_price_update_status(price_status_frame)
+    price_problem_count = sum(
+        price_counts.get(status, 0)
+        for status in ["parse_error", "source_unavailable", "network_error", "no_rows", "failed"]
+    )
+    if price_status_frame is None:
+        price_title = "Price status not generated"
+        price_body = "Run price refresh or use manual staged OHLCV import when the remote source is unavailable."
+        price_badges = ["make price-refresh"]
+    elif price_problem_count:
+        price_title = f"{price_problem_count} price issue{'s' if price_problem_count != 1 else ''}"
+        price_body = "Use raw downloaded CSVs only as user-provided inputs, then normalize, validate, preview, and apply."
+        price_badges = ["make price-normalize", "manual fallback"]
+    else:
+        price_title = f"{price_counts.get('fetched', 0)} fetched"
+        price_body = "Latest price refresh did not report blocking source errors."
+        price_badges = ["price status"]
+
+    queue_summary = action_queue_summary(action_queue_frame)
+    action_title = f"{queue_summary['critical']} critical actions"
+    action_body = f"{queue_summary['high']} high-priority and {queue_summary['medium']} medium-priority remediation rows are queued."
+    action_badges = ["make action-queue", "read-only dashboard"]
+
+    coverage_summary = summarize_ticker_coverage(coverage_frame)
+    coverage_title = f"{coverage_summary['usable_price_tickers']} price-ready tickers"
+    coverage_body = (
+        f"{coverage_summary['dcf_ready_tickers']} DCF-ready, "
+        f"{coverage_summary['peer_ready_tickers']} peer-ready, "
+        f"{coverage_summary['optional_only_missing_tickers']} missing only optional files."
+    )
+    coverage_badges = ["make onboarding"]
+
+    return [
+        {"kicker": "DATASETS", "title": dataset_title, "body": dataset_body, "badges": dataset_badges},
+        {"kicker": "PRICES", "title": price_title, "body": price_body, "badges": price_badges},
+        {"kicker": "NEXT ACTIONS", "title": action_title, "body": action_body, "badges": action_badges},
+        {"kicker": "COVERAGE", "title": coverage_title, "body": coverage_body, "badges": coverage_badges},
+    ]
+
+
+def universe_preset_cards() -> list[dict[str, object]]:
+    preset_descriptions = {
+        "core": "Current local universe plus holdings. Safest and quickest workflow.",
+        "sp500_smh": "S&P 500 community list, SMH holdings if available, plus holdings.",
+        "broad": "Adds Nasdaq-listed common stocks. Larger and slower; preview first.",
+    }
+    cards = []
+    for name, sources in SOURCE_PRESETS.items():
+        cards.append(
+            {
+                "kicker": "PRESET",
+                "title": name,
+                "body": preset_descriptions.get(name, "Source-driven universe preset. Preview before applying."),
+                "badges": [", ".join(sources)],
+                "command": f"python3 -m src.universe_builder --preview --preset {name} --max-tickers 50",
+            }
+        )
+    return cards
+
+
 def action_queue_summary(queue: pd.DataFrame | None) -> dict[str, int]:
     if queue is None or queue.empty:
         return {"critical": 0, "high": 0, "medium": 0}
@@ -1771,6 +1849,24 @@ def render_data_health(provider) -> None:
         st.warning("Local provider could not be initialized.")
         return
     validation_rows = pd.DataFrame(provider.get_local_data_validation())
+    action_queue_frame, action_queue_message = load_action_queue()
+    health_tables = load_research_health_tables()
+    data_quality_frame, data_quality_message = health_tables["data_quality_wizard.csv"]
+    liquidity_frame, liquidity_message = health_tables["liquidity_risk.csv"]
+    correlation_frame, correlation_message = health_tables["correlation_risk.csv"]
+    source_tables = load_data_source_status_tables()
+    status_frame, status_message = source_tables["data_source_status.csv"]
+    gap_frame, gap_message = source_tables["data_gap_report.csv"]
+    price_status_frame, price_status_message = load_price_update_status()
+    onboarding_tables = load_data_onboarding_tables()
+    coverage_frame, coverage_message = onboarding_tables["ticker_data_coverage.csv"]
+    actions_frame, actions_message = onboarding_tables["data_onboarding_actions.csv"]
+    staged_imports = validate_imports(base_dir=BASE_DIR)
+    universe_summary = summarize_universe_manager(BASE_DIR)
+    staged_universe = universe_summary["staged_universe"]
+
+    render_signal_cards(data_health_overview_cards(validation_rows, price_status_frame, action_queue_frame, coverage_frame))
+
     if not validation_rows.empty:
         missing_optional = validation_rows.loc[
             validation_rows.get("validation_status", pd.Series(dtype=str)).astype(str).eq("missing_file"),
@@ -1801,25 +1897,10 @@ def render_data_health(provider) -> None:
             ]
             if column in validation_rows.columns
         ]
-        st.dataframe(clean_display_frame(validation_rows[display_columns]), width="stretch", hide_index=True)
+        with st.expander("Local dataset validation details", expanded=False):
+            st.dataframe(clean_display_frame(validation_rows[display_columns]), width="stretch", hide_index=True)
     else:
         st.info("No local data validation rows are available.")
-
-    action_queue_frame, action_queue_message = load_action_queue()
-    health_tables = load_research_health_tables()
-    data_quality_frame, data_quality_message = health_tables["data_quality_wizard.csv"]
-    liquidity_frame, liquidity_message = health_tables["liquidity_risk.csv"]
-    correlation_frame, correlation_message = health_tables["correlation_risk.csv"]
-    source_tables = load_data_source_status_tables()
-    status_frame, status_message = source_tables["data_source_status.csv"]
-    gap_frame, gap_message = source_tables["data_gap_report.csv"]
-    price_status_frame, price_status_message = load_price_update_status()
-    onboarding_tables = load_data_onboarding_tables()
-    coverage_frame, coverage_message = onboarding_tables["ticker_data_coverage.csv"]
-    actions_frame, actions_message = onboarding_tables["data_onboarding_actions.csv"]
-    staged_imports = validate_imports(base_dir=BASE_DIR)
-    universe_summary = summarize_universe_manager(BASE_DIR)
-    staged_universe = universe_summary["staged_universe"]
 
     health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Refresh", "Staged Imports"])
 
@@ -2061,6 +2142,31 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
     current = universe_summary["current_universe"]
     staged = universe_summary["staged_universe"]
 
+    render_signal_cards(
+        [
+            {
+                "kicker": "CURRENT",
+                "title": f"{current['row_count']} tickers",
+                "body": f"{current['duplicate_ticker_count']} duplicate rows and {current['missing_theme_count'] + current['unclassified_theme_count']} missing or unclassified themes.",
+                "badges": ["data/universe.csv"],
+            },
+            {
+                "kicker": "STAGING",
+                "title": "Staged file present" if staged.get("exists") else "No staged universe",
+                "body": "Preview staged universe changes before applying. Dashboard stays read-only for safety.",
+                "badges": ["data/imports/universe.csv"],
+                "command": "python3 -m src.universe_builder --apply-import",
+            },
+            {
+                "kicker": "WORKFLOW",
+                "title": "Preview first",
+                "body": "Use source presets to build a candidate universe, then apply only after reviewing the staged CSV.",
+                "badges": ["CSV-first", "backup on apply"],
+                "command": "make universe-preview",
+            },
+        ]
+    )
+
     metric_cols = st.columns(4)
     metric_cols[0].metric("Current Universe Size", current["row_count"])
     metric_cols[1].metric("Duplicate Tickers", current["duplicate_ticker_count"])
@@ -2078,8 +2184,10 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
         st.info("No source membership flags are currently present in the canonical universe file.")
 
     st.markdown("### Available Presets")
+    render_signal_cards(universe_preset_cards())
     preset_rows = [{"Preset": name, "Sources": ", ".join(sources)} for name, sources in SOURCE_PRESETS.items()]
-    st.dataframe(pd.DataFrame(preset_rows), width="stretch", hide_index=True)
+    with st.expander("Preset source table", expanded=False):
+        st.dataframe(pd.DataFrame(preset_rows), width="stretch", hide_index=True)
 
     current_frame = pd.DataFrame(current["rows"])
     if not current_frame.empty:
