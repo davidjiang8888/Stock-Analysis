@@ -168,6 +168,20 @@ def test_research_health_tables_handle_missing_outputs_and_summary(tmp_path):
     assert summary["high_correlation"] == 1
 
 
+def test_action_queue_loader_and_summary_handle_missing_outputs(tmp_path):
+    frame, message = dashboard.load_action_queue(tmp_path)
+
+    assert frame is None
+    assert "research_action_queue.csv" in message
+
+    summary = dashboard.action_queue_summary(
+        pd.DataFrame({"urgency": ["critical", "high", "medium", "critical"]})
+    )
+    assert summary["critical"] == 2
+    assert summary["high"] == 1
+    assert summary["medium"] == 1
+
+
 def test_onboarding_summary_counts_core_and_optional_gaps():
     coverage = pd.DataFrame(
         [

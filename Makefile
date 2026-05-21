@@ -1,4 +1,4 @@
-.PHONY: test pipeline monthly track-record validate-data research-health daily dashboard sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates price-status price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: test pipeline monthly track-record validate-data research-health action-queue daily dashboard sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates price-status price-validate price-preview price-apply price-refresh price-normalize
 
 test:
 	python3 -m pytest tests -q
@@ -18,12 +18,16 @@ validate-data:
 research-health:
 	python3 -m src.research_health --write-output
 
+action-queue:
+	python3 -m src.action_queue --write-output
+
 coverage:
 	python3 -m src.data_onboarding --coverage
 
 onboarding:
 	python3 -m src.data_sources --write-output
 	python3 -m src.data_onboarding --write-output
+	python3 -m src.action_queue --write-output
 
 templates:
 	python3 -m src.data_onboarding --write-templates
@@ -56,6 +60,7 @@ daily:
 	python3 -m src.monthly_picks --generate --top-n 5
 	python3 -m src.track_record --monthly-picks
 	python3 -m src.stock_report --validate-local-data
+	python3 -m src.action_queue --write-output
 
 dashboard:
 	streamlit run src/dashboard.py

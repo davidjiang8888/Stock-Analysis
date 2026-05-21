@@ -11,6 +11,7 @@ def test_makefile_contains_convenience_targets():
         "track-record",
         "validate-data",
         "research-health",
+        "action-queue",
         "daily",
         "dashboard",
         "sec-stage",

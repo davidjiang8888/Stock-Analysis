@@ -85,6 +85,7 @@ make monthly
 make track-record
 make validate-data
 make research-health
+make action-queue
 make coverage
 make onboarding
 make templates
@@ -650,7 +651,7 @@ What each tab is for:
 - `Monthly Picks`: top-five local research candidates, transparent scoring components, local track record, and archive views when enough local history exists
 - `Market Direction`, `Momentum Leaders`, `Portfolio Review`, `Value / Re-rating`, `Final Watchlist`: filterable research tables with search, status filters, and highlighted explanation/risk fields
 - `Stock Report Beta`: user-triggered structured stock reports with local CSV data first and optional yfinance clearly labeled as unofficial / research-grade
-- `Data Health`: local dataset validation, research-health readiness, liquidity context, correlation concentration context, row counts, freshness timestamps, staged import status, and schema warnings
+- `Data Health`: local dataset validation, research-health readiness, liquidity context, correlation concentration context, a ranked action queue, row counts, freshness timestamps, staged import status, and schema warnings
 - `Universe Manager`: current universe size, source membership counts, staged universe import visibility, and CLI guidance for safe preview/write/apply flows
 
 It reads from local files and `outputs/*.csv`, shows friendly messages when files are missing, and surfaces explanation columns such as `Reason`, `MissingDataFields`, and `ConflictReasons` when available.
@@ -667,7 +668,7 @@ make daily
 make dashboard
 ```
 
-`make onboarding` refreshes local source/gap reports and ticker-level coverage actions. `make daily` runs the local price updater, report generator, monthly picks, track record, and local-data validation in order. `make dashboard` opens the Streamlit dashboard from the repo root.
+`make onboarding` refreshes local source/gap reports, ticker-level coverage actions, and the unified action queue. `make daily` runs the local price updater, report generator, monthly picks, track record, local-data validation, and the action queue in order. `make dashboard` opens the Streamlit dashboard from the repo root.
 
 If you prefer the explicit commands, the equivalent workflow is:
 
@@ -984,6 +985,28 @@ make research-health
 ```
 
 These files are diagnostic. They do not change ticker classifications, do not execute trades, and do not turn missing data into synthetic values. Liquidity and correlation rows are research context only; they are not buy/sell/hold instructions.
+
+## Research action queue
+
+The project can also generate:
+
+- `outputs/research_action_queue.csv`
+
+This queue combines:
+
+- price refresh failures from `outputs/price_update_status.csv`
+- source gaps from `outputs/data_gap_report.csv`
+- ticker-level onboarding priorities from `outputs/data_onboarding_actions.csv`
+- readiness signals from `outputs/data_quality_wizard.csv`
+
+Generate it with:
+
+```bash
+python3 -m src.action_queue --write-output
+make action-queue
+```
+
+The queue stays read-only and research-only. It does not apply imports or write market data for you; it only ranks what to fix next and shows the relevant local file or command.
 
 ## SEC Companyfacts staging workflow
 

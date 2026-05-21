@@ -39,6 +39,7 @@ DATA_ONBOARDING_FILES = {
     "ticker_data_coverage.csv": "Ticker Data Coverage",
     "data_onboarding_actions.csv": "Data Onboarding Actions",
 }
+ACTION_QUEUE_FILE = "research_action_queue.csv"
 RESEARCH_HEALTH_FILES = {
     "data_quality_wizard.csv": "Data Quality Wizard",
     "liquidity_risk.csv": "Liquidity Risk",
@@ -144,6 +145,15 @@ def load_research_health_tables(
     outputs_dir: Path = OUTPUTS_DIR,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     return {filename: load_output(outputs_dir / filename) for filename in RESEARCH_HEALTH_FILES}
+
+
+def load_action_queue(
+    outputs_dir: Path = OUTPUTS_DIR,
+) -> tuple[pd.DataFrame | None, str | None]:
+    path = outputs_dir / ACTION_QUEUE_FILE
+    if not path.exists():
+        return None, "`research_action_queue.csv` has not been generated yet. Run `python3 -m src.action_queue --write-output` or `make action-queue`."
+    return load_output(path)
 
 
 def load_price_update_status(
@@ -773,6 +783,17 @@ def readable_card(title: str, body: str, footer: str = "") -> None:
     )
 
 
+def action_queue_summary(queue: pd.DataFrame | None) -> dict[str, int]:
+    if queue is None or queue.empty:
+        return {"critical": 0, "high": 0, "medium": 0}
+    urgency = queue.get("urgency", pd.Series(dtype=object)).astype(str).str.lower()
+    return {
+        "critical": int(urgency.eq("critical").sum()),
+        "high": int(urgency.eq("high").sum()),
+        "medium": int(urgency.eq("medium").sum()),
+    }
+
+
 def clean_display_frame(frame: pd.DataFrame) -> pd.DataFrame:
     def clean_cell(value: object) -> str:
         if isinstance(value, list):
@@ -1006,6 +1027,8 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
     liquidity_frame, _ = health_tables["liquidity_risk.csv"]
     correlation_frame, _ = health_tables["correlation_risk.csv"]
     health_summary = summarize_research_health_tables(data_quality_frame, liquidity_frame, correlation_frame)
+    action_queue_frame, _ = load_action_queue()
+    queue_summary = action_queue_summary(action_queue_frame)
 
     render_section_header(
         "Command Center",
@@ -1025,46 +1048,59 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
             ("Research Ready", health_summary["research_ready"], "Data Quality Wizard rows"),
             ("Thin Liquidity", health_summary["thin_liquidity"], "Local liquidity context rows"),
             ("High Correlation", health_summary["high_correlation"], "Local co-movement context rows"),
+            ("Critical Actions", queue_summary["critical"], "Highest-priority remediation items"),
         ]
     )
 
     actions: list[tuple[str, str, str, str]] = []
-    if missing_warning_count:
-        actions.append(
-            (
-                "Data gaps are visible",
-                f"{missing_warning_count} ticker/theme names have missing-data warnings. Use onboarding before trusting broader rankings.",
-                "make onboarding",
-                "warning",
+    if action_queue_frame is not None and not action_queue_frame.empty:
+        for _, row in action_queue_frame.head(4).iterrows():
+            tone = "danger" if str(row.get("urgency", "")).lower() == "critical" else "warning" if str(row.get("urgency", "")).lower() == "high" else "neutral"
+            actions.append(
+                (
+                    format_missing(row.get("title"), "Research action"),
+                    compact_reason(row.get("reason"), max_sentences=1, max_chars=180),
+                    format_missing(row.get("example_command"), ""),
+                    tone,
+                )
             )
-        )
-    if _dcf_ready_count(catalog) == 0:
-        actions.append(
-            (
-                "Valuation coverage is sparse",
-                "DCF-ready count is zero. Stage SEC fundamentals or add verified local fundamentals before leaning on valuation context.",
-                "make sec-stage TICKERS=NVDA,MSFT",
-                "warning",
+    else:
+        if missing_warning_count:
+            actions.append(
+                (
+                    "Data gaps are visible",
+                    f"{missing_warning_count} ticker/theme names have missing-data warnings. Use onboarding before trusting broader rankings.",
+                    "make onboarding",
+                    "warning",
+                )
             )
-        )
-    if _peer_ready_count(catalog) == 0:
-        actions.append(
-            (
-                "Peer context needs local research",
-                "No peer-ready tickers detected. Add verified peer mappings manually if peer-relative valuation matters.",
-                "make templates",
-                "neutral",
+        if _dcf_ready_count(catalog) == 0:
+            actions.append(
+                (
+                    "Valuation coverage is sparse",
+                    "DCF-ready count is zero. Stage SEC fundamentals or add verified local fundamentals before leaning on valuation context.",
+                    "make sec-stage TICKERS=NVDA,MSFT",
+                    "warning",
+                )
             )
-        )
-    if not actions:
-        actions.append(
-            (
-                "Workflow looks ready",
-                "Core outputs are present and the dashboard can proceed with the current local dataset.",
-                "make daily",
-                "neutral",
+        if _peer_ready_count(catalog) == 0:
+            actions.append(
+                (
+                    "Peer context needs local research",
+                    "No peer-ready tickers detected. Add verified peer mappings manually if peer-relative valuation matters.",
+                    "make templates",
+                    "neutral",
+                )
             )
-        )
+        if not actions:
+            actions.append(
+                (
+                    "Workflow looks ready",
+                    "Core outputs are present and the dashboard can proceed with the current local dataset.",
+                    "make daily",
+                    "neutral",
+                )
+            )
     render_action_cards(actions)
 
     render_section_header("Output Snapshot", "Generated files and row counts from the active CSV-first pipeline.")
@@ -1473,6 +1509,32 @@ def render_data_health(provider) -> None:
         st.dataframe(clean_display_frame(validation_rows[display_columns]), width="stretch", hide_index=True)
     else:
         st.info("No local data validation rows are available.")
+
+    st.markdown("### Action Queue")
+    action_queue_frame, action_queue_message = load_action_queue()
+    if action_queue_frame is None:
+        st.info(action_queue_message or "No action queue is available yet.")
+    else:
+        queue_summary = action_queue_summary(action_queue_frame)
+        metric_cols = st.columns(3)
+        metric_cols[0].metric("Critical", queue_summary["critical"])
+        metric_cols[1].metric("High", queue_summary["high"])
+        metric_cols[2].metric("Medium", queue_summary["medium"])
+        queue_columns = [
+            column
+            for column in [
+                "priority",
+                "urgency",
+                "action_type",
+                "ticker",
+                "title",
+                "recommended_action",
+                "example_command",
+                "reason",
+            ]
+            if column in action_queue_frame.columns
+        ]
+        st.dataframe(clean_display_frame(action_queue_frame[queue_columns].head(15)), width="stretch", hide_index=True)
 
     st.markdown("### Research Health")
     health_tables = load_research_health_tables()
