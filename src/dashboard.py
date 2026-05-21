@@ -2891,6 +2891,51 @@ def overview_next_command_cards(
     return deduped[:limit]
 
 
+def overview_workflow_path_cards(
+    project_status_payload: dict[str, Any] | None,
+    action_queue: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    commands = [row.get("Command", "") for row in project_status_command_rows(project_status_payload)]
+    first_command = "make onboarding"
+    if action_queue is not None and not action_queue.empty:
+        top_signal = top_priority_signals(action_queue, limit=1)
+        if top_signal:
+            candidate = format_missing(top_signal[0].get("command"), "")
+            if candidate and candidate != "Not available":
+                first_command = candidate
+    elif commands:
+        first_command = str(commands[0])
+
+    second_command = "make verify"
+    third_command = "make dashboard"
+    if any("dashboard-smoke" in str(command) for command in commands):
+        third_command = "make dashboard-smoke"
+
+    return [
+        {
+            "kicker": "STEP 1",
+            "title": first_command,
+            "body": "Start with the highest-value local data or workflow blocker before interpreting downstream research outputs.",
+            "badges": ["today", "data first"],
+            "command": first_command,
+        },
+        {
+            "kicker": "STEP 2",
+            "title": second_command,
+            "body": "Run deterministic verification so the current CSV outputs and dashboard state are trustworthy.",
+            "badges": ["verify", "safe"],
+            "command": second_command,
+        },
+        {
+            "kicker": "STEP 3",
+            "title": third_command,
+            "body": "Open or smoke-check the dashboard after the data and verification steps are complete.",
+            "badges": ["ui", "workflow"],
+            "command": third_command,
+        },
+    ]
+
+
 def monthly_pick_card_html(row: pd.Series | dict[str, object]) -> str:
     get_value = row.get if hasattr(row, "get") else dict(row).get
     ticker = format_missing(get_value("Ticker"))
@@ -3632,6 +3677,8 @@ def render_overview(
     render_signal_cards(overview_benchmark_pressure_cards(market_direction_frame, price_status_frame, project_status_payload))
     render_section_header("Best Next Commands", "A few repo-native commands that best match the current local blockers and verification state.")
     render_signal_cards(overview_next_command_cards(project_status_payload, action_queue_frame))
+    render_section_header("Today's Workflow Path", "A compact local sequence from blocker triage to verification to dashboard review.")
+    render_signal_cards(overview_workflow_path_cards(project_status_payload, action_queue_frame))
     render_metric_cards(
         [
             ("Workflow Health", f"{health_score}/100", health_label),

@@ -845,6 +845,43 @@ def test_overview_next_command_cards_fall_back_to_action_queue():
     assert "buy" not in rendered
 
 
+def test_overview_workflow_path_cards_use_action_queue_then_verify_then_dashboard():
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "NVDA",
+                "title": "Repair prices",
+                "reason": "Need more local rows.",
+                "example_command": "make price-worklist",
+            }
+        ]
+    )
+    payload = {"recommended_next_commands": ["make onboarding", "make verify", "make dashboard-smoke"]}
+
+    cards = dashboard.overview_workflow_path_cards(payload, queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 3
+    assert cards[0]["title"] == "make price-worklist"
+    assert cards[1]["title"] == "make verify"
+    assert cards[2]["title"] == "make dashboard-smoke"
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_workflow_path_cards_fall_back_to_safe_defaults():
+    cards = dashboard.overview_workflow_path_cards(None, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "make onboarding"
+    assert cards[1]["title"] == "make verify"
+    assert cards[2]["title"] == "make dashboard"
+    assert "buy" not in rendered
+
+
 def test_monthly_pick_card_html_is_product_style_and_clean():
     html = dashboard.monthly_pick_card_html(
         {
