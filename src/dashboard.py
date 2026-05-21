@@ -658,6 +658,85 @@ def apply_dashboard_theme() -> None:
           margin-top: 0.85rem;
           padding-top: 0.72rem;
         }
+        .report-brief {
+          display: grid;
+          grid-template-columns: minmax(260px, 1.15fr) minmax(260px, 1.85fr);
+          gap: 1rem;
+          margin: 0.85rem 0 1.05rem 0;
+        }
+        .report-brief-main {
+          border-radius: 24px;
+          padding: 1rem 1.05rem;
+          background: linear-gradient(145deg, #172033, #0f766e);
+          border: 1px solid rgba(255,255,255,0.22);
+          box-shadow: 0 16px 38px rgba(17, 24, 39, 0.14);
+        }
+        .report-brief-kicker {
+          color: #99f6e4;
+          font-size: 0.72rem;
+          font-weight: 950;
+          letter-spacing: 0.13em;
+          text-transform: uppercase;
+        }
+        .report-brief-title {
+          color: #ffffff;
+          font-size: 1.45rem;
+          font-weight: 950;
+          letter-spacing: -0.05em;
+          line-height: 1.05;
+          margin-top: 0.4rem;
+        }
+        .report-brief-copy {
+          color: rgba(255,255,255,0.82);
+          font-size: 0.9rem;
+          line-height: 1.42;
+          margin-top: 0.55rem;
+        }
+        .report-brief-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 0.7rem;
+        }
+        .report-brief-card {
+          border-radius: 18px;
+          padding: 0.85rem 0.9rem;
+          background: rgba(255, 254, 250, 0.95);
+          border: 1px solid var(--research-border);
+          box-shadow: 0 10px 26px rgba(17,24,39,0.06);
+        }
+        .report-brief-label {
+          color: #475569;
+          font-size: 0.7rem;
+          font-weight: 950;
+          letter-spacing: 0.09em;
+          text-transform: uppercase;
+        }
+        .report-brief-value {
+          color: #111827;
+          font-size: 1.05rem;
+          font-weight: 950;
+          line-height: 1.14;
+          margin-top: 0.28rem;
+        }
+        .report-brief-note {
+          color: #475569;
+          font-size: 0.79rem;
+          line-height: 1.35;
+          margin-top: 0.28rem;
+        }
+        @media (max-width: 1050px) {
+          .report-brief {
+            grid-template-columns: 1fr;
+          }
+          .report-brief-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 650px) {
+          .report-brief-grid {
+            grid-template-columns: 1fr;
+          }
+        }
         .tiny-badge {
           display: inline-block;
           padding: 0.18rem 0.48rem;
@@ -1621,6 +1700,52 @@ def monthly_pick_card_html(row: pd.Series | dict[str, object]) -> str:
     )
 
 
+def stock_report_brief_html(payload: dict[str, Any]) -> str:
+    ticker = format_missing(payload.get("ticker"), "Selected ticker")
+    valuation = payload.get("valuation_snapshot", {})
+    readiness = payload.get("valuation_readiness", {})
+    warnings = payload.get("missing_data_warnings", []) or []
+    dcf_label = "DCF Ready" if readiness.get("dcf_ready") else "DCF Needs Data"
+    peer_label = "Peers Ready" if readiness.get("peer_ready") else "Peers Need Data"
+    earnings_label = "Earnings Present" if readiness.get("earnings_available") else "Earnings Missing"
+    estimates_label = "Estimates Present" if readiness.get("analyst_estimates_available") else "Estimates Missing"
+    missing_count = len(warnings)
+    main_copy = (
+        "Local structured report assembled from provider data and existing screener context. "
+        "Unavailable inputs stay visible and are not inferred."
+    )
+    cards = [
+        ("Valuation", format_missing(valuation.get("status"), "Not available"), format_missing(valuation.get("coverage"), "Coverage not available")),
+        ("DCF", dcf_label, "Uses local fundamentals only"),
+        ("Peer Relative", peer_label, "Requires data/peers.csv plus peer data"),
+        ("Earnings", earnings_label, "Optional local earnings file"),
+        ("Analyst Estimates", estimates_label, "Optional trusted local estimates file"),
+        ("Missing Data", str(missing_count), "Warnings shown in Sources & Gaps"),
+        ("Provider", format_missing(payload.get("provider_name"), "Not available"), "Review freshness notes"),
+        ("Generated", format_date_short(payload.get("generated_at"), "Not available"), "Local report timestamp"),
+    ]
+    card_html = "".join(
+        (
+            "<div class='report-brief-card'>"
+            f"<div class='report-brief-label'>{html.escape(label)}</div>"
+            f"<div class='report-brief-value'>{html.escape(value)}</div>"
+            f"<div class='report-brief-note'>{html.escape(note)}</div>"
+            "</div>"
+        )
+        for label, value, note in cards
+    )
+    return (
+        "<div class='report-brief'>"
+        "<div class='report-brief-main'>"
+        "<div class='report-brief-kicker'>Stock Report Beta</div>"
+        f"<div class='report-brief-title'>{html.escape(ticker)} research snapshot</div>"
+        f"<div class='report-brief-copy'>{html.escape(main_copy)}</div>"
+        "</div>"
+        f"<div class='report-brief-grid'>{card_html}</div>"
+        "</div>"
+    )
+
+
 def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
     if action_queue is None or action_queue.empty:
         return []
@@ -2268,6 +2393,7 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
         + "</div>",
         unsafe_allow_html=True,
     )
+    st.markdown(stock_report_brief_html(report_payload), unsafe_allow_html=True)
 
     price = report_payload["price_snapshot"]
     performance = report_payload["performance"]

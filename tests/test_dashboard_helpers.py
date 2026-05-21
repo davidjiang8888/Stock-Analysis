@@ -313,6 +313,32 @@ def test_monthly_pick_card_html_is_product_style_and_clean():
     assert "none" not in html.lower()
 
 
+def test_stock_report_brief_html_summarizes_readiness_without_advice():
+    html = dashboard.stock_report_brief_html(
+        {
+            "ticker": "NVDA",
+            "provider_name": "LocalCSVMarketDataProvider",
+            "generated_at": "2026-05-21T12:00:00Z",
+            "valuation_snapshot": {"status": "partial", "coverage": "DCF only"},
+            "valuation_readiness": {
+                "dcf_ready": True,
+                "peer_ready": False,
+                "earnings_available": False,
+                "analyst_estimates_available": False,
+            },
+            "missing_data_warnings": ["Needs peers.csv", "Needs earnings.csv"],
+        }
+    )
+
+    assert "NVDA research snapshot" in html
+    assert "DCF Ready" in html
+    assert "Peers Need Data" in html
+    assert "Earnings Missing" in html
+    assert "2" in html
+    assert "buy" not in html.lower()
+    assert "sell" not in html.lower()
+
+
 def test_onboarding_summary_counts_core_and_optional_gaps():
     coverage = pd.DataFrame(
         [
