@@ -1,4 +1,4 @@
-.PHONY: help test pipeline monthly track-record validate-data research-health action-queue verify daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates price-status price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage onboarding templates price-status price-validate price-preview price-apply price-refresh price-normalize
 
 help:
 	@echo "Stock Research Screener convenience commands"
@@ -7,6 +7,7 @@ help:
 	@echo "  make test             Run unit tests"
 	@echo "  make pipeline         Generate core CSV outputs"
 	@echo "  make verify           Run deterministic local verification"
+	@echo "  make validate-all     Run extended local validation and dashboard smoke check"
 	@echo "  make daily            Refresh local workflow outputs end-to-end"
 	@echo "  make dashboard        Open the Streamlit dashboard"
 	@echo "  make dashboard-smoke  Start dashboard headless and check Streamlit health"
@@ -60,6 +61,9 @@ verify:
 	python3 -m src.report_generator
 	python3 -m src.stock_report --validate-local-data
 	python3 -m src.action_queue --write-output
+
+validate-all:
+	scripts/validate_all.sh
 
 coverage:
 	python3 -m src.data_onboarding --coverage

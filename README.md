@@ -82,6 +82,7 @@ Common commands:
 make help
 make test
 make verify
+make validate-all
 make pipeline
 make monthly
 make track-record
@@ -114,7 +115,7 @@ make universe-preview
 make universe-apply
 ```
 
-If you are unsure what to run next, start with `make help`; it prints the core workflow, onboarding, price fallback, SEC staging, and universe commands. Use `make verify` for deterministic local verification that avoids remote price refresh. Use `make dashboard-smoke` for a quick headless Streamlit health check.
+If you are unsure what to run next, start with `make help`; it prints the core workflow, onboarding, price fallback, SEC staging, and universe commands. Use `make verify` for deterministic local verification that avoids remote price refresh. Use `make validate-all` for the extended local validation launcher, including monthly picks, track record, data-source checks, and a dashboard smoke check. Use `make dashboard-smoke` for only the quick headless Streamlit health check.
 
 Path-proof shell launchers:
 

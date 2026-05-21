@@ -14,6 +14,7 @@ def test_makefile_contains_convenience_targets():
         "research-health",
         "action-queue",
         "verify",
+        "validate-all",
         "daily",
         "dashboard",
         "dashboard-smoke",
@@ -42,6 +43,7 @@ def test_makefile_help_documents_key_workflows():
     for phrase in (
         "Stock Research Screener convenience commands",
         "make verify",
+        "make validate-all",
         "make daily",
         "make dashboard-smoke",
         "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual",
@@ -66,3 +68,11 @@ def test_dashboard_smoke_launcher_checks_streamlit_health_safely():
     assert "_stcore/health" in script
     assert "SERVER_PID" in script
     assert "trap cleanup EXIT" in script
+
+
+def test_validate_all_reuses_current_verification_targets():
+    script = Path("scripts/validate_all.sh").read_text(encoding="utf-8")
+
+    assert "make verify" in script
+    assert "make dashboard-smoke" in script
+    assert "python3 -m pytest tests -q" not in script
