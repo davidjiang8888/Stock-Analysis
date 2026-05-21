@@ -717,6 +717,56 @@ def test_holdings_unlock_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_holdings_deep_research_cards_surface_sec_and_peer_blockers():
+    holdings = pd.DataFrame(
+        [
+            {"Ticker": "NVDA", "PrimaryPurpose": "Momentum Leader"},
+            {"Ticker": "TSLA", "PrimaryPurpose": "Speculative Optionality"},
+        ]
+    )
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI",
+                "recommended_action": "Stage or add richer verified fundamentals to close the remaining DCF input gaps.",
+                "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                "price_history_days": 25,
+            }
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
+                "example_command": "python3 -m src.data_onboarding --write-templates",
+            }
+        ]
+    )
+
+    cards = dashboard.holdings_deep_research_cards(holdings, sec_queue, peer_queue, limit=4)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert any(card["title"] == "Unlock DCF" for card in cards)
+    assert any(card["title"] == "Unlock Peer Relative" for card in cards)
+    assert "nvda" in rendered
+    assert "tsla" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_holdings_deep_research_cards_handle_missing_inputs_gracefully():
+    cards = dashboard.holdings_deep_research_cards(None, None, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "no holdings deep-research board yet" in rendered
+    assert "buy" not in rendered
+
+
 def test_theme_unlock_cards_surface_grouped_theme_priorities():
     summary = pd.DataFrame(
         [

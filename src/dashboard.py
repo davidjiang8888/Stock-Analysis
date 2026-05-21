@@ -2786,6 +2786,105 @@ def holdings_unlock_cards(
     return cards
 
 
+def holdings_deep_research_cards(
+    holdings: pd.DataFrame | None,
+    sec_stage_queue: pd.DataFrame | None,
+    peer_mapping_queue: pd.DataFrame | None,
+    limit: int = 4,
+) -> list[dict[str, object]]:
+    if holdings is None or holdings.empty:
+        return [
+            {
+                "kicker": "HOLDINGS DCF / PEERS",
+                "title": "No holdings deep-research board yet",
+                "body": "Add holdings rows and generate onboarding outputs to see which portfolio names next benefit from SEC staging or manual peer research.",
+                "badges": ["read-only"],
+            }
+        ]
+
+    holdings_lookup = {str(column).strip().lower(): str(column) for column in holdings.columns}
+    ticker_col = holdings_lookup.get("ticker")
+    purpose_col = holdings_lookup.get("primarypurpose")
+    if not ticker_col:
+        return []
+
+    holding_context = holdings.copy()
+    holding_context[ticker_col] = holding_context[ticker_col].astype(str).str.upper().str.strip()
+    holding_tickers = holding_context[ticker_col].dropna().astype(str).tolist()
+    purpose_map = (
+        holding_context.set_index(ticker_col)[purpose_col].astype(str).to_dict()
+        if purpose_col and purpose_col in holding_context.columns
+        else {}
+    )
+
+    cards: list[dict[str, object]] = []
+
+    if sec_stage_queue is not None and not sec_stage_queue.empty and "ticker" in sec_stage_queue.columns:
+        sec_rows = sec_stage_queue.copy()
+        sec_rows["ticker"] = sec_rows["ticker"].astype(str).str.upper().str.strip()
+        sec_rows = sec_rows.loc[sec_rows["ticker"].isin(holding_tickers)].copy()
+        if not sec_rows.empty:
+            sec_rows["priority"] = pd.to_numeric(sec_rows.get("priority"), errors="coerce").fillna(999)
+            for _, row in sec_rows.sort_values(["priority", "price_history_days", "ticker"], ascending=[True, False, True]).head(limit).iterrows():
+                ticker = format_missing(row.get("ticker"), "Holding")
+                cards.append(
+                    {
+                        "kicker": ticker,
+                        "title": "Unlock DCF",
+                        "body": (
+                            f"{format_missing(purpose_map.get(ticker), 'Portfolio holding')}. "
+                            f"SEC/fundamentals queue priority P{format_missing(row.get('priority'), '-')}. "
+                            f"{compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
+                        ),
+                        "badges": ["fundamentals", format_missing(row.get("theme"), "theme")],
+                        "command": format_missing(row.get("example_command"), ""),
+                    }
+                )
+
+    if peer_mapping_queue is not None and not peer_mapping_queue.empty and "ticker" in peer_mapping_queue.columns:
+        peer_rows = peer_mapping_queue.copy()
+        peer_rows["ticker"] = peer_rows["ticker"].astype(str).str.upper().str.strip()
+        peer_rows = peer_rows.loc[peer_rows["ticker"].isin(holding_tickers)].copy()
+        if not peer_rows.empty:
+            peer_rows["priority"] = pd.to_numeric(peer_rows.get("priority"), errors="coerce").fillna(999)
+            for _, row in peer_rows.sort_values(["priority", "ticker"], ascending=[True, True]).head(limit).iterrows():
+                ticker = format_missing(row.get("ticker"), "Holding")
+                cards.append(
+                    {
+                        "kicker": ticker,
+                        "title": "Unlock Peer Relative",
+                        "body": (
+                            f"{format_missing(purpose_map.get(ticker), 'Portfolio holding')}. "
+                            f"Peer queue priority P{format_missing(row.get('priority'), '-')}. "
+                            f"{compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
+                        ),
+                        "badges": ["peers", format_missing(row.get("theme"), "theme")],
+                        "command": format_missing(row.get("example_command"), ""),
+                    }
+                )
+
+    deduped: list[dict[str, object]] = []
+    seen: set[str] = set()
+    for card in cards:
+        key = f"{card.get('kicker')}|{card.get('title')}"
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(card)
+
+    if deduped:
+        return deduped[:limit]
+
+    return [
+        {
+            "kicker": "HOLDINGS DCF / PEERS",
+            "title": "No holdings DCF / peer queue yet",
+            "body": "Generate the SEC stage queue and peer mapping queue to surface the next deep-research blockers for portfolio names.",
+            "badges": ["read-only"],
+        }
+    ]
+
+
 def theme_unlock_cards(
     unlock_priority_summary: pd.DataFrame | None,
     limit: int = 3,
@@ -3859,6 +3958,8 @@ def render_overview(
     wizard_frame, _ = onboarding_tables["data_coverage_wizard.csv"]
     ticker_unlock_ladder_frame, _ = onboarding_tables["ticker_unlock_ladder.csv"]
     unlock_priority_summary_frame, _ = onboarding_tables["unlock_priority_summary.csv"]
+    sec_stage_queue_frame, _ = onboarding_tables["sec_stage_queue.csv"]
+    peer_mapping_queue_frame, _ = onboarding_tables["peer_mapping_queue.csv"]
     latest_price = _latest_local_price_date(catalog)
     watchlist_count = 0 if final_watchlist_frame is None else len(final_watchlist_frame)
     monthly_frame, _ = load_output(OUTPUTS_DIR / "monthly_research_picks.csv")
@@ -3883,6 +3984,8 @@ def render_overview(
     render_signal_cards(overview_coverage_hotspot_cards(action_queue_frame))
     render_section_header("Holdings First", "Blocked portfolio names and the next local unlock stage before broader universe work.")
     render_signal_cards(holdings_unlock_cards(holdings, ticker_unlock_ladder_frame, unlock_priority_summary_frame))
+    render_section_header("Holdings DCF / Peers", "Which portfolio names next benefit from SEC fundamentals staging or manual peer research once price blockers are understood.")
+    render_signal_cards(holdings_deep_research_cards(holdings, sec_stage_queue_frame, peer_mapping_queue_frame))
     render_section_header("Theme First", "Which local themes or sector ETF clusters unlock the most research value next.")
     render_signal_cards(theme_unlock_cards(unlock_priority_summary_frame))
     render_section_header("Market Context", "The strongest locally supported theme and ETF context from current benchmark-relative output rows.")
