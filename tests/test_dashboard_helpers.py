@@ -903,6 +903,45 @@ def test_overview_research_pressure_cards_compare_price_fundamentals_and_peers()
     assert "sell" not in rendered
 
 
+def test_overview_ready_blocked_cards_surface_usable_and_blocked_names():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "usable_for_momentum": True, "dcf_ready": True, "peer_ready": False},
+            {"ticker": "TSLA", "usable_for_momentum": True, "dcf_ready": False, "peer_ready": False},
+            {"ticker": "AMD", "usable_for_momentum": False, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+    ladder = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "current_unlock_stage": "peers", "next_unlock_goal": "Unlock Peer Relative"},
+            {"ticker": "TSLA", "current_unlock_stage": "fundamentals", "next_unlock_goal": "Unlock DCF"},
+            {"ticker": "AMD", "current_unlock_stage": "prices", "next_unlock_goal": "Unlock Monthly Picks"},
+        ]
+    )
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}, {"Ticker": "TSLA"}])
+
+    cards = dashboard.overview_ready_blocked_cards(coverage, ladder, holdings, limit=2)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 2
+    assert cards[0]["kicker"] == "READY NOW"
+    assert cards[1]["kicker"] == "BLOCKED NOW"
+    assert "nvda" in rendered
+    assert "amd" in rendered
+    assert "usable names" in rendered
+    assert "still blocked" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_ready_blocked_cards_handle_missing_inputs_gracefully():
+    cards = dashboard.overview_ready_blocked_cards(None, None, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "no readiness shortlist yet" in rendered
+    assert "buy" not in rendered
+
+
 def test_overview_market_context_cards_surface_local_theme_strength():
     market_direction = pd.DataFrame(
         [

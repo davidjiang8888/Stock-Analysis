@@ -3074,6 +3074,87 @@ def overview_research_pressure_cards(
     return cards
 
 
+def overview_ready_blocked_cards(
+    coverage: pd.DataFrame | None,
+    ticker_unlock_ladder: pd.DataFrame | None,
+    holdings: pd.DataFrame | None,
+    limit: int = 3,
+) -> list[dict[str, object]]:
+    if coverage is None or coverage.empty or ticker_unlock_ladder is None or ticker_unlock_ladder.empty:
+        return [
+            {
+                "kicker": "READY NOW VS BLOCKED",
+                "title": "No readiness shortlist yet",
+                "body": "Generate onboarding outputs to separate names that are already usable from names still blocked by local data gaps.",
+                "badges": ["read-only"],
+            }
+        ]
+
+    coverage_frame = coverage.copy()
+    ladder_frame = ticker_unlock_ladder.copy()
+    coverage_frame["ticker"] = coverage_frame.get("ticker", pd.Series(dtype=object)).astype(str).str.upper().str.strip()
+    ladder_frame["ticker"] = ladder_frame.get("ticker", pd.Series(dtype=object)).astype(str).str.upper().str.strip()
+    merged = coverage_frame.merge(
+        ladder_frame[["ticker", "current_unlock_stage", "next_unlock_goal"]],
+        on="ticker",
+        how="left",
+    )
+
+    holding_tickers: set[str] = set()
+    if holdings is not None and not holdings.empty:
+        lookup = {str(column).strip().lower(): str(column) for column in holdings.columns}
+        ticker_col = lookup.get("ticker")
+        if ticker_col:
+            holding_tickers = set(holdings[ticker_col].dropna().astype(str).str.upper().str.strip())
+    merged["is_holding"] = merged["ticker"].isin(holding_tickers)
+
+    def _truthy(series_name: str) -> pd.Series:
+        return merged.get(series_name, pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"})
+
+    merged["usable_for_momentum_bool"] = _truthy("usable_for_momentum")
+    merged["dcf_ready_bool"] = _truthy("dcf_ready")
+    merged["peer_ready_bool"] = _truthy("peer_ready")
+
+    ready_rows = merged.loc[merged["usable_for_momentum_bool"]].copy()
+    ready_rows["readiness_score"] = (
+        ready_rows["dcf_ready_bool"].astype(int) * 2
+        + ready_rows["peer_ready_bool"].astype(int) * 2
+        + ready_rows["is_holding"].astype(int)
+    )
+    ready_rows = ready_rows.sort_values(
+        ["readiness_score", "is_holding", "ticker"],
+        ascending=[False, False, True],
+    )
+    blocked_rows = merged.loc[~merged["usable_for_momentum_bool"] | merged["current_unlock_stage"].astype(str).ne("ready")].copy()
+    stage_rank = {"prices": 1, "fundamentals": 2, "peers": 3, "optional_context": 4, "ready": 5}
+    blocked_rows["stage_rank"] = blocked_rows.get("current_unlock_stage", pd.Series(dtype=object)).map(stage_rank).fillna(99)
+    blocked_rows = blocked_rows.sort_values(["stage_rank", "is_holding", "ticker"], ascending=[True, False, True])
+
+    ready_names = ", ".join(ready_rows["ticker"].head(limit).tolist()) or "Not available"
+    blocked_names = ", ".join(blocked_rows["ticker"].head(limit).tolist()) or "Not available"
+
+    return [
+        {
+            "kicker": "READY NOW",
+            "title": f"{len(ready_rows)} usable names",
+            "body": (
+                f"These names already support momentum-style local research. "
+                f"Start with: {ready_names}."
+            ),
+            "badges": ["usable today", "local data"],
+        },
+        {
+            "kicker": "BLOCKED NOW",
+            "title": f"{len(blocked_rows)} names still blocked",
+            "body": (
+                f"These names still need more local coverage before broader trust. "
+                f"Start with: {blocked_names}."
+            ),
+            "badges": ["needs data", "prioritize"],
+        },
+    ]
+
+
 def overview_market_context_cards(
     market_direction: pd.DataFrame | None,
     limit: int = 3,
@@ -4083,6 +4164,7 @@ def render_overview(
     queue_summary = action_queue_summary(action_queue_frame)
     health_score, health_label = workflow_health_score(queue_summary, health_summary)
     onboarding_tables = load_data_onboarding_tables()
+    coverage_frame, _ = onboarding_tables["ticker_data_coverage.csv"]
     wizard_frame, _ = onboarding_tables["data_coverage_wizard.csv"]
     price_worklist_frame, _ = onboarding_tables["price_import_worklist.csv"]
     ticker_unlock_ladder_frame, _ = onboarding_tables["ticker_unlock_ladder.csv"]
@@ -4120,6 +4202,8 @@ def render_overview(
             unlock_priority_summary_frame,
         )
     )
+    render_section_header("Ready Now vs Blocked Now", "A short read on which names are already usable with today’s local coverage and which ones still need unlock work first.")
+    render_signal_cards(overview_ready_blocked_cards(coverage_frame, ticker_unlock_ladder_frame, holdings))
     render_section_header("Holdings First", "Blocked portfolio names and the next local unlock stage before broader universe work.")
     render_signal_cards(holdings_unlock_cards(holdings, ticker_unlock_ladder_frame, unlock_priority_summary_frame))
     render_section_header("Holdings DCF / Peers", "Which portfolio names next benefit from SEC fundamentals staging or manual peer research once price blockers are understood.")
