@@ -1,4 +1,4 @@
-.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details bundle-prices bundle-fundamentals bundle-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
 
 help:
 	@echo "Stock Research Screener convenience commands"
@@ -26,6 +26,7 @@ help:
 	@echo "  make unlock-summary   Show grouped unlock priorities by holdings, theme, and sector ETF"
 	@echo "  make command-bundles Show holdings-first local command bundles for prices, SEC, and peers"
 	@echo "  make command-bundle-details Show ticker-level rows for the current local command bundles"
+	@echo "  make command-bundle-runbook Show ordered runbook rows for the current local command bundles"
 	@echo "  make bundle-prices    Show only the price bundle and its holdings-first scope when available"
 	@echo "  make bundle-fundamentals Show only the SEC fundamentals bundle"
 	@echo "  make bundle-peers     Show only the peer-mapping bundle"
@@ -99,6 +100,9 @@ command-bundles:
 
 command-bundle-details:
 	python3 -m src.data_onboarding --command-bundle-details
+
+command-bundle-runbook:
+	python3 -m src.data_onboarding --command-bundle-runbook
 
 bundle-prices:
 	python3 -m src.data_onboarding --command-bundles --lane prices --holdings-only

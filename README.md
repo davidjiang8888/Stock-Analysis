@@ -264,6 +264,7 @@ make templates
 - `outputs/data_onboarding_actions.csv`
 - `outputs/command_bundles.csv`
 - `outputs/command_bundle_details.csv`
+- `outputs/command_bundle_runbook.csv`
 
 `--write-templates` creates header-only local templates under `data/templates/` for:
 
@@ -1159,7 +1160,9 @@ If you want a smaller, holdings-first command view instead of the full ticker qu
 python3 -m src.data_onboarding --command-bundles
 python3 -m src.data_onboarding --command-bundles --json
 python3 -m src.data_onboarding --command-bundle-details
+python3 -m src.data_onboarding --command-bundle-runbook
 make command-bundles
+make command-bundle-runbook
 ```
 
 This read-only bundle output groups the next practical local passes into:
@@ -1177,6 +1180,8 @@ Each bundle keeps the workflow explicit by showing:
 - the safe next step if the remote path is unreliable
 
 If you want one row per ticker inside the current bundles, use `python3 -m src.data_onboarding --command-bundle-details` or `make command-bundle-details`. That output is also written to `outputs/command_bundle_details.csv` during `--write-output`.
+
+If you want an ordered bundle follow-through view, use `python3 -m src.data_onboarding --command-bundle-runbook` or `make command-bundle-runbook`. That runbook is also written to `outputs/command_bundle_runbook.csv` during `--write-output`.
 
 If you only want one lane at a time, use:
 

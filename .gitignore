@@ -28,4 +28,5 @@ outputs/ticker_unlock_ladder.csv
 outputs/unlock_priority_summary.csv
 outputs/command_bundles.csv
 outputs/command_bundle_details.csv
+outputs/command_bundle_runbook.csv
 local_artifacts_backup/

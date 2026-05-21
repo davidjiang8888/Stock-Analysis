@@ -61,6 +61,7 @@ DATA_ONBOARDING_FILES = {
     "unlock_priority_summary.csv": "Unlock Priority Summary",
     "command_bundles.csv": "Command Bundles",
     "command_bundle_details.csv": "Command Bundle Details",
+    "command_bundle_runbook.csv": "Command Bundle Runbook",
 }
 ACTION_QUEUE_FILE = "research_action_queue.csv"
 RESEARCH_HEALTH_FILES = {
@@ -5803,6 +5804,7 @@ def render_data_health(provider) -> None:
     unlock_priority_summary_frame, unlock_priority_summary_message = onboarding_tables["unlock_priority_summary.csv"]
     command_bundles_frame, command_bundles_message = onboarding_tables["command_bundles.csv"]
     command_bundle_details_frame, command_bundle_details_message = onboarding_tables["command_bundle_details.csv"]
+    command_bundle_runbook_frame, command_bundle_runbook_message = onboarding_tables["command_bundle_runbook.csv"]
     staged_imports = validate_imports(base_dir=BASE_DIR)
     universe_summary = summarize_universe_manager(BASE_DIR)
     staged_universe = universe_summary["staged_universe"]
@@ -5851,6 +5853,29 @@ def render_data_health(provider) -> None:
         render_notice_card(
             "Command bundle detail rows are not available yet",
             command_bundle_details_message or "Write the onboarding outputs to generate ticker-level bundle detail rows.",
+            "python3 -m src.data_onboarding --write-output",
+        )
+    if command_bundle_runbook_frame is not None and not command_bundle_runbook_frame.empty:
+        with st.expander("Command bundle runbook", expanded=False):
+            runbook_columns = [
+                column
+                for column in [
+                    "bundle_name",
+                    "lane",
+                    "scope",
+                    "step_order",
+                    "step_label",
+                    "command",
+                    "tickers",
+                    "target_file",
+                ]
+                if column in command_bundle_runbook_frame.columns
+            ]
+            st.dataframe(clean_display_frame(command_bundle_runbook_frame[runbook_columns]), width="stretch", hide_index=True)
+    elif command_bundle_runbook_frame is None:
+        render_notice_card(
+            "Command bundle runbook is not available yet",
+            command_bundle_runbook_message or "Write the onboarding outputs to generate ordered bundle runbook rows.",
             "python3 -m src.data_onboarding --write-output",
         )
 
