@@ -4075,6 +4075,62 @@ def overview_bundle_handoff_cards(
     ]
 
 
+def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
+    if runbook_frame is None or runbook_frame.empty:
+        return [
+            {
+                "kicker": "BUNDLE RUNBOOK",
+                "title": "Generate bundle runbook",
+                "body": "Write the onboarding outputs to surface ordered prices, SEC fundamentals, and peer-mapping runbook steps.",
+                "badges": ["read-only", "data moat"],
+                "command": "python3 -m src.data_onboarding --write-output",
+            }
+        ]
+
+    ordered = runbook_frame.copy()
+    ordered["lane"] = ordered.get("lane", pd.Series(dtype=str)).astype(str)
+    if "step_order" in ordered.columns:
+        ordered["step_order"] = pd.to_numeric(ordered["step_order"], errors="coerce")
+        ordered = ordered.sort_values(["lane", "step_order", "bundle_name"], kind="stable")
+
+    cards: list[dict[str, object]] = []
+    for lane in ("prices", "fundamentals", "peers"):
+        lane_rows = ordered.loc[ordered["lane"].eq(lane)]
+        if lane_rows.empty:
+            continue
+        bundle_name = format_missing(lane_rows.iloc[0].get("bundle_name"), "Local bundle")
+        tickers = format_missing(lane_rows.iloc[0].get("tickers"), "No tickers")
+        steps: list[str] = []
+        for _, row in lane_rows.head(2).iterrows():
+            steps.append(
+                f"{format_missing(row.get('step_label'), 'Step')}: {format_missing(row.get('command'), '')}"
+            )
+        cards.append(
+            {
+                "kicker": f"{lane.upper()} LANE",
+                "title": bundle_name,
+                "body": f"{tickers}. " + " | ".join(steps),
+                "badges": [
+                    format_missing(lane_rows.iloc[0].get("scope"), "scope").replace("_", " "),
+                    "runbook",
+                ],
+                "command": format_missing(lane_rows.iloc[0].get("command"), ""),
+            }
+        )
+        if len(cards) >= limit:
+            break
+
+    return cards or [
+        {
+            "kicker": "BUNDLE RUNBOOK",
+            "title": "Generate bundle runbook",
+            "body": "Write the onboarding outputs to surface ordered prices, SEC fundamentals, and peer-mapping runbook steps.",
+            "badges": ["read-only", "data moat"],
+            "command": "python3 -m src.data_onboarding --write-output",
+        }
+    ]
+
+
 def overview_workflow_path_cards(
     project_status_payload: dict[str, Any] | None,
     action_queue: pd.DataFrame | None,
@@ -5255,6 +5311,8 @@ def render_overview(
         render_signal_cards(overview_next_command_cards(project_status_payload, action_queue_frame))
         render_section_header("Best Data Bundles", "Holdings-first local command bundles for the next price, SEC fundamentals, or peer-mapping pass.")
         render_signal_cards(overview_command_bundle_cards(command_bundles_frame))
+        render_section_header("Bundle Lanes", "A lane-by-lane view of the current prices, fundamentals, and peers runbook so the next local pass is easier to follow.")
+        render_signal_cards(overview_bundle_runbook_cards(command_bundle_runbook_frame))
         render_section_header("Bundle Handoff", "For the current top bundle, show the primary command, the follow-up step, the refresh step, and the first ticker to verify next.")
         render_signal_cards(overview_bundle_handoff_cards(command_bundles_frame, command_bundle_details_frame, command_bundle_runbook_frame))
         render_section_header("Today's Workflow Path", "A compact local sequence from blocker triage to verification to dashboard review.")

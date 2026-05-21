@@ -2737,6 +2737,50 @@ def test_overview_command_bundle_cards_surface_bundle_commands_safely():
     assert "sell" not in rendered
 
 
+def test_overview_bundle_runbook_cards_surface_lane_steps_safely():
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Run bundle command",
+                "command": "python3 -m src.data_update --tickers META",
+                "tickers": "META",
+            },
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 2,
+                "step_label": "Review follow-up output",
+                "command": "make price-status",
+                "tickers": "META",
+            },
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Run bundle command",
+                "command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA",
+                "tickers": "NVDA",
+            },
+        ]
+    )
+
+    cards = dashboard.overview_bundle_runbook_cards(runbook)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "PRICES LANE"
+    assert "run bundle command" in rendered
+    assert "make price-status" in rendered
+    assert "make sec-stage tickers=nvda" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_bundle_handoff_cards_surface_follow_through_safely():
     bundles = pd.DataFrame(
         [
