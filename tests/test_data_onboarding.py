@@ -7,6 +7,7 @@ import pandas as pd
 
 from src.data_onboarding import (
     COVERAGE_COLUMNS,
+    PRICE_WORKLIST_COLUMNS,
     WIZARD_COLUMNS,
     build_onboarding_payload,
     build_data_coverage_wizard,
@@ -161,8 +162,11 @@ def test_write_onboarding_outputs_and_templates(tmp_path: Path):
     assert Path(output_result["coverage_path"]).exists()
     assert Path(output_result["actions_path"]).exists()
     assert Path(output_result["wizard_path"]).exists()
+    assert Path(output_result["price_worklist_path"]).exists()
     wizard_frame = pd.read_csv(output_result["wizard_path"])
+    price_worklist_frame = pd.read_csv(output_result["price_worklist_path"])
     assert list(wizard_frame.columns) == WIZARD_COLUMNS
+    assert list(price_worklist_frame.columns) == PRICE_WORKLIST_COLUMNS
     assert (tmp_path / "data" / "templates" / "peers.csv").exists()
     assert (tmp_path / "data" / "templates" / "prices.csv").exists()
     assert (tmp_path / "data" / "templates" / "custom_universe.csv").exists()
@@ -197,6 +201,33 @@ def test_data_onboarding_cli_wizard_json(tmp_path: Path, capsys):
 
     assert "data_coverage_wizard" in payload
     assert any(row["unlock_goal"] == "Unlock DCF" for row in payload["data_coverage_wizard"])
+
+
+def test_data_onboarding_cli_price_worklist_json(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--price-worklist", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert "price_import_worklist" in payload
+    assert payload["price_import_worklist"][0]["ticker"] == "AMD"
+    assert "price_history_days" in payload["price_import_worklist"][0]
+
+
+def test_price_worklist_prioritizes_sparse_price_history(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    worklist = {row["ticker"]: row for row in payload["price_import_worklist"]}
+
+    assert worklist["AMD"]["priority"] == 1
+    assert worklist["AMD"]["momentum_ready"] is False
+    assert "more verified rows needed" in worklist["AMD"]["missing_for_momentum"]
+    assert worklist["NVDA"]["track_record_ready"] is False
 
 
 def test_build_data_coverage_wizard_accepts_empty_coverage():

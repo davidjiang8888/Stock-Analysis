@@ -368,7 +368,28 @@ def test_onboarding_tables_handle_missing_outputs_and_summary():
 
     assert tables["ticker_data_coverage.csv"][0] is None
     assert "has not been generated" in tables["ticker_data_coverage.csv"][1]
+    assert tables["price_import_worklist.csv"][0] is None
+    assert "has not been generated" in tables["price_import_worklist.csv"][1]
     assert dashboard.summarize_ticker_coverage(None)["usable_price_tickers"] == 0
+    assert dashboard.summarize_price_worklist(None)["priority_1"] == 0
+
+
+def test_summarize_price_worklist_counts_readiness_levels():
+    worklist = pd.DataFrame(
+        {
+            "momentum_ready": [True, False, True],
+            "track_record_ready": [False, False, True],
+            "preferred_history_ready": [False, False, False],
+            "priority": [1, 2, 1],
+        }
+    )
+
+    summary = dashboard.summarize_price_worklist(worklist)
+
+    assert summary["momentum_ready"] == 2
+    assert summary["track_record_ready"] == 1
+    assert summary["preferred_history_ready"] == 0
+    assert summary["priority_1"] == 2
 
 
 def test_research_health_tables_handle_missing_outputs_and_summary(tmp_path):

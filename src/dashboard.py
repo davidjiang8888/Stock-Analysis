@@ -52,6 +52,7 @@ DATA_ONBOARDING_FILES = {
     "ticker_data_coverage.csv": "Ticker Data Coverage",
     "data_onboarding_actions.csv": "Data Onboarding Actions",
     "data_coverage_wizard.csv": "Data Coverage Wizard",
+    "price_import_worklist.csv": "Price Import Worklist",
 }
 ACTION_QUEUE_FILE = "research_action_queue.csv"
 RESEARCH_HEALTH_FILES = {
@@ -273,6 +274,32 @@ def summarize_ticker_coverage(coverage: pd.DataFrame | None) -> dict[str, int]:
         "dcf_ready_tickers": count_true("dcf_ready"),
         "peer_ready_tickers": count_true("peer_ready"),
         "optional_only_missing_tickers": optional_only,
+    }
+
+
+def summarize_price_worklist(worklist: pd.DataFrame | None) -> dict[str, int]:
+    if worklist is None or worklist.empty:
+        return {
+            "momentum_ready": 0,
+            "track_record_ready": 0,
+            "preferred_history_ready": 0,
+            "priority_1": 0,
+        }
+
+    def count_true(column: str) -> int:
+        if column not in worklist.columns:
+            return 0
+        return int(worklist[column].astype(str).str.lower().isin({"true", "1", "yes"}).sum())
+
+    priority_1 = 0
+    if "priority" in worklist.columns:
+        priority_1 = int(pd.to_numeric(worklist["priority"], errors="coerce").fillna(0).eq(1).sum())
+
+    return {
+        "momentum_ready": count_true("momentum_ready"),
+        "track_record_ready": count_true("track_record_ready"),
+        "preferred_history_ready": count_true("preferred_history_ready"),
+        "priority_1": priority_1,
     }
 
 
@@ -3765,6 +3792,7 @@ def render_data_health(provider) -> None:
     coverage_frame, coverage_message = onboarding_tables["ticker_data_coverage.csv"]
     actions_frame, actions_message = onboarding_tables["data_onboarding_actions.csv"]
     wizard_frame, wizard_message = onboarding_tables["data_coverage_wizard.csv"]
+    price_worklist_frame, price_worklist_message = onboarding_tables["price_import_worklist.csv"]
     staged_imports = validate_imports(base_dir=BASE_DIR)
     universe_summary = summarize_universe_manager(BASE_DIR)
     staged_universe = universe_summary["staged_universe"]
@@ -3895,6 +3923,13 @@ def render_data_health(provider) -> None:
                 metric_cols[1].metric("DCF Ready", summary["dcf_ready_tickers"])
                 metric_cols[2].metric("Peer Ready", summary["peer_ready_tickers"])
                 metric_cols[3].metric("Only Optional Gaps", summary["optional_only_missing_tickers"])
+            if price_worklist_frame is not None and not price_worklist_frame.empty:
+                worklist_summary = summarize_price_worklist(price_worklist_frame)
+                metric_cols = st.columns(4)
+                metric_cols[0].metric("Momentum Ready", worklist_summary["momentum_ready"])
+                metric_cols[1].metric("Track Record Ready", worklist_summary["track_record_ready"])
+                metric_cols[2].metric("1Y History Ready", worklist_summary["preferred_history_ready"])
+                metric_cols[3].metric("Urgent Price Gaps", worklist_summary["priority_1"])
 
             if data_quality_frame is not None and not data_quality_frame.empty:
                 data_quality_columns = [
@@ -3984,6 +4019,27 @@ def render_data_health(provider) -> None:
                         if column in wizard_frame.columns
                     ]
                     st.dataframe(clean_display_frame(wizard_frame[wizard_columns].head(20)), width="stretch", hide_index=True)
+            if price_worklist_frame is not None and not price_worklist_frame.empty:
+                with st.expander("Price Import Worklist", expanded=False):
+                    worklist_columns = [
+                        column
+                        for column in [
+                            "priority",
+                            "ticker",
+                            "price_history_days",
+                            "first_local_date",
+                            "latest_local_date",
+                            "momentum_ready",
+                            "track_record_ready",
+                            "preferred_history_ready",
+                            "missing_for_momentum",
+                            "missing_for_track_record",
+                            "missing_for_preferred_history",
+                            "example_command",
+                        ]
+                        if column in price_worklist_frame.columns
+                    ]
+                    st.dataframe(clean_display_frame(price_worklist_frame[worklist_columns].head(20)), width="stretch", hide_index=True)
 
     with health_tabs[2]:
         render_signal_cards(
@@ -4093,6 +4149,35 @@ def render_data_health(provider) -> None:
             render_context_note(
                 "Manual fallback.",
                 "CLI-only: fill data/imports/prices.csv with verified OHLCV rows, then run make price-validate, make price-preview, and make price-apply.",
+                tone="warning",
+            )
+        if price_worklist_frame is not None and not price_worklist_frame.empty:
+            render_context_note(
+                "Price history worklist.",
+                "This local worklist shows which tickers still need more verified history for momentum, track record, or preferred long-history research context.",
+            )
+            worklist_columns = [
+                column
+                for column in [
+                    "priority",
+                    "ticker",
+                    "price_history_days",
+                    "first_local_date",
+                    "latest_local_date",
+                    "missing_for_momentum",
+                    "missing_for_track_record",
+                    "missing_for_preferred_history",
+                    "example_command",
+                ]
+                if column in price_worklist_frame.columns
+            ]
+            st.dataframe(clean_display_frame(price_worklist_frame[worklist_columns].head(15)), width="stretch", hide_index=True)
+        else:
+            render_notice_card(
+                "Price history worklist is not available yet",
+                price_worklist_message
+                or "Generate the onboarding outputs to see exact local price-history gaps and the safe manual-import path.",
+                "python3 -m src.data_onboarding --write-output",
                 tone="warning",
             )
 

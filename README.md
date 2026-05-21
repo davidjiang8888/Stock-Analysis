@@ -593,11 +593,14 @@ Yahoo-style historical exports are supported when they contain:
 Example:
 
 ```bash
+make price-worklist
 make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual
 make price-validate
 make price-preview
 make price-apply
 ```
+
+`make price-worklist` shows the current ticker-by-ticker local history gap list, including which names are not yet ready for momentum, track record, or longer-horizon research context.
 
 Generic OHLCV CSVs are also supported when they include `date`, `ticker`, `open`, `high`, `low`, `close`, and `volume` columns:
 
@@ -677,6 +680,20 @@ make dashboard
 ```
 
 `make onboarding` refreshes local source/gap reports, ticker-level coverage actions, and the unified action queue. `make daily` runs the local price updater, report generator, monthly picks, track record, local-data validation, and the action queue in order. `make dashboard` opens the Streamlit dashboard from the repo root.
+
+If price history is the main blocker, run:
+
+```bash
+make price-worklist
+```
+
+This prints the exact local price-history shortfall for each ticker and points back to the safe staged-import path:
+
+- `data/raw/prices/`
+- `make price-normalize`
+- `make price-validate`
+- `make price-preview`
+- `make price-apply`
 
 If you prefer the explicit commands, the equivalent workflow is:
 

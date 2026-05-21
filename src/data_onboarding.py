@@ -44,6 +44,25 @@ ACTION_COLUMNS = [
     "example_command",
 ]
 
+PRICE_WORKLIST_COLUMNS = [
+    "priority",
+    "ticker",
+    "has_prices",
+    "price_history_days",
+    "first_local_date",
+    "latest_local_date",
+    "momentum_ready",
+    "track_record_ready",
+    "preferred_history_ready",
+    "missing_for_momentum",
+    "missing_for_track_record",
+    "missing_for_preferred_history",
+    "recommended_action",
+    "target_file",
+    "example_command",
+    "safe_next_step",
+]
+
 WIZARD_COLUMNS = [
     "priority",
     "ticker",
@@ -95,6 +114,29 @@ class OnboardingAction:
     recommended_action: str
     target_file: str
     example_command: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class PriceWorklistRow:
+    priority: int
+    ticker: str
+    has_prices: bool
+    price_history_days: int
+    first_local_date: str
+    latest_local_date: str
+    momentum_ready: bool
+    track_record_ready: bool
+    preferred_history_ready: bool
+    missing_for_momentum: str
+    missing_for_track_record: str
+    missing_for_preferred_history: str
+    recommended_action: str
+    target_file: str
+    example_command: str
+    safe_next_step: str
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -169,6 +211,22 @@ def _price_history_days(prices: pd.DataFrame, ticker: str) -> int:
     if prices.empty or "ticker" not in prices.columns:
         return 0
     return int((prices["ticker"].astype(str).str.upper().str.strip() == ticker).sum())
+
+
+def _price_date_bounds(prices: pd.DataFrame, ticker: str) -> tuple[str, str]:
+    if prices.empty or "ticker" not in prices.columns or "date" not in prices.columns:
+        return "", ""
+    ticker_rows = prices.loc[prices["ticker"].astype(str).str.upper().str.strip() == ticker].copy()
+    if ticker_rows.empty:
+        return "", ""
+    ticker_rows["date"] = pd.to_datetime(ticker_rows["date"], errors="coerce")
+    ticker_rows = ticker_rows.loc[ticker_rows["date"].notna()]
+    if ticker_rows.empty:
+        return "", ""
+    return (
+        ticker_rows["date"].min().date().isoformat(),
+        ticker_rows["date"].max().date().isoformat(),
+    )
 
 
 def _discover_tickers(catalog: LocalDataCatalog, requested: list[str] | None = None) -> list[str]:
@@ -491,6 +549,54 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
     return sorted(rows, key=lambda item: (item.priority, item.unlock_goal, item.ticker, item.blocking_dataset))
 
 
+def build_price_import_worklist(
+    coverage_rows: list[TickerCoverage],
+    project_root: Path | str | None = None,
+    *,
+    data_dir: Path | str | None = None,
+    output_dir: Path | str | None = None,
+) -> list[PriceWorklistRow]:
+    root = resolve_project_root(project_root)
+    data_path = resolve_data_dir(data_dir, root)
+    output_path = resolve_outputs_dir(output_dir, root)
+    catalog = LocalDataCatalog(root, data_dir=data_path, outputs_dir=output_path)
+    prices = _load_frame(catalog, "prices")
+
+    rows: list[PriceWorklistRow] = []
+    for coverage in coverage_rows:
+        first_local_date, latest_local_date = _price_date_bounds(prices, coverage.ticker)
+        momentum_ready = coverage.price_history_days >= 21
+        track_record_ready = coverage.price_history_days >= 63
+        preferred_history_ready = coverage.price_history_days >= 252
+        missing_for_momentum = "" if momentum_ready else f"{max(0, 21 - coverage.price_history_days)} more verified rows needed"
+        missing_for_track_record = "" if track_record_ready else f"{max(0, 63 - coverage.price_history_days)} more verified rows needed"
+        missing_for_preferred_history = "" if preferred_history_ready else f"{max(0, 252 - coverage.price_history_days)} more verified rows needed"
+        priority = 1 if not momentum_ready else 2 if not track_record_ready else 3 if not preferred_history_ready else 4
+        rows.append(
+            PriceWorklistRow(
+                priority=priority,
+                ticker=coverage.ticker,
+                has_prices=coverage.has_prices,
+                price_history_days=coverage.price_history_days,
+                first_local_date=first_local_date,
+                latest_local_date=latest_local_date,
+                momentum_ready=momentum_ready,
+                track_record_ready=track_record_ready,
+                preferred_history_ready=preferred_history_ready,
+                missing_for_momentum=missing_for_momentum,
+                missing_for_track_record=missing_for_track_record,
+                missing_for_preferred_history=missing_for_preferred_history,
+                recommended_action=(
+                    f"Run python3 -m src.data_update --tickers {coverage.ticker}, or normalize verified downloaded OHLCV files into data/imports/prices.csv."
+                ),
+                target_file="data/imports/prices.csv",
+                example_command=f"make price-normalize INPUT=data/raw/prices/{coverage.ticker}.csv TICKER={coverage.ticker} SOURCE=yahoo_manual",
+                safe_next_step="Run make price-validate and make price-preview before make price-apply; do not fabricate missing history.",
+            )
+        )
+    return sorted(rows, key=lambda item: (item.priority, item.price_history_days, item.ticker))
+
+
 def build_onboarding_payload(
     project_root: Path | str | None = None,
     *,
@@ -501,10 +607,12 @@ def build_onboarding_payload(
     coverage = build_ticker_coverage(project_root, data_dir=data_dir, output_dir=output_dir, tickers=tickers)
     actions = build_onboarding_actions(coverage)
     wizard = build_data_coverage_wizard(coverage)
+    price_worklist = build_price_import_worklist(coverage, project_root, data_dir=data_dir, output_dir=output_dir)
     return {
         "ticker_coverage": [row.to_dict() for row in coverage],
         "onboarding_actions": [row.to_dict() for row in actions],
         "data_coverage_wizard": [row.to_dict() for row in wizard],
+        "price_import_worklist": [row.to_dict() for row in price_worklist],
     }
 
 
@@ -522,14 +630,17 @@ def write_onboarding_outputs(
     coverage_path = output_path / "ticker_data_coverage.csv"
     actions_path = output_path / "data_onboarding_actions.csv"
     wizard_path = output_path / "data_coverage_wizard.csv"
+    price_worklist_path = output_path / "price_import_worklist.csv"
     pd.DataFrame(payload["ticker_coverage"], columns=COVERAGE_COLUMNS).to_csv(coverage_path, index=False)
     pd.DataFrame(payload["onboarding_actions"], columns=ACTION_COLUMNS).to_csv(actions_path, index=False)
     pd.DataFrame(payload["data_coverage_wizard"], columns=WIZARD_COLUMNS).to_csv(wizard_path, index=False)
+    pd.DataFrame(payload["price_import_worklist"], columns=PRICE_WORKLIST_COLUMNS).to_csv(price_worklist_path, index=False)
     return {
         **payload,
         "coverage_path": str(coverage_path),
         "actions_path": str(actions_path),
         "wizard_path": str(wizard_path),
+        "price_worklist_path": str(price_worklist_path),
     }
 
 
@@ -603,10 +714,23 @@ def _print_wizard(payload: dict[str, Any]) -> None:
     print(f"Wizard rows: {len(payload['data_coverage_wizard'])}")
 
 
+def _print_price_worklist(payload: dict[str, Any]) -> None:
+    print("Price import worklist:")
+    for row in payload["price_import_worklist"][:30]:
+        print(
+            f"- P{row['priority']} {row['ticker']}: {row['price_history_days']} rows, "
+            f"momentum_ready={row['momentum_ready']} track_record_ready={row['track_record_ready']} "
+            f"preferred_history_ready={row['preferred_history_ready']}"
+        )
+        print(f"  next: {row['recommended_action']}")
+    print(f"Price worklist rows: {len(payload['price_import_worklist'])}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Inspect local ticker-level coverage and onboarding actions.")
     parser.add_argument("--coverage", action="store_true", help="Print ticker-level local data coverage.")
     parser.add_argument("--wizard", action="store_true", help="Print prioritized data coverage wizard rows.")
+    parser.add_argument("--price-worklist", action="store_true", help="Print prioritized local price-history worklist rows.")
     parser.add_argument("--write-output", action="store_true", help="Write ticker coverage and onboarding action CSVs.")
     parser.add_argument("--write-templates", action="store_true", help="Write header-only onboarding templates under data/templates.")
     parser.add_argument("--tickers", help="Comma-separated tickers to inspect. Defaults to universe and holdings tickers.")
@@ -637,14 +761,18 @@ def main() -> None:
         payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path, tickers=tickers)
 
     if args.json:
-        if args.wizard and not args.coverage and not args.write_output:
+        if args.wizard and not args.coverage and not args.write_output and not args.price_worklist:
             print(json.dumps({"data_coverage_wizard": payload["data_coverage_wizard"]}, indent=2))
+        elif args.price_worklist and not args.coverage and not args.write_output and not args.wizard:
+            print(json.dumps({"price_import_worklist": payload["price_import_worklist"]}, indent=2))
         else:
             print(json.dumps(payload, indent=2))
         return
 
     print(format_path_context(root, data_path, output_path))
-    if args.wizard and not args.coverage:
+    if args.price_worklist and not args.coverage and not args.wizard:
+        _print_price_worklist(payload)
+    elif args.wizard and not args.coverage:
         _print_wizard(payload)
     else:
         _print_coverage(payload)
@@ -652,6 +780,7 @@ def main() -> None:
         print(f"Wrote: {payload['coverage_path']}")
         print(f"Wrote: {payload['actions_path']}")
         print(f"Wrote: {payload['wizard_path']}")
+        print(f"Wrote: {payload['price_worklist_path']}")
 
 
 if __name__ == "__main__":
