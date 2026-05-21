@@ -2682,3 +2682,45 @@ def test_overview_command_bundle_cards_surface_bundle_commands_safely():
     assert "src.data_update --tickers meta,nvda,tsla" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_overview_bundle_handoff_cards_surface_follow_through_safely():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "ticker_count": 3,
+                "tickers": "META,NVDA,TSLA",
+                "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=META,NVDA,TSLA",
+                "follow_up_command": "make sec-preview",
+                "target_file": "data/imports/fundamentals.csv",
+                "why_it_matters": "These tickers are the best next candidates for explicit local DCF inputs.",
+                "safe_next_step": "Keep SEC enrichment staged and review-only until preview is clean.",
+            }
+        ]
+    )
+    details = pd.DataFrame(
+        [
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "ticker": "META",
+                "is_holding": True,
+                "theme": "AI Platforms",
+                "sector_etf": "QQQ",
+                "current_unlock_stage": "fundamentals",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_bundle_handoff_cards(bundles, details)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "FUNDAMENTALS HANDOFF"
+    assert "make sec-stage" in rendered
+    assert "make sec-preview" in rendered
+    assert "meta" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
