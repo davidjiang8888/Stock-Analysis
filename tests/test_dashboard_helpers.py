@@ -1222,6 +1222,78 @@ def test_overview_ready_name_handoff_cards_handle_missing_inputs_gracefully():
     assert "sell" not in rendered
 
 
+def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_tab():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "NVDA", "usable_for_momentum": True, "dcf_ready": True, "peer_ready": False},
+            {"ticker": "TSLA", "usable_for_momentum": True, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI Semiconductors",
+                "recommended_action": "Stage or add richer verified fundamentals to close the remaining DCF input gaps.",
+                "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+            }
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
+                "example_command": "python3 -m src.data_onboarding --write-templates",
+            }
+        ]
+    )
+    payload = {"recommended_next_commands": ["make onboarding", "make verify", "make dashboard"]}
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "NVDA",
+                "title": "Repair prices",
+                "reason": "Need more local rows.",
+                "example_command": "make price-worklist",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_current_top_surfaces_cards(coverage, holdings, sec_queue, peer_queue, payload, queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 4
+    assert cards[0]["title"] == "NVDA"
+    assert cards[1]["title"] == "NVDA"
+    assert cards[2]["title"] == "make onboarding"
+    assert cards[3]["title"] == "Stock Report Beta"
+    assert "best currently usable local name" in rendered
+    assert "top deeper-research blocker" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_current_top_surfaces_cards_handle_missing_inputs_gracefully():
+    cards = dashboard.overview_current_top_surfaces_cards(None, None, None, None, None, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 4
+    assert cards[0]["title"] == "No current ready names yet"
+    assert cards[1]["title"] == "No deep-research shortlist yet"
+    assert cards[2]["title"] == "make help"
+    assert cards[3]["title"] == "Data Health"
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_market_context_cards_surface_local_theme_strength():
     market_direction = pd.DataFrame(
         [

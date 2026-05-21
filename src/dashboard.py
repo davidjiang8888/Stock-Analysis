@@ -3862,6 +3862,66 @@ def overview_ready_name_handoff_cards(
     ]
 
 
+def overview_current_top_surfaces_cards(
+    coverage: pd.DataFrame | None,
+    holdings: pd.DataFrame | None,
+    sec_stage_queue: pd.DataFrame | None,
+    peer_mapping_queue: pd.DataFrame | None,
+    project_status_payload: dict[str, Any] | None,
+    action_queue: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    ready_cards = overview_ready_name_handoff_cards(coverage, holdings, project_status_payload, action_queue)
+    deep_cards = overview_deep_research_handoff_cards(
+        holdings,
+        sec_stage_queue,
+        peer_mapping_queue,
+        project_status_payload,
+        action_queue,
+    )
+    command_cards = overview_next_command_cards(project_status_payload, action_queue, limit=1)
+
+    ready_name = format_missing(ready_cards[0].get("title"), "Not available")
+    blocked_name = format_missing(deep_cards[0].get("title"), "Not available")
+    command_text = format_missing(command_cards[0].get("title"), "make help") if command_cards else "make help"
+    next_tab = format_missing(ready_cards[2].get("title"), "Data Health")
+
+    return [
+        {
+            "kicker": "BEST READY NAME",
+            "title": ready_name,
+            "body": (
+                f"Best currently usable local name. Next surface: {next_tab}."
+            ),
+            "badges": [str(item) for item in ready_cards[0].get("badges", [])][:2] or ["local coverage"],
+        },
+        {
+            "kicker": "BEST BLOCKED NAME",
+            "title": blocked_name,
+            "body": (
+                "Top deeper-research blocker from the SEC and peer queues."
+            ),
+            "badges": [str(item) for item in deep_cards[0].get("badges", [])][:2] or ["coverage", "read-only"],
+        },
+        {
+            "kicker": "BEST NEXT COMMAND",
+            "title": command_text,
+            "body": (
+                "Highest-value repo-native command from the current local workflow state."
+            ),
+            "badges": [str(item) for item in command_cards[0].get("badges", [])][:2] if command_cards else ["command"],
+            "command": command_text,
+        },
+        {
+            "kicker": "BEST NEXT TAB",
+            "title": next_tab,
+            "body": (
+                "Best follow-up surface after the next command for the current daily research pass."
+            ),
+            "badges": [str(item) for item in ready_cards[2].get("badges", [])][:2] or ["guided", "read-only"],
+        },
+    ]
+
+
 def monthly_pick_card_html(row: pd.Series | dict[str, object]) -> str:
     get_value = row.get if hasattr(row, "get") else dict(row).get
     ticker = format_missing(get_value("Ticker"))
@@ -4644,6 +4704,17 @@ def render_overview(
         overview_ready_name_handoff_cards(
             coverage_frame,
             holdings,
+            project_status_payload,
+            action_queue_frame,
+        )
+    )
+    render_section_header("Current Top Surfaces", "A one-row daily summary of the best ready name, the most important blocked deep-research name, the best next command, and the best next tab.")
+    render_signal_cards(
+        overview_current_top_surfaces_cards(
+            coverage_frame,
+            holdings,
+            sec_stage_queue_frame,
+            peer_mapping_queue_frame,
             project_status_payload,
             action_queue_frame,
         )
