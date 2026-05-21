@@ -587,6 +587,90 @@ def apply_dashboard_theme() -> None:
         .subtle-panel strong {
           color: #111827;
         }
+        .cockpit-panel {
+          display: grid;
+          grid-template-columns: minmax(260px, 1.1fr) minmax(260px, 1.6fr);
+          gap: 1rem;
+          align-items: stretch;
+          margin: 0.8rem 0 1.05rem 0;
+        }
+        .cockpit-summary {
+          border-radius: 24px;
+          padding: 1.15rem 1.2rem;
+          background: linear-gradient(145deg, #102f2c, #0f766e);
+          box-shadow: 0 18px 38px rgba(15, 59, 54, 0.18);
+          border: 1px solid rgba(255, 255, 255, 0.22);
+        }
+        .cockpit-kicker {
+          color: #99f6e4;
+          font-size: 0.73rem;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.13em;
+        }
+        .cockpit-title {
+          color: #ffffff;
+          font-size: 1.45rem;
+          line-height: 1.08;
+          font-weight: 950;
+          letter-spacing: -0.045em;
+          margin-top: 0.45rem;
+        }
+        .cockpit-copy {
+          color: rgba(255, 255, 255, 0.82);
+          font-size: 0.9rem;
+          line-height: 1.42;
+          margin-top: 0.55rem;
+        }
+        .cockpit-lanes {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 0.75rem;
+        }
+        .cockpit-lane {
+          border-radius: 20px;
+          padding: 0.95rem 1rem;
+          background: rgba(255, 254, 250, 0.94);
+          border: 1px solid var(--research-border);
+          box-shadow: 0 12px 30px rgba(17, 24, 39, 0.07);
+        }
+        .cockpit-lane.warning {
+          border-top: 5px solid #d97706;
+        }
+        .cockpit-lane.danger {
+          border-top: 5px solid #dc2626;
+        }
+        .cockpit-lane.neutral {
+          border-top: 5px solid #0f766e;
+        }
+        .cockpit-lane-label {
+          color: #475569;
+          font-size: 0.72rem;
+          font-weight: 900;
+          letter-spacing: 0.09em;
+          text-transform: uppercase;
+        }
+        .cockpit-lane-value {
+          color: #111827;
+          font-size: 1.55rem;
+          font-weight: 950;
+          letter-spacing: -0.045em;
+          margin-top: 0.2rem;
+        }
+        .cockpit-lane-note {
+          color: #475569;
+          font-size: 0.84rem;
+          line-height: 1.38;
+          margin-top: 0.28rem;
+        }
+        @media (max-width: 900px) {
+          .cockpit-panel {
+            grid-template-columns: 1fr;
+          }
+          .cockpit-lanes {
+            grid-template-columns: 1fr;
+          }
+        }
         [data-testid="stMetric"] {
           background: rgba(255, 253, 248, 0.86);
           border: 1px solid var(--research-border);
@@ -1363,6 +1447,53 @@ def project_status_command_rows(payload: dict[str, Any] | None) -> list[dict[str
     return [{"Step": f"Next {index}", "Command": str(command)} for index, command in enumerate(commands, start=1)]
 
 
+def project_status_cockpit_html(payload: dict[str, Any] | None, health_score: int, health_label: str) -> str:
+    if not payload:
+        return notice_card_html(
+            "Project status unavailable",
+            "Run `make status` to rebuild the local project status snapshot.",
+            "make status",
+            tone="warning",
+        )
+    summary = payload.get("summary", {})
+    total_tickers = int(summary.get("tickers_total") or 0)
+    price_ready = int(summary.get("tickers_with_prices") or 0)
+    dcf_ready = int(summary.get("tickers_dcf_ready") or 0)
+    peer_ready = int(summary.get("tickers_peer_ready") or 0)
+    critical_actions = int(summary.get("critical_actions") or 0)
+    data_gaps = int(summary.get("data_gaps") or 0)
+    tone = "danger" if critical_actions else "warning" if data_gaps else "neutral"
+    summary_copy = (
+        f"{critical_actions} critical actions and {data_gaps} data gaps are currently visible. "
+        "The workflow stays usable because missing inputs are labeled instead of guessed."
+    )
+    lanes = [
+        ("Price Coverage", f"{price_ready}/{total_tickers}", "Momentum and track-record readiness", "danger" if price_ready < total_tickers else "neutral"),
+        ("Valuation Coverage", f"{dcf_ready}/{total_tickers}", "DCF-ready local fundamentals", "warning" if dcf_ready < total_tickers else "neutral"),
+        ("Peer Context", f"{peer_ready}/{total_tickers}", "Manual peer mappings plus peer data", "warning" if peer_ready < total_tickers else "neutral"),
+    ]
+    lane_html = "".join(
+        (
+            f"<div class='cockpit-lane {html.escape(lane_tone)}'>"
+            f"<div class='cockpit-lane-label'>{html.escape(label)}</div>"
+            f"<div class='cockpit-lane-value'>{html.escape(value)}</div>"
+            f"<div class='cockpit-lane-note'>{html.escape(note)}</div>"
+            "</div>"
+        )
+        for label, value, note, lane_tone in lanes
+    )
+    return (
+        "<div class='cockpit-panel'>"
+        f"<div class='cockpit-summary {html.escape(tone)}'>"
+        "<div class='cockpit-kicker'>Research Cockpit</div>"
+        f"<div class='cockpit-title'>{html.escape(health_label)} workflow, {health_score}/100</div>"
+        f"<div class='cockpit-copy'>{html.escape(summary_copy)}</div>"
+        "</div>"
+        f"<div class='cockpit-lanes'>{lane_html}</div>"
+        "</div>"
+    )
+
+
 def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
     if action_queue is None or action_queue.empty:
         return []
@@ -1686,6 +1817,7 @@ def render_overview(
         "Command Center",
         "A quick read on whether the local research workflow is ready, partial, or waiting on data.",
     )
+    st.markdown(project_status_cockpit_html(project_status_payload, health_score, health_label), unsafe_allow_html=True)
     render_metric_cards(
         [
             ("Workflow Health", f"{health_score}/100", health_label),

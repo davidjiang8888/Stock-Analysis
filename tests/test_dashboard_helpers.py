@@ -264,6 +264,28 @@ def test_project_status_helpers_turn_payload_into_cards_and_commands():
     assert commands[0]["Command"] == "make onboarding"
 
 
+def test_project_status_cockpit_is_readable_and_research_safe():
+    payload = {
+        "summary": {
+            "tickers_total": 12,
+            "tickers_with_prices": 3,
+            "tickers_dcf_ready": 0,
+            "tickers_peer_ready": 0,
+            "critical_actions": 9,
+            "data_gaps": 25,
+        }
+    }
+
+    html = dashboard.project_status_cockpit_html(payload, 44, "Needs Data")
+
+    assert "Research Cockpit" in html
+    assert "3/12" in html
+    assert "0/12" in html
+    assert "missing inputs are labeled instead of guessed" in html
+    assert "buy" not in html.lower()
+    assert "sell" not in html.lower()
+
+
 def test_onboarding_summary_counts_core_and_optional_gaps():
     coverage = pd.DataFrame(
         [
