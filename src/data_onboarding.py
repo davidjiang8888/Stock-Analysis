@@ -51,6 +51,10 @@ PRICE_WORKLIST_COLUMNS = [
     "price_history_days",
     "first_local_date",
     "latest_local_date",
+    "next_price_goal",
+    "next_target_history_rows",
+    "rows_needed_for_next_goal",
+    "suggested_start_date",
     "momentum_ready",
     "track_record_ready",
     "preferred_history_ready",
@@ -313,6 +317,10 @@ class PriceWorklistRow:
     price_history_days: int
     first_local_date: str
     latest_local_date: str
+    next_price_goal: str
+    next_target_history_rows: int
+    rows_needed_for_next_goal: int
+    suggested_start_date: str
     momentum_ready: bool
     track_record_ready: bool
     preferred_history_ready: bool
@@ -923,6 +931,25 @@ def build_price_import_worklist(
         missing_for_track_record = "" if track_record_ready else f"{max(0, 63 - coverage.price_history_days)} more verified rows needed"
         missing_for_preferred_history = "" if preferred_history_ready else f"{max(0, 252 - coverage.price_history_days)} more verified rows needed"
         priority = 1 if not momentum_ready else 2 if not track_record_ready else 3 if not preferred_history_ready else 4
+        if not momentum_ready:
+            next_price_goal = "Unlock Monthly Picks"
+            next_target_history_rows = 21
+        elif not track_record_ready:
+            next_price_goal = "Unlock Track Record"
+            next_target_history_rows = 63
+        elif not preferred_history_ready:
+            next_price_goal = "Reach Preferred 1Y History"
+            next_target_history_rows = 252
+        else:
+            next_price_goal = "Maintain Coverage"
+            next_target_history_rows = coverage.price_history_days
+        rows_needed_for_next_goal = max(0, next_target_history_rows - coverage.price_history_days)
+        suggested_start_date = ""
+        if latest_local_date:
+            latest_ts = pd.to_datetime(latest_local_date, errors="coerce")
+            if pd.notna(latest_ts):
+                buffer_days = max(30, int(next_target_history_rows * 1.5))
+                suggested_start_date = str((latest_ts - pd.Timedelta(days=buffer_days)).date())
         rows.append(
             PriceWorklistRow(
                 priority=priority,
@@ -931,6 +958,10 @@ def build_price_import_worklist(
                 price_history_days=coverage.price_history_days,
                 first_local_date=first_local_date,
                 latest_local_date=latest_local_date,
+                next_price_goal=next_price_goal,
+                next_target_history_rows=next_target_history_rows,
+                rows_needed_for_next_goal=rows_needed_for_next_goal,
+                suggested_start_date=suggested_start_date,
                 momentum_ready=momentum_ready,
                 track_record_ready=track_record_ready,
                 preferred_history_ready=preferred_history_ready,

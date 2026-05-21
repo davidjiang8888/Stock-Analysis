@@ -266,6 +266,15 @@ make templates
 - `outputs/command_bundle_details.csv`
 - `outputs/command_bundle_runbook.csv`
 
+The price onboarding worklist now includes structured next-step targets such as:
+
+- `next_price_goal`
+- `next_target_history_rows`
+- `rows_needed_for_next_goal`
+- `suggested_start_date`
+
+That makes it easier to tell whether a ticker needs enough history for Monthly Picks, track-record coverage, or a fuller 1Y local research view.
+
 `--write-templates` creates header-only local templates under `data/templates/` for:
 
 - `peers.csv`

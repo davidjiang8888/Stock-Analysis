@@ -405,6 +405,10 @@ def test_onboarding_tables_handle_missing_outputs_and_summary():
 def test_summarize_price_worklist_counts_readiness_levels():
     worklist = pd.DataFrame(
         {
+            "next_price_goal": ["Unlock Track Record", "Unlock Monthly Picks", "Reach Preferred 1Y History"],
+            "next_target_history_rows": [63, 21, 252],
+            "rows_needed_for_next_goal": [42, 21, 189],
+            "suggested_start_date": ["2025-10-01", "2026-01-01", "2025-01-01"],
             "momentum_ready": [True, False, True],
             "track_record_ready": [False, False, True],
             "preferred_history_ready": [False, False, False],
