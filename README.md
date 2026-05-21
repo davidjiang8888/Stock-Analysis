@@ -1192,6 +1192,12 @@ python3 -m src.data_onboarding --command-bundles --lane peers --holdings-only
 make bundle-prices
 make bundle-fundamentals
 make bundle-peers
+python3 -m src.data_onboarding --command-bundle-runbook --lane prices --holdings-only
+python3 -m src.data_onboarding --command-bundle-runbook --lane fundamentals --holdings-only
+python3 -m src.data_onboarding --command-bundle-runbook --lane peers --holdings-only
+make runbook-prices
+make runbook-fundamentals
+make runbook-peers
 ```
 
 These lane-specific views stay read-only and help you focus on one pass at a time without scanning the broader bundle output first.

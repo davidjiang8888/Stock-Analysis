@@ -1,4 +1,4 @@
-.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers runbook-prices runbook-fundamentals runbook-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
 
 help:
 	@echo "Stock Research Screener convenience commands"
@@ -30,6 +30,9 @@ help:
 	@echo "  make bundle-prices    Show only the price bundle and its holdings-first scope when available"
 	@echo "  make bundle-fundamentals Show only the SEC fundamentals bundle"
 	@echo "  make bundle-peers     Show only the peer-mapping bundle"
+	@echo "  make runbook-prices   Show only the price bundle runbook"
+	@echo "  make runbook-fundamentals Show only the SEC fundamentals runbook"
+	@echo "  make runbook-peers    Show only the peer-mapping runbook"
 	@echo "  make price-worklist   Show ticker-by-ticker local price-history gaps"
 	@echo "  make fundamentals-peer-worklist Show DCF and peer-relative local blockers"
 	@echo "  make optional-context-worklist Show optional earnings and estimate gaps"
@@ -112,6 +115,15 @@ bundle-fundamentals:
 
 bundle-peers:
 	python3 -m src.data_onboarding --command-bundles --lane peers --holdings-only
+
+runbook-prices:
+	python3 -m src.data_onboarding --command-bundle-runbook --lane prices --holdings-only
+
+runbook-fundamentals:
+	python3 -m src.data_onboarding --command-bundle-runbook --lane fundamentals --holdings-only
+
+runbook-peers:
+	python3 -m src.data_onboarding --command-bundle-runbook --lane peers --holdings-only
 
 onboarding:
 	python3 -m src.data_sources --write-output
