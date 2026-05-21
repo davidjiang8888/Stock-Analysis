@@ -395,3 +395,28 @@ def test_dominant_value_and_non_empty_count_handle_empty_fields():
     assert value == "Partial"
     assert count == 2
     assert dashboard.non_empty_count(frame, ["Missing"]) == 1
+
+
+def test_presentation_frame_uses_readable_labels_and_values():
+    frame = pd.DataFrame(
+        {
+            "Ticker": ["NVDA"],
+            "Return1M": [0.1234],
+            "WatchlistScore": [81.25],
+            "MissingDataFields": ["Return1M, peers"],
+            "ReasonSummary": ["Transparent local context."],
+        }
+    )
+
+    display = dashboard.presentation_frame(frame)
+
+    assert list(display.columns) == ["Ticker", "1M Return", "Watchlist Score", "Missing Data", "Reason"]
+    assert display.iloc[0]["1M Return"] == "12.3%"
+    assert display.iloc[0]["Watchlist Score"] == "81.2"
+    assert "Not enough price history" in display.iloc[0]["Missing Data"]
+    assert "Needs peers.csv" in display.iloc[0]["Missing Data"]
+
+
+def test_display_column_label_humanizes_unknown_columns():
+    assert dashboard.display_column_label("avg_volume_20d") == "Avg Volume 20D"
+    assert dashboard.display_column_label("PeerRelativeStatus") == "Peer Relative"

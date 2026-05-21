@@ -118,6 +118,46 @@ DATA_SOURCE_STATUS_LABELS = {
     "optional_unofficial": "Optional unofficial",
     "not_supported": "Not supported",
 }
+COLUMN_LABELS = {
+    "Ticker": "Ticker",
+    "Theme": "Theme",
+    "Sector": "Sector",
+    "SectorETF": "Sector ETF",
+    "FinalState": "Final State",
+    "SetupStatus": "Setup Status",
+    "ReviewState": "Review State",
+    "ThemeStatus": "Theme Status",
+    "FinalValueCategory": "Value Category",
+    "PeerRelativeStatus": "Peer Relative",
+    "RelativeOpportunityScore": "Relative Score",
+    "WatchlistScore": "Watchlist Score",
+    "WatchlistRank": "Watchlist Rank",
+    "RankReasonSummary": "Rank Reason",
+    "ReasonSummary": "Reason",
+    "DataGaps": "Data Gaps",
+    "MissingDataFields": "Missing Data",
+    "Return1M": "1M Return",
+    "Return3M": "3M Return",
+    "Return6M": "6M Return",
+    "Return12M": "1Y Return",
+    "RSPercentile": "RS Percentile",
+    "QualityScore": "Quality Score",
+    "ValuationScore": "Valuation Score",
+    "ValueTrapRiskScore": "Value Trap Risk",
+    "ConcentrationRisk": "Concentration Risk",
+    "AvgDollarVolume20D": "Avg $ Volume 20D",
+    "AvgVolume20D": "Avg Volume 20D",
+    "VolumeTrend5DVs20D": "Volume Trend 5D vs 20D",
+    "VolatilityProxy20D": "Volatility Proxy 20D",
+    "MostCorrelatedTicker": "Most Correlated Ticker",
+    "OverlapDays": "Overlap Days",
+    "NextBestAction": "Next Best Action",
+    "DataQualityScore": "Data Quality Score",
+    "MomentumReady": "Momentum Ready",
+    "DCFReady": "DCF Ready",
+    "PeerReady": "Peer Ready",
+    "PriceHistoryDays": "Price History Days",
+}
 
 
 def load_output(path: Path) -> tuple[pd.DataFrame | None, str | None]:
@@ -1184,6 +1224,59 @@ def clean_display_frame(frame: pd.DataFrame) -> pd.DataFrame:
     return frame.copy().map(clean_cell)
 
 
+def display_column_label(column: str) -> str:
+    if column in COLUMN_LABELS:
+        return COLUMN_LABELS[column]
+    label = []
+    previous = ""
+    for char in column.replace("_", " "):
+        if previous and previous.islower() and char.isupper():
+            label.append(" ")
+        label.append(char)
+        previous = char
+    return "".join(label).strip().title()
+
+
+def format_table_cell(column: str, value: object) -> str:
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value if str(item).strip()) or "Not available"
+    if isinstance(value, dict):
+        return ", ".join(f"{key}: {val}" for key, val in value.items()) or "Not available"
+
+    lowered = column.lower()
+    if "missing" in lowered or column == "DataGaps":
+        return summarize_missing_fields(value)
+    if "reason" in lowered:
+        return compact_reason(value)
+
+    number = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+    if pd.isna(number):
+        return format_missing(value)
+
+    if any(token in lowered for token in ("return", "margin", "growth", "yield", "surprise_pct")):
+        numeric = float(number)
+        if abs(numeric) <= 2:
+            numeric *= 100
+        return f"{numeric:.1f}%"
+    if any(token in lowered for token in ("score", "risk", "percentile", "correlation", "trend", "multiple")):
+        return f"{float(number):.1f}".rstrip("0").rstrip(".")
+    if any(token in lowered for token in ("volume", "marketcap", "revenue", "cash", "debt", "value")):
+        return format_value(value)
+    return format_missing(value)
+
+
+def presentation_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    display = pd.DataFrame(
+        {
+            display_column_label(column): frame[column].map(lambda value, column=column: format_table_cell(column, value))
+            for column in frame.columns
+        }
+    )
+    return display
+
+
 def display_with_summaries(frame: pd.DataFrame) -> pd.DataFrame:
     display = clean_display_frame(frame)
     if "Reason" in frame.columns:
@@ -1295,17 +1388,17 @@ def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool) -> No
     display_frame = display_with_summaries(filtered)
     compact_columns = compact_table_columns(display_frame)
     st.caption("Showing the most useful columns first. Open the detail expanders below for full reasons, missing fields, and raw columns.")
-    st.dataframe(style_frame(display_frame[compact_columns]), width="stretch", hide_index=True)
+    st.dataframe(style_frame(presentation_frame(display_frame[compact_columns])), width="stretch", hide_index=True)
 
     with st.expander(f"{key} full table", expanded=False):
-        st.dataframe(style_frame(clean_display_frame(filtered)), width="stretch", hide_index=True)
+        st.dataframe(style_frame(presentation_frame(filtered)), width="stretch", hide_index=True)
 
     if show_reason_details:
         reason_columns = [column for column in filtered.columns if "reason" in column.lower()]
         if reason_columns:
             with st.expander(f"{key} reasons", expanded=False):
                 detail_columns = [column for column in filtered.columns if column in {"Ticker", "Theme", "FinalState", "SetupStatus", "ReviewState"} or column in reason_columns]
-                st.dataframe(clean_display_frame(filtered[detail_columns]), width="stretch", hide_index=True)
+                st.dataframe(presentation_frame(filtered[detail_columns]), width="stretch", hide_index=True)
 
     support_columns = [
         column
@@ -1315,7 +1408,7 @@ def render_table(frame: pd.DataFrame, key: str, show_reason_details: bool) -> No
     if support_columns:
         with st.expander(f"{key} supporting details", expanded=False):
             detail_columns = [column for column in filtered.columns if column in {"Ticker", "Theme", "FinalState", "SetupStatus", "ReviewState", "ThemeStatus"} or column in support_columns]
-            st.dataframe(clean_display_frame(filtered[detail_columns]), width="stretch", hide_index=True)
+            st.dataframe(presentation_frame(filtered[detail_columns]), width="stretch", hide_index=True)
 
 
 def get_local_provider():
