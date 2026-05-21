@@ -2696,6 +2696,68 @@ def theme_unlock_cards(
     return cards
 
 
+def overview_market_context_cards(
+    market_direction: pd.DataFrame | None,
+    limit: int = 3,
+) -> list[dict[str, object]]:
+    if market_direction is None or market_direction.empty or "Theme" not in market_direction.columns:
+        return [
+            {
+                "kicker": "MARKET CONTEXT",
+                "title": "No local market direction context yet",
+                "body": "Run the pipeline to surface theme and sector ETF context from local price history.",
+                "badges": ["read-only"],
+            }
+        ]
+
+    chart = market_direction.copy()
+    numeric_candidates = [column for column in ["RelativeReturnVsSPY", "RelativeReturnVsQQQ", "Return1M"] if column in chart.columns]
+    for column in numeric_candidates:
+        chart[column] = pd.to_numeric(chart[column], errors="coerce")
+    chart["Theme"] = chart["Theme"].astype(str).str.strip()
+    if "ThemeStatus" in chart.columns:
+        chart["ThemeStatus"] = chart["ThemeStatus"].astype(str).str.strip()
+    chart = chart.loc[chart[numeric_candidates].notna().any(axis=1)].copy()
+    if chart.empty:
+        return [
+            {
+                "kicker": "MARKET CONTEXT",
+                "title": "Insufficient local theme performance",
+                "body": "Themes stay out of this strip until local benchmark-relative data is available.",
+                "badges": ["no guessing"],
+            }
+        ]
+
+    sort_column = "RelativeReturnVsSPY" if "RelativeReturnVsSPY" in chart.columns else numeric_candidates[0]
+    top_rows = chart.sort_values(sort_column, ascending=False, na_position="last").head(limit)
+    cards: list[dict[str, object]] = [
+        {
+            "kicker": "MARKET CONTEXT",
+            "title": format_missing(top_rows.iloc[0].get("ThemeStatus"), "Theme rotation"),
+            "body": (
+                f"Top locally supported theme is {format_missing(top_rows.iloc[0].get('Theme'), 'Not available')} "
+                f"with {report_display_value(top_rows.iloc[0].get(sort_column), 'percent')} "
+                f"vs benchmark context."
+            ),
+            "badges": ["local benchmark context", "research only"],
+        }
+    ]
+    for _, row in top_rows.iterrows():
+        cards.append(
+            {
+                "kicker": format_missing(row.get("Theme"), "Theme"),
+                "title": format_missing(row.get("ThemeStatus"), "Theme status"),
+                "body": (
+                    f"1M {report_display_value(row.get('Return1M'), 'percent')}, "
+                    f"vs SPY {report_display_value(row.get('RelativeReturnVsSPY'), 'percent')}, "
+                    f"vs QQQ {report_display_value(row.get('RelativeReturnVsQQQ'), 'percent')}."
+                ),
+                "badges": [format_missing(row.get("ETF"), "ETF"), "theme lens"],
+            }
+        )
+    return cards
+
+
 def monthly_pick_card_html(row: pd.Series | dict[str, object]) -> str:
     get_value = row.get if hasattr(row, "get") else dict(row).get
     ticker = format_missing(get_value("Ticker"))
@@ -3388,6 +3450,7 @@ def render_overview(
     project_status_payload: dict[str, Any] | None,
 ) -> None:
     holdings = catalog.load_dataframe("holdings")
+    market_direction_frame, _ = output_frames.get("market_direction.csv", (None, None))
     final_watchlist_frame, _ = output_frames.get("final_watchlist.csv", (None, None))
     monthly_file_count = sum(1 for filename in MONTHLY_FILES if (OUTPUTS_DIR / filename).exists())
     health_tables = load_research_health_tables()
@@ -3429,6 +3492,8 @@ def render_overview(
     render_signal_cards(holdings_unlock_cards(holdings, ticker_unlock_ladder_frame, unlock_priority_summary_frame))
     render_section_header("Theme First", "Which local themes or sector ETF clusters unlock the most research value next.")
     render_signal_cards(theme_unlock_cards(unlock_priority_summary_frame))
+    render_section_header("Market Context", "The strongest locally supported theme and ETF context from current benchmark-relative output rows.")
+    render_signal_cards(overview_market_context_cards(market_direction_frame))
     render_metric_cards(
         [
             ("Workflow Health", f"{health_score}/100", health_label),

@@ -720,6 +720,47 @@ def test_theme_unlock_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_overview_market_context_cards_surface_local_theme_strength():
+    market_direction = pd.DataFrame(
+        [
+            {
+                "Theme": "AI Semiconductors",
+                "ETF": "SMH",
+                "ThemeStatus": "Strong Rotation",
+                "Return1M": 0.14,
+                "RelativeReturnVsSPY": 0.09,
+                "RelativeReturnVsQQQ": 0.04,
+            },
+            {
+                "Theme": "Platforms",
+                "ETF": "QQQ",
+                "ThemeStatus": "Early Rotation",
+                "Return1M": 0.08,
+                "RelativeReturnVsSPY": 0.03,
+                "RelativeReturnVsQQQ": 0.01,
+            },
+        ]
+    )
+
+    cards = dashboard.overview_market_context_cards(market_direction, limit=2)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "MARKET CONTEXT"
+    assert "strong rotation" in rendered
+    assert "ai semiconductors" in rendered
+    assert "vs spy 9.0%" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_market_context_cards_handle_missing_inputs_gracefully():
+    cards = dashboard.overview_market_context_cards(None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "no local market direction context yet" in rendered
+    assert "buy" not in rendered
+
+
 def test_monthly_pick_card_html_is_product_style_and_clean():
     html = dashboard.monthly_pick_card_html(
         {
