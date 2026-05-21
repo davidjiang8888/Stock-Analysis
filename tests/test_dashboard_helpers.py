@@ -992,6 +992,7 @@ def test_overview_deep_research_priority_bridge_cards_surface_name_level_shortli
     assert "unlock dcf" in rendered
     assert "unlock peer relative" in rendered
     assert "next surface: data health" in rendered
+    assert cards[0]["command"] == "Not available"
     assert "current holding" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -1003,6 +1004,69 @@ def test_overview_deep_research_priority_bridge_cards_handle_missing_inputs_grac
 
     assert len(cards) == 1
     assert "no deep-research shortlist yet" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_deep_research_handoff_cards_stitch_name_command_and_tab():
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}, {"Ticker": "TSLA"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI Semiconductors",
+                "recommended_action": "Stage or add richer verified fundamentals to close the remaining DCF input gaps.",
+                "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+            }
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
+                "example_command": "python3 -m src.data_onboarding --write-templates",
+            }
+        ]
+    )
+    payload = {"recommended_next_commands": ["make onboarding", "make verify", "make dashboard"]}
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "fundamentals",
+                "ticker": "NVDA",
+                "title": "Stage fundamentals",
+                "reason": "Need more local inputs.",
+                "example_command": "make sec-stage-queue",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_handoff_cards(holdings, sec_queue, peer_queue, payload, queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 3
+    assert cards[0]["title"] == "NVDA"
+    assert "sec-stage-fundamentals --tickers nvda" in rendered
+    assert cards[2]["title"] == "Data Health"
+    assert "stock report beta" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_deep_research_handoff_cards_fall_back_to_safe_command():
+    cards = dashboard.overview_deep_research_handoff_cards(None, None, None, None, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 3
+    assert cards[0]["title"] == "No deep-research shortlist yet"
+    assert cards[1]["title"] == "make help"
+    assert cards[2]["title"] == "Data Health"
     assert "buy" not in rendered
     assert "sell" not in rendered
 

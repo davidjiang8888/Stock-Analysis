@@ -3184,6 +3184,7 @@ def overview_deep_research_priority_bridge_cards(
                     "priority": float(row.get("priority", 999)),
                     "next_surface": next_surface,
                     "recommended_action": compact_reason(row.get("recommended_action"), max_sentences=1, max_chars=140),
+                    "command": format_missing(row.get("example_command"), "Not available"),
                 }
             )
 
@@ -3221,11 +3222,67 @@ def overview_deep_research_priority_bridge_cards(
                     "holding" if row["is_holding"] else "theme",
                     row["theme"],
                 ],
+                "command": row["command"],
             }
         )
         if len(cards) >= limit:
             break
     return cards
+
+
+def overview_deep_research_handoff_cards(
+    holdings: pd.DataFrame | None,
+    sec_stage_queue: pd.DataFrame | None,
+    peer_mapping_queue: pd.DataFrame | None,
+    project_status_payload: dict[str, Any] | None,
+    action_queue: pd.DataFrame | None,
+) -> list[dict[str, object]]:
+    top_priority = overview_deep_research_priority_bridge_cards(
+        holdings,
+        sec_stage_queue,
+        peer_mapping_queue,
+        limit=1,
+    )[0]
+    fallback_command = overview_next_command_cards(project_status_payload, action_queue, limit=1)[0]
+    handoff_tabs = overview_handoff_cards()
+    next_tab = next((card for card in handoff_tabs if card.get("title") == "Data Health"), handoff_tabs[0])
+
+    ticker = format_missing(top_priority.get("kicker"), "Not available")
+    if ticker == "DEEP RESEARCH PRIORITIES":
+        ticker = format_missing(top_priority.get("title"), "Not available")
+    lane = format_missing(top_priority.get("title"), "Deep research")
+    command_text = format_missing(top_priority.get("command"), "")
+    if not command_text or command_text == "Not available":
+        command_text = format_missing(fallback_command.get("title"), "make onboarding")
+
+    return [
+        {
+            "kicker": "DEEP RESEARCH NAME",
+            "title": ticker,
+            "body": (
+                f"{ticker} is the clearest current name for {lane.lower()} based on the local SEC and peer queues."
+            ),
+            "badges": [str(item) for item in top_priority.get("badges", [])][:2] or ["research only"],
+        },
+        {
+            "kicker": "DEEP RESEARCH COMMAND",
+            "title": command_text,
+            "body": (
+                f"Run {command_text} next so the local queue step for {ticker} is explicit and reviewable before deeper interpretation."
+            ),
+            "badges": ["command", "read-only"],
+            "command": command_text,
+        },
+        {
+            "kicker": "DEEP RESEARCH TAB",
+            "title": str(next_tab.get("title", "Data Health")),
+            "body": (
+                f"Use {next_tab.get('title', 'Data Health')} to confirm the queue status for {ticker}, "
+                f"then return to Stock Report Beta once the local {lane.lower()} step is complete."
+            ),
+            "badges": [str(item) for item in next_tab.get("badges", [])][:2] or ["coverage", "read-only"],
+        },
+    ]
 
 
 def overview_ready_blocked_cards(
@@ -4498,6 +4555,16 @@ def render_overview(
             holdings,
             sec_stage_queue_frame,
             peer_mapping_queue_frame,
+        )
+    )
+    render_section_header("Deep Research Handoff", "For the top deep-research name, show the exact local command to run next and the best tab to use for queue confirmation.")
+    render_signal_cards(
+        overview_deep_research_handoff_cards(
+            holdings,
+            sec_stage_queue_frame,
+            peer_mapping_queue_frame,
+            project_status_payload,
+            action_queue_frame,
         )
     )
     render_section_header("Ready Now vs Blocked Now", "A short read on which names are already usable with today’s local coverage and which ones still need unlock work first.")
