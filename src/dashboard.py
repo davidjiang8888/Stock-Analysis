@@ -5254,16 +5254,15 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
             + "</div>",
             unsafe_allow_html=True,
         )
-        score_chart_frame = monthly_pick_score_chart_frame(ordered_picks)
-        if not score_chart_frame.empty:
-            render_chart_panel(
-                "Score context",
-                "This chart compares transparent local score components for the current candidate set. Missing components stay blank instead of being inferred.",
-                score_chart_frame,
-                chart_kind="bar",
-            )
-
-        with st.expander("Monthly candidates table", expanded=False):
+        with st.expander("Candidate scoring and table detail", expanded=False):
+            score_chart_frame = monthly_pick_score_chart_frame(ordered_picks)
+            if not score_chart_frame.empty:
+                render_chart_panel(
+                    "Score context",
+                    "This chart compares transparent local score components for the current candidate set. Missing components stay blank instead of being inferred.",
+                    score_chart_frame,
+                    chart_kind="bar",
+                )
             display_columns = [
                 column
                 for column in [
@@ -5301,25 +5300,23 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
             track_record_status_message(track_frame, equity_frame),
             "python3 -m src.track_record --monthly-picks",
         )
-    if track_frame is not None and not track_frame.empty:
-        st.dataframe(clean_display_frame(track_frame), width="stretch", hide_index=True)
-    else:
-        render_notice_card(
-            "Track-record table is not available yet",
-            "Run the track-record command after monthly picks exist. If local price history is short, the result will explain that instead of fabricating performance.",
-            "python3 -m src.track_record --monthly-picks",
-        )
-
-    render_section_header("Archive", "Prior local monthly pick lists and returns when calculable.")
-    if track_frame is not None and not track_frame.empty:
-        archive_columns = [column for column in ["Month", "Picks", "AveragePickReturn", "BenchmarkReturn", "ExcessReturn", "Notes"] if column in track_frame.columns]
-        st.dataframe(clean_display_frame(track_frame[archive_columns]), width="stretch", hide_index=True)
-    else:
-        render_notice_card(
-            "No monthly archive yet",
-            "The archive appears only after enough local monthly pick and price-history rows exist. Nothing is backfilled or invented.",
-            "python3 -m src.track_record --monthly-picks",
-        )
+    with st.expander("Track-record table and archive detail", expanded=False):
+        if track_frame is not None and not track_frame.empty:
+            st.dataframe(clean_display_frame(track_frame), width="stretch", hide_index=True)
+            render_section_header("Archive", "Prior local monthly pick lists and returns when calculable.")
+            archive_columns = [column for column in ["Month", "Picks", "AveragePickReturn", "BenchmarkReturn", "ExcessReturn", "Notes"] if column in track_frame.columns]
+            st.dataframe(clean_display_frame(track_frame[archive_columns]), width="stretch", hide_index=True)
+        else:
+            render_notice_card(
+                "Track-record table is not available yet",
+                "Run the track-record command after monthly picks exist. If local price history is short, the result will explain that instead of fabricating performance.",
+                "python3 -m src.track_record --monthly-picks",
+            )
+            render_notice_card(
+                "No monthly archive yet",
+                "The archive appears only after enough local monthly pick and price-history rows exist. Nothing is backfilled or invented.",
+                "python3 -m src.track_record --monthly-picks",
+            )
 
     with st.expander("Methodology", expanded=False):
         st.write("Monthly rankings use local screener outputs, local price history, optional local fundamentals, and transparent score components.")
@@ -5367,19 +5364,20 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
     if provider is not None and ticker:
         coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))
         peer_summary = provider.get_peer_summary(ticker)
-        render_context_note(
-            "Local coverage.",
-            "Dataset readiness for the selected ticker based on local CSV availability and schema validation.",
-        )
-        render_signal_cards(stock_report_local_context_cards(coverage, peer_summary))
-        st.dataframe(style_frame(clean_display_frame(ticker_coverage_display_frame(coverage))), width="stretch", hide_index=True)
-        with st.expander("Full local coverage details", expanded=False):
-            st.dataframe(clean_display_frame(coverage), width="stretch", hide_index=True)
-        readiness_cols = st.columns(4)
-        readiness_cols[0].metric("Peer Dataset", "Present" if peer_summary["peer_dataset_present"] else "Missing")
-        readiness_cols[1].metric("Peer Count", peer_summary["peer_count"])
-        readiness_cols[2].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
-        readiness_cols[3].metric("Peer Market Context", peer_summary["peer_market_context_available"])
+        with st.expander("Ticker coverage and peer context", expanded=False):
+            render_context_note(
+                "Local coverage.",
+                "Dataset readiness for the selected ticker based on local CSV availability and schema validation.",
+            )
+            render_signal_cards(stock_report_local_context_cards(coverage, peer_summary))
+            st.dataframe(style_frame(clean_display_frame(ticker_coverage_display_frame(coverage))), width="stretch", hide_index=True)
+            with st.expander("Full local coverage details", expanded=False):
+                st.dataframe(clean_display_frame(coverage), width="stretch", hide_index=True)
+            readiness_cols = st.columns(4)
+            readiness_cols[0].metric("Peer Dataset", "Present" if peer_summary["peer_dataset_present"] else "Missing")
+            readiness_cols[1].metric("Peer Count", peer_summary["peer_count"])
+            readiness_cols[2].metric("Peer Fundamentals", peer_summary["peer_fundamentals_available"])
+            readiness_cols[3].metric("Peer Market Context", peer_summary["peer_market_context_available"])
 
     if st.button("Generate Stock Report", key="stock-report-beta-button"):
         if not ticker:
