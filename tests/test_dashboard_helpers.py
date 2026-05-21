@@ -25,11 +25,22 @@ def test_dashboard_badges_use_high_contrast_html():
 def test_dashboard_card_helpers_render_modern_markup():
     metric = dashboard.metric_card_html("Universe", 12, "local tickers")
     action = dashboard.action_card_html("Price fallback", "Normalize downloaded CSVs", "make price-normalize", "warning")
+    notice = dashboard.notice_card_html("Missing output", "Run the pipeline to regenerate local CSV outputs.", "make pipeline")
 
     assert "metric-card" in metric
     assert "Universe" in metric
     assert "action-card warning" in action
     assert "make price-normalize" in action
+    assert "notice-card" in notice
+    assert "make pipeline" in notice
+
+
+def test_notice_card_escapes_content_and_uses_tones():
+    html = dashboard.notice_card_html("<Missing>", "Use <safe> local files.", "make pipeline", tone="warning")
+
+    assert "&lt;Missing&gt;" in html
+    assert "&lt;safe&gt;" in html
+    assert "notice-card warning" in html
 
 
 def test_state_styles_include_text_color_for_dark_mode():

@@ -497,6 +497,36 @@ def apply_dashboard_theme() -> None:
           font-size: 0.76rem;
           font-weight: 800;
         }
+        .notice-card {
+          margin: 0.75rem 0 1rem 0;
+          padding: 1rem 1.05rem;
+          border-radius: 18px;
+          border: 1px solid #bfdbfe;
+          border-left: 6px solid #2563eb;
+          background: linear-gradient(180deg, #eff6ff, #ffffff);
+          box-shadow: 0 10px 26px rgba(37, 99, 235, 0.08);
+        }
+        .notice-card.warning {
+          border-color: #fed7aa;
+          border-left-color: #d97706;
+          background: linear-gradient(180deg, #fff7ed, #ffffff);
+        }
+        .notice-card.success {
+          border-color: #bbf7d0;
+          border-left-color: #16a34a;
+          background: linear-gradient(180deg, #f0fdf4, #ffffff);
+        }
+        .notice-title {
+          color: #111827;
+          font-size: 0.98rem;
+          font-weight: 900;
+        }
+        .notice-body {
+          color: #475569;
+          margin-top: 0.32rem;
+          font-size: 0.9rem;
+          line-height: 1.45;
+        }
         .signal-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -747,6 +777,22 @@ def render_action_cards(cards: list[tuple[str, str, str, str]]) -> None:
         + "</div>",
         unsafe_allow_html=True,
     )
+
+
+def notice_card_html(title: str, body: str, command: str = "", tone: str = "info") -> str:
+    tone_class = "warning" if tone == "warning" else "success" if tone == "success" else ""
+    command_html = f"<div class='command-chip'>{html.escape(command)}</div>" if command else ""
+    return (
+        f"<div class='notice-card {tone_class}'>"
+        f"<div class='notice-title'>{html.escape(title)}</div>"
+        f"<div class='notice-body'>{html.escape(body)}</div>"
+        f"{command_html}"
+        "</div>"
+    )
+
+
+def render_notice_card(title: str, body: str, command: str = "", tone: str = "info") -> None:
+    st.markdown(notice_card_html(title, body, command, tone), unsafe_allow_html=True)
 
 
 def tiny_badge_html(label: str) -> str:
@@ -1647,9 +1693,18 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     )
 
     if picks_frame is None:
-        st.info(picks_message or "Run `python3 -m src.monthly_picks --generate --top-n 5` to create monthly research candidates.")
+        render_notice_card(
+            "Monthly picks are not generated yet",
+            picks_message or "Generate the local candidate list after refreshing pipeline outputs. This stays research-only and may return fewer than five names.",
+            "python3 -m src.monthly_picks --generate --top-n 5",
+        )
     elif picks_frame.empty:
-        st.info("Monthly picks output exists, but no candidates were generated from the current local outputs.")
+        render_notice_card(
+            "No monthly candidates passed the current filters",
+            "The output exists, but the conservative scoring rules did not find supported local candidates. Improve price/fundamental coverage before broadening interpretation.",
+            "make onboarding",
+            tone="warning",
+        )
     else:
         st.info(monthly_pick_availability_message(candidate_count, top_n))
         if candidate_count < top_n:
@@ -1712,18 +1767,30 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         chart_frame = equity_frame.set_index("Month")[["PicksEquity", "BenchmarkEquity"]]
         st.line_chart(chart_frame)
     else:
-        st.info(track_record_status_message(track_frame, equity_frame))
+        render_notice_card(
+            "Track record needs more local history",
+            track_record_status_message(track_frame, equity_frame),
+            "python3 -m src.track_record --monthly-picks",
+        )
     if track_frame is not None and not track_frame.empty:
         st.dataframe(clean_display_frame(track_frame), width="stretch", hide_index=True)
     else:
-        st.info("Run `python3 -m src.track_record --monthly-picks` to create the local track-record files.")
+        render_notice_card(
+            "Track-record table is not available yet",
+            "Run the track-record command after monthly picks exist. If local price history is short, the result will explain that instead of fabricating performance.",
+            "python3 -m src.track_record --monthly-picks",
+        )
 
     render_section_header("Archive", "Prior local monthly pick lists and returns when calculable.")
     if track_frame is not None and not track_frame.empty:
         archive_columns = [column for column in ["Month", "Picks", "AveragePickReturn", "BenchmarkReturn", "ExcessReturn", "Notes"] if column in track_frame.columns]
         st.dataframe(clean_display_frame(track_frame[archive_columns]), width="stretch", hide_index=True)
     else:
-        st.info("No local monthly archive is available yet.")
+        render_notice_card(
+            "No monthly archive yet",
+            "The archive appears only after enough local monthly pick and price-history rows exist. Nothing is backfilled or invented.",
+            "python3 -m src.track_record --monthly-picks",
+        )
 
     with st.expander("Methodology", expanded=False):
         st.write("Monthly rankings use local screener outputs, local price history, optional local fundamentals, and transparent score components.")
@@ -1736,10 +1803,14 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
     frame, message = output_frames[filename]
     render_section_header(title, OUTPUT_TAB_GUIDANCE.get(title, "Search, filter, and inspect the most important columns first."))
     if message and frame is None:
-        st.info(message)
+        render_notice_card(
+            f"{title} output is not available yet",
+            message,
+            "python3 -m src.report_generator",
+        )
         return
     if message and frame is not None:
-        st.info(message)
+        render_notice_card(f"{title} output note", message, "python3 -m src.report_generator")
     if frame is None:
         return
     render_signal_cards(output_tab_summary_cards(title, frame))
