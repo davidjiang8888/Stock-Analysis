@@ -3148,6 +3148,86 @@ def overview_deep_research_leverage_cards(
     return output_cards
 
 
+def overview_deep_research_priority_bridge_cards(
+    holdings: pd.DataFrame | None,
+    sec_stage_queue: pd.DataFrame | None,
+    peer_mapping_queue: pd.DataFrame | None,
+    limit: int = 3,
+) -> list[dict[str, object]]:
+    holding_tickers: set[str] = set()
+    if holdings is not None and not holdings.empty:
+        holdings_lookup = {str(column).strip().lower(): str(column) for column in holdings.columns}
+        ticker_col = holdings_lookup.get("ticker")
+        if ticker_col:
+            holding_tickers = set(holdings[ticker_col].dropna().astype(str).str.upper().str.strip())
+
+    priority_rows: list[dict[str, object]] = []
+
+    def _collect_rows(frame: pd.DataFrame | None, lane: str, next_surface: str) -> None:
+        if frame is None or frame.empty or "ticker" not in frame.columns:
+            return
+        rows = frame.copy()
+        rows["ticker"] = rows["ticker"].astype(str).str.upper().str.strip()
+        rows["priority"] = pd.to_numeric(rows.get("priority"), errors="coerce").fillna(999)
+        rows["theme"] = rows.get("theme", pd.Series(dtype=object)).astype(str).str.strip()
+        rows["is_holding"] = rows["ticker"].isin(holding_tickers)
+        rows = rows.loc[rows["ticker"].ne("")].copy()
+        if rows.empty:
+            return
+        for _, row in rows.sort_values(["priority", "is_holding", "ticker"], ascending=[True, False, True]).iterrows():
+            priority_rows.append(
+                {
+                    "ticker": format_missing(row.get("ticker"), "Ticker"),
+                    "lane": lane,
+                    "theme": format_missing(row.get("theme"), "Unclassified"),
+                    "is_holding": bool(row.get("is_holding")),
+                    "priority": float(row.get("priority", 999)),
+                    "next_surface": next_surface,
+                    "recommended_action": compact_reason(row.get("recommended_action"), max_sentences=1, max_chars=140),
+                }
+            )
+
+    _collect_rows(sec_stage_queue, "Unlock DCF", "Data Health")
+    _collect_rows(peer_mapping_queue, "Unlock Peer Relative", "Data Health")
+
+    if not priority_rows:
+        return [
+            {
+                "kicker": "DEEP RESEARCH PRIORITIES",
+                "title": "No deep-research shortlist yet",
+                "body": "Generate the SEC stage queue and peer mapping queue to surface the next names for deeper fundamentals or peer work.",
+                "badges": ["read-only"],
+            }
+        ]
+
+    priority_rows.sort(key=lambda item: (item["priority"], not item["is_holding"], item["ticker"]))
+    cards: list[dict[str, object]] = []
+    seen: set[str] = set()
+    for row in priority_rows:
+        key = row["ticker"]
+        if key in seen:
+            continue
+        seen.add(key)
+        cards.append(
+            {
+                "kicker": row["ticker"],
+                "title": row["lane"],
+                "body": (
+                    f"{'Current holding' if row['is_holding'] else 'Universe name'} in {row['theme']}. "
+                    f"Next surface: {row['next_surface']}. "
+                    f"{row['recommended_action']}"
+                ),
+                "badges": [
+                    "holding" if row["is_holding"] else "theme",
+                    row["theme"],
+                ],
+            }
+        )
+        if len(cards) >= limit:
+            break
+    return cards
+
+
 def overview_ready_blocked_cards(
     coverage: pd.DataFrame | None,
     ticker_unlock_ladder: pd.DataFrame | None,
@@ -4407,6 +4487,14 @@ def render_overview(
     render_section_header("Deep Research Leverage", "Which deeper research lane currently unlocks the most value next when you weigh holdings impact, theme breadth, and queued ticker count.")
     render_signal_cards(
         overview_deep_research_leverage_cards(
+            holdings,
+            sec_stage_queue_frame,
+            peer_mapping_queue_frame,
+        )
+    )
+    render_section_header("Deep Research Priorities", "The specific holdings or universe names that best match the current deep-research lane before you drop into the fuller queue tables.")
+    render_signal_cards(
+        overview_deep_research_priority_bridge_cards(
             holdings,
             sec_stage_queue_frame,
             peer_mapping_queue_frame,

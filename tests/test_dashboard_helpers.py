@@ -955,6 +955,58 @@ def test_overview_deep_research_leverage_cards_handle_missing_inputs_gracefully(
     assert "sell" not in rendered
 
 
+def test_overview_deep_research_priority_bridge_cards_surface_name_level_shortlist():
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}, {"Ticker": "TSLA"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI Semiconductors",
+                "recommended_action": "Stage or add richer verified fundamentals to close the remaining DCF input gaps.",
+            },
+            {
+                "priority": 2,
+                "ticker": "AMD",
+                "theme": "AI Semiconductors",
+                "recommended_action": "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs.",
+            },
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_priority_bridge_cards(holdings, sec_queue, peer_queue, limit=3)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 3
+    assert cards[0]["kicker"] == "NVDA"
+    assert "unlock dcf" in rendered
+    assert "unlock peer relative" in rendered
+    assert "next surface: data health" in rendered
+    assert "current holding" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_deep_research_priority_bridge_cards_handle_missing_inputs_gracefully():
+    cards = dashboard.overview_deep_research_priority_bridge_cards(None, None, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 1
+    assert "no deep-research shortlist yet" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_ready_blocked_cards_surface_usable_and_blocked_names():
     coverage = pd.DataFrame(
         [
