@@ -81,6 +81,7 @@ Common commands:
 ```bash
 make help
 make test
+make verify
 make pipeline
 make monthly
 make track-record
@@ -112,7 +113,7 @@ make universe-preview
 make universe-apply
 ```
 
-If you are unsure what to run next, start with `make help`; it prints the core workflow, onboarding, price fallback, SEC staging, and universe commands.
+If you are unsure what to run next, start with `make help`; it prints the core workflow, onboarding, price fallback, SEC staging, and universe commands. Use `make verify` for deterministic local verification that avoids remote price refresh.
 
 Path-proof shell launchers:
 

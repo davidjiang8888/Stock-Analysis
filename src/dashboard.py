@@ -1259,6 +1259,7 @@ def missing_data_guide_rows() -> list[dict[str, str]]:
 def workflow_command_rows() -> list[dict[str, str]]:
     return [
         {"Step": "Command menu", "Command": "make help"},
+        {"Step": "Deterministic verification", "Command": "make verify"},
         {"Step": "Daily refresh", "Command": "make daily"},
         {"Step": "Data coverage", "Command": "make onboarding"},
         {"Step": "Manual price normalization", "Command": "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"},
@@ -2527,7 +2528,7 @@ with st.sidebar:
     show_raw_json = st.checkbox("Show raw report JSON expanders", value=False)
     st.divider()
     st.caption("Safe local commands")
-    st.code("make help\nmake onboarding\nmake daily\nmake dashboard", language="bash")
+    st.code("make help\nmake verify\nmake onboarding\nmake daily\nmake dashboard", language="bash")
     st.caption("CLI-only applies remain the safest path for staged imports and universe changes.")
     with st.expander("How to read this dashboard", expanded=False):
         st.dataframe(pd.DataFrame(status_legend_rows()), width="stretch", hide_index=True)

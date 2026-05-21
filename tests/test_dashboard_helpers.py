@@ -442,6 +442,7 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert any(row["Label"] == "Research Ready" for row in status_rows)
     assert any("price history" in row["Dashboard Label"].lower() for row in missing_rows)
     assert any(row["Command"] == "make help" for row in workflow_rows)
+    assert any(row["Command"] == "make verify" for row in workflow_rows)
     assert any(row["Command"] == "make daily" for row in workflow_rows)
     assert "place_order" not in rendered
     assert "submit_order" not in rendered

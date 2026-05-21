@@ -13,6 +13,7 @@ def test_makefile_contains_convenience_targets():
         "validate-data",
         "research-health",
         "action-queue",
+        "verify",
         "daily",
         "dashboard",
         "sec-stage",
@@ -39,6 +40,7 @@ def test_makefile_help_documents_key_workflows():
 
     for phrase in (
         "Stock Research Screener convenience commands",
+        "make verify",
         "make daily",
         "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual",
         "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=NVDA,MSFT",
