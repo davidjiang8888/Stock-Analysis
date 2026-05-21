@@ -53,6 +53,13 @@ TAB_TO_FILE = {
     "Value / Re-rating": "undervalued_candidates.csv",
     "Final Watchlist": "final_watchlist.csv",
 }
+OUTPUT_TAB_GUIDANCE = {
+    "Market Direction": "Theme and ETF rotation context from available local price data.",
+    "Momentum Leaders": "Setup quality and leadership context, with missing price history called out explicitly.",
+    "Portfolio Review": "Holding-level thesis review and concentration/risk context.",
+    "Value / Re-rating": "Local quality and valuation context where fundamentals exist.",
+    "Final Watchlist": "Combined research-state view assembled from transparent pipeline outputs.",
+}
 STATE_COLORS = {
     "Buyable Area": ("#dcfce7", "#14532d"),
     "Watch": ("#dbeafe", "#1e3a8a"),
@@ -1031,6 +1038,68 @@ def data_health_overview_cards(
     ]
 
 
+def non_empty_count(frame: pd.DataFrame, columns: list[str]) -> int:
+    if frame.empty:
+        return 0
+    mask = pd.Series(False, index=frame.index)
+    for column in columns:
+        if column not in frame.columns:
+            continue
+        values = frame[column].fillna("").astype(str).str.strip().str.lower()
+        mask = mask | (~values.isin({"", "nan", "none", "null", "not available"}))
+    return int(mask.sum())
+
+
+def dominant_value(frame: pd.DataFrame, columns: list[str], fallback: str = "Not available") -> tuple[str, int]:
+    for column in columns:
+        if column not in frame.columns:
+            continue
+        values = frame[column].dropna().astype(str).str.strip()
+        values = values.loc[~values.str.lower().isin({"", "nan", "none", "null", "not available"})]
+        if values.empty:
+            continue
+        counts = values.value_counts()
+        return str(counts.index[0]), int(counts.iloc[0])
+    return fallback, 0
+
+
+def output_tab_summary_cards(title: str, frame: pd.DataFrame) -> list[dict[str, object]]:
+    status, status_count = dominant_value(
+        frame,
+        ["FinalState", "SetupStatus", "ReviewState", "ThemeStatus", "FinalValueCategory", "Classification"],
+    )
+    theme, theme_count = dominant_value(frame, ["Theme", "Sector", "SectorETF"])
+    missing_count = non_empty_count(frame, [column for column in frame.columns if "missing" in column.lower()])
+    reason_count = non_empty_count(frame, [column for column in frame.columns if "reason" in column.lower()])
+    row_count = len(frame)
+    return [
+        {
+            "kicker": title.upper(),
+            "title": f"{row_count} row{'s' if row_count != 1 else ''}",
+            "body": OUTPUT_TAB_GUIDANCE.get(title, "Local CSV output with transparent reasons and visible gaps."),
+            "badges": ["CSV output"],
+        },
+        {
+            "kicker": "STATE",
+            "title": status,
+            "body": f"Most common visible state across {status_count} row{'s' if status_count != 1 else ''}.",
+            "badges": ["status context"],
+        },
+        {
+            "kicker": "DATA GAPS",
+            "title": f"{missing_count} row{'s' if missing_count != 1 else ''}",
+            "body": "Rows with explicit missing-data fields stay visible instead of being silently scored.",
+            "badges": ["missing data"],
+        },
+        {
+            "kicker": "THEME",
+            "title": theme,
+            "body": f"Most common theme/sector context across {theme_count} row{'s' if theme_count != 1 else ''}. {reason_count} rows include reason text.",
+            "badges": ["explainable"],
+        },
+    ]
+
+
 def universe_preset_cards() -> list[dict[str, object]]:
     preset_descriptions = {
         "core": "Current local universe plus holdings. Safest and quickest workflow.",
@@ -1572,7 +1641,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
 def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]], show_reason_details: bool) -> None:
     filename = TAB_TO_FILE[title]
     frame, message = output_frames[filename]
-    render_section_header(title, "Search, filter, and inspect the most important columns first.")
+    render_section_header(title, OUTPUT_TAB_GUIDANCE.get(title, "Search, filter, and inspect the most important columns first."))
     if message and frame is None:
         st.info(message)
         return
@@ -1580,6 +1649,7 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
         st.info(message)
     if frame is None:
         return
+    render_signal_cards(output_tab_summary_cards(title, frame))
     render_table(frame, title.lower().replace(" ", "-"), show_reason_details)
 
 

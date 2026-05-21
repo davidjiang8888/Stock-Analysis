@@ -359,3 +359,39 @@ def test_universe_preset_cards_include_preview_commands():
     assert cards
     assert "preview --preset" in rendered
     assert "apply-import" not in rendered
+
+
+def test_output_tab_summary_cards_explain_rows_status_and_gaps():
+    frame = pd.DataFrame(
+        {
+            "Ticker": ["NVDA", "AMD", "MSFT"],
+            "Theme": ["AI", "AI", "Cloud"],
+            "FinalState": ["Watch", "Watch", "Review Thesis"],
+            "MissingDataFields": ["", "Return1M", None],
+            "Reason": ["Clear setup context.", "Needs price history.", "Review valuation context."],
+        }
+    )
+
+    cards = dashboard.output_tab_summary_cards("Final Watchlist", frame)
+    rendered = " ".join(str(value) for card in cards for value in card.values())
+
+    assert len(cards) == 4
+    assert "3 rows" in rendered
+    assert "Watch" in rendered
+    assert "1 row" in rendered
+    assert "AI" in rendered
+
+
+def test_dominant_value_and_non_empty_count_handle_empty_fields():
+    frame = pd.DataFrame(
+        {
+            "Status": ["", None, "Partial", "Partial"],
+            "Missing": ["nan", "Return1M", "", "Not available"],
+        }
+    )
+
+    value, count = dashboard.dominant_value(frame, ["Status"])
+
+    assert value == "Partial"
+    assert count == 2
+    assert dashboard.non_empty_count(frame, ["Missing"]) == 1
