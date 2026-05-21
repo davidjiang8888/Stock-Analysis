@@ -10,6 +10,9 @@ def test_dashboard_format_helpers_hide_raw_missing_values():
     assert dashboard.format_percent(None) == "Not enough history"
     assert dashboard.format_date_short("2026-03-14T00:00:00") == "2026-03-14"
     assert "nan" not in dashboard.score_badge(None).lower()
+    cleaned = dashboard.clean_display_frame(pd.DataFrame({"Ready": [True, False]}))
+    assert cleaned.iloc[0]["Ready"] == "Yes"
+    assert cleaned.iloc[1]["Ready"] == "No"
 
 
 def test_dashboard_badges_use_high_contrast_html():
@@ -180,6 +183,21 @@ def test_action_queue_loader_and_summary_handle_missing_outputs(tmp_path):
     assert summary["critical"] == 2
     assert summary["high"] == 1
     assert summary["medium"] == 1
+
+
+def test_top_priority_signals_are_compact_and_sorted():
+    queue = pd.DataFrame(
+        [
+            {"priority": 2, "urgency": "high", "action_type": "fundamentals", "ticker": "NVDA", "title": "Improve fundamentals", "reason": "Need SEC staging.", "example_command": "make sec-stage"},
+            {"priority": 1, "urgency": "critical", "action_type": "prices", "ticker": "AMD", "title": "Repair prices", "reason": "No local prices.", "example_command": "make price-refresh"},
+        ]
+    )
+
+    signals = dashboard.top_priority_signals(queue, limit=2)
+
+    assert signals[0]["title"] == "Repair prices"
+    assert "P1" in signals[0]["badges"]
+    assert signals[1]["title"] == "Improve fundamentals"
 
 
 def test_onboarding_summary_counts_core_and_optional_gaps():

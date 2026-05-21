@@ -450,6 +450,65 @@ def apply_dashboard_theme() -> None:
           font-size: 0.76rem;
           font-weight: 800;
         }
+        .signal-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: 0.85rem;
+          margin: 0.8rem 0 1rem 0;
+        }
+        .signal-card {
+          background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,246,0.96));
+          border: 1px solid var(--research-border);
+          border-radius: 20px;
+          padding: 1rem 1.05rem;
+          box-shadow: 0 14px 34px rgba(17, 24, 39, 0.07);
+        }
+        .signal-kicker {
+          color: #0f766e;
+          font-size: 0.71rem;
+          letter-spacing: 0.11em;
+          text-transform: uppercase;
+          font-weight: 900;
+        }
+        .signal-title {
+          color: #111827;
+          font-size: 1rem;
+          font-weight: 900;
+          margin-top: 0.32rem;
+        }
+        .signal-body {
+          color: #475467;
+          font-size: 0.89rem;
+          line-height: 1.45;
+          margin-top: 0.45rem;
+        }
+        .signal-footer {
+          margin-top: 0.7rem;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.45rem;
+          align-items: center;
+        }
+        .tiny-badge {
+          display: inline-block;
+          padding: 0.18rem 0.48rem;
+          border-radius: 999px;
+          font-size: 0.73rem;
+          font-weight: 850;
+          border: 1px solid rgba(15, 59, 54, 0.16);
+          background: #f1f5f9;
+          color: #334155;
+        }
+        .subtle-panel {
+          border: 1px solid var(--research-border);
+          background: rgba(255, 254, 250, 0.78);
+          border-radius: 18px;
+          padding: 0.95rem 1rem;
+          margin: 0.85rem 0 1rem 0;
+        }
+        .subtle-panel strong {
+          color: #111827;
+        }
         [data-testid="stMetric"] {
           background: rgba(255, 253, 248, 0.86);
           border: 1px solid var(--research-border);
@@ -643,6 +702,42 @@ def render_action_cards(cards: list[tuple[str, str, str, str]]) -> None:
     )
 
 
+def tiny_badge_html(label: str) -> str:
+    return f"<span class='tiny-badge'>{html.escape(label)}</span>"
+
+
+def signal_card_html(kicker: str, title: str, body: str, badges: list[str] | None = None, command: str = "") -> str:
+    footer_parts = "".join(tiny_badge_html(badge) for badge in (badges or []))
+    if command:
+        footer_parts += f"<span class='command-chip'>{html.escape(command)}</span>"
+    return (
+        "<div class='signal-card'>"
+        f"<div class='signal-kicker'>{html.escape(kicker)}</div>"
+        f"<div class='signal-title'>{html.escape(title)}</div>"
+        f"<div class='signal-body'>{html.escape(body)}</div>"
+        f"<div class='signal-footer'>{footer_parts}</div>"
+        "</div>"
+    )
+
+
+def render_signal_cards(cards: list[dict[str, object]]) -> None:
+    st.markdown(
+        "<div class='signal-grid'>"
+        + "".join(
+            signal_card_html(
+                str(card.get("kicker", "")),
+                str(card.get("title", "")),
+                str(card.get("body", "")),
+                [str(item) for item in card.get("badges", [])],
+                str(card.get("command", "")),
+            )
+            for card in cards
+        )
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def render_app_header(catalog: LocalDataCatalog, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]]) -> None:
     universe = catalog.load_dataframe("universe")
     tickers = 0 if universe is None or universe.empty else len(universe)
@@ -794,8 +889,32 @@ def action_queue_summary(queue: pd.DataFrame | None) -> dict[str, int]:
     }
 
 
+def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
+    if action_queue is None or action_queue.empty:
+        return []
+    rows = []
+    ordered = action_queue.sort_values(["priority", "ticker", "action_type"], na_position="last").head(limit)
+    for _, row in ordered.iterrows():
+        rows.append(
+            {
+                "kicker": str(row.get("urgency", "Action")).upper(),
+                "title": format_missing(row.get("title"), "Research action"),
+                "body": compact_reason(row.get("reason"), max_sentences=1, max_chars=180),
+                "badges": [
+                    f"P{format_missing(row.get('priority'), '-')}",
+                    format_missing(row.get("action_type"), "action"),
+                    format_missing(row.get("ticker"), "portfolio-wide"),
+                ],
+                "command": format_missing(row.get("example_command"), ""),
+            }
+        )
+    return rows
+
+
 def clean_display_frame(frame: pd.DataFrame) -> pd.DataFrame:
     def clean_cell(value: object) -> str:
+        if isinstance(value, bool):
+            return "Yes" if value else "No"
         if isinstance(value, list):
             return ", ".join(str(item) for item in value if str(item).strip()) or "Not available"
         if isinstance(value, dict):
@@ -1038,19 +1157,31 @@ def render_overview(output_frames: dict[str, tuple[pd.DataFrame | None, str | No
         [
             ("Universe", current_universe["row_count"], "Tickers in data/universe.csv"),
             ("Holdings", 0 if holdings is None or holdings.empty else len(holdings), "Rows in holdings.csv"),
-            ("Outputs", output_file_count, "Generated research files present"),
             ("Final Watchlist", 0 if final_watchlist_frame is None else len(final_watchlist_frame), "Current state-machine rows"),
-            ("Missing Data", missing_warning_count, "Names with explicit warnings"),
             ("Latest Price", _latest_local_price_date(catalog), "From local prices.csv"),
-            ("Fundamentals", _fundamentals_coverage_count(catalog), "Tickers with local fundamentals"),
             ("DCF Ready", _dcf_ready_count(catalog), "Enough local fields for DCF path"),
             ("Peer Ready", _peer_ready_count(catalog), "Local peer mapping + peer context"),
             ("Research Ready", health_summary["research_ready"], "Data Quality Wizard rows"),
-            ("Thin Liquidity", health_summary["thin_liquidity"], "Local liquidity context rows"),
-            ("High Correlation", health_summary["high_correlation"], "Local co-movement context rows"),
             ("Critical Actions", queue_summary["critical"], "Highest-priority remediation items"),
         ]
     )
+
+    st.markdown(
+        (
+            "<div class='subtle-panel'>"
+            f"<strong>Coverage snapshot.</strong> {output_file_count} generated outputs are present. "
+            f"{missing_warning_count} names still carry explicit missing-data warnings, "
+            f"{health_summary['thin_liquidity']} tickers look thin on local liquidity context, and "
+            f"{health_summary['high_correlation']} tickers show high local co-movement."
+            "</div>"
+        ),
+        unsafe_allow_html=True,
+    )
+
+    priority_signals = top_priority_signals(action_queue_frame, limit=3)
+    if priority_signals:
+        render_section_header("Priority Now", "The fastest way to improve the local research workflow today.")
+        render_signal_cards(priority_signals)
 
     actions: list[tuple[str, str, str, str]] = []
     if action_queue_frame is not None and not action_queue_frame.empty:
@@ -1158,6 +1289,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     latest_price = _latest_local_price_date(catalog)
     universe = catalog.load_dataframe("universe")
     candidate_count = 0 if picks_frame is None else len(picks_frame)
+    action_queue_frame, _ = load_action_queue()
 
     render_metric_cards(
         [
@@ -1175,6 +1307,14 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         st.info("Monthly picks output exists, but no candidates were generated from the current local outputs.")
     else:
         st.info(monthly_pick_availability_message(candidate_count, top_n))
+        if candidate_count < top_n:
+            st.warning(
+                "The candidate list is intentionally shorter than the configured top count because the current local data "
+                "or conservative filters did not support filling the remaining slots."
+            )
+        priority_signals = top_priority_signals(action_queue_frame, limit=2)
+        if priority_signals:
+            render_signal_cards(priority_signals)
         render_section_header("Research Candidates", "Ranked research candidates, not buy/sell instructions.")
         for _, row in picks_frame.sort_values(["Rank", "CompositeScore"], ascending=[True, False]).iterrows():
             ticker = html.escape(format_missing(row.get("Ticker")))
@@ -1510,273 +1650,252 @@ def render_data_health(provider) -> None:
     else:
         st.info("No local data validation rows are available.")
 
-    st.markdown("### Action Queue")
     action_queue_frame, action_queue_message = load_action_queue()
-    if action_queue_frame is None:
-        st.info(action_queue_message or "No action queue is available yet.")
-    else:
-        queue_summary = action_queue_summary(action_queue_frame)
-        metric_cols = st.columns(3)
-        metric_cols[0].metric("Critical", queue_summary["critical"])
-        metric_cols[1].metric("High", queue_summary["high"])
-        metric_cols[2].metric("Medium", queue_summary["medium"])
-        queue_columns = [
-            column
-            for column in [
-                "priority",
-                "urgency",
-                "action_type",
-                "ticker",
-                "title",
-                "recommended_action",
-                "example_command",
-                "reason",
-            ]
-            if column in action_queue_frame.columns
-        ]
-        st.dataframe(clean_display_frame(action_queue_frame[queue_columns].head(15)), width="stretch", hide_index=True)
-
-    st.markdown("### Research Health")
     health_tables = load_research_health_tables()
     data_quality_frame, data_quality_message = health_tables["data_quality_wizard.csv"]
     liquidity_frame, liquidity_message = health_tables["liquidity_risk.csv"]
     correlation_frame, correlation_message = health_tables["correlation_risk.csv"]
-    if data_quality_frame is None and liquidity_frame is None and correlation_frame is None:
-        st.info(
-            "Research health outputs have not been generated yet. Run "
-            "`python3 -m src.research_health --write-output` or `python3 -m src.report_generator`."
-        )
-    else:
-        health_summary = summarize_research_health_tables(data_quality_frame, liquidity_frame, correlation_frame)
-        metric_cols = st.columns(4)
-        metric_cols[0].metric("Research Ready", health_summary["research_ready"])
-        metric_cols[1].metric("Partial Coverage", health_summary["partial_coverage"])
-        metric_cols[2].metric("Needs Price Data", health_summary["needs_price_data"])
-        metric_cols[3].metric("High Co-movement", health_summary["high_correlation"])
-
-        if data_quality_frame is not None and not data_quality_frame.empty:
-            data_quality_columns = [
-                column
-                for column in [
-                    "Ticker",
-                    "ReadinessStatus",
-                    "DataQualityScore",
-                    "MomentumReady",
-                    "DCFReady",
-                    "PeerReady",
-                    "PriceHistoryDays",
-                    "MissingDataFields",
-                    "NextBestAction",
-                    "Reason",
-                ]
-                if column in data_quality_frame.columns
-            ]
-            st.dataframe(style_frame(clean_display_frame(data_quality_frame[data_quality_columns])), width="stretch", hide_index=True)
-        else:
-            st.info(data_quality_message or "No data-quality rows are available.")
-
-        with st.expander("Liquidity Context", expanded=False):
-            if liquidity_frame is not None and not liquidity_frame.empty:
-                liquidity_columns = [
-                    column
-                    for column in [
-                        "Ticker",
-                        "LiquidityStatus",
-                        "AvgDollarVolume20D",
-                        "AvgVolume20D",
-                        "VolumeTrend5DVs20D",
-                        "VolatilityProxy20D",
-                        "MissingDataFields",
-                        "Reason",
-                    ]
-                    if column in liquidity_frame.columns
-                ]
-                st.dataframe(style_frame(clean_display_frame(liquidity_frame[liquidity_columns])), width="stretch", hide_index=True)
-            else:
-                st.info(liquidity_message or "No liquidity rows are available.")
-
-        with st.expander("Correlation Concentration Context", expanded=False):
-            if correlation_frame is not None and not correlation_frame.empty:
-                correlation_columns = [
-                    column
-                    for column in [
-                        "Ticker",
-                        "CorrelationStatus",
-                        "MostCorrelatedTicker",
-                        "Correlation",
-                        "OverlapDays",
-                        "MissingDataFields",
-                        "Reason",
-                    ]
-                    if column in correlation_frame.columns
-                ]
-                st.dataframe(style_frame(clean_display_frame(correlation_frame[correlation_columns])), width="stretch", hide_index=True)
-            else:
-                st.info(correlation_message or "No correlation rows are available.")
-
-    st.markdown("### Data Source Availability")
     source_tables = load_data_source_status_tables()
     status_frame, status_message = source_tables["data_source_status.csv"]
     gap_frame, gap_message = source_tables["data_gap_report.csv"]
-    if status_frame is None and gap_frame is None:
-        st.info(
-            "Data source status outputs have not been generated yet. Run "
-            "`python3 -m src.data_sources --write-output`."
-        )
-    else:
-        if status_frame is not None and not status_frame.empty:
-            display_status = status_frame.copy()
-            if "availability_status" in display_status.columns:
-                display_status["availability_status"] = display_status["availability_status"].map(friendly_data_source_status)
-            columns = [
-                column
-                for column in [
-                    "dataset",
-                    "availability_status",
-                    "row_count",
-                    "source_name",
-                    "required_for",
-                    "fallback_action",
-                    "notes",
-                ]
-                if column in display_status.columns
-            ]
-            st.dataframe(clean_display_frame(display_status[columns]), width="stretch", hide_index=True)
-        else:
-            st.info(status_message or "No data source status rows are available.")
-        if gap_frame is not None and not gap_frame.empty:
-            with st.expander("Data Gap Report", expanded=False):
-                display_gaps = gap_frame.copy()
-                if "status" in display_gaps.columns:
-                    display_gaps["status"] = display_gaps["status"].map(friendly_data_source_status)
-                st.dataframe(clean_display_frame(display_gaps), width="stretch", hide_index=True)
-        else:
-            st.info(gap_message or "No data gaps were reported.")
-
-    st.markdown("### Price Update Status")
     price_status_frame, price_status_message = load_price_update_status()
-    if price_status_frame is None:
-        st.info(
-            (price_status_message or "Price update status is unavailable.")
-            + " If the remote source fails, add verified rows to `data/imports/prices.csv`, then run "
-            "`make price-validate`, `make price-preview`, and `make price-apply`."
-        )
-    else:
-        status_counts = summarize_price_update_status(price_status_frame)
-        if status_counts:
-            statuses = ["fetched", "skipped_fresh", "parse_error", "source_unavailable", "network_error", "no_rows", "failed"]
-            metric_cols = st.columns(4)
-            metric_cols[0].metric("Fetched", status_counts.get("fetched", 0))
-            metric_cols[1].metric("Skipped Fresh", status_counts.get("skipped_fresh", 0))
-            metric_cols[2].metric("Parse / Source Errors", sum(status_counts.get(status, 0) for status in statuses[2:]))
-            metric_cols[3].metric("Fallback Used", int(price_status_frame.get("fallback_used", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"}).sum()))
-        display_columns = [
-            column
-            for column in [
-                "ticker",
-                "status",
-                "rows_fetched",
-                "rows_merged",
-                "error_category",
-                "error_message",
-                "fallback_used",
-                "recommended_action",
-            ]
-            if column in price_status_frame.columns
-        ]
-        st.dataframe(clean_display_frame(price_status_frame[display_columns]), width="stretch", hide_index=True)
-        problematic_statuses = {"parse_error", "source_unavailable", "network_error", "failed"}
-        if "status" in price_status_frame.columns and price_status_frame["status"].astype(str).str.lower().isin(problematic_statuses).any():
-            st.warning(
-                "Remote price refresh had source issues. Use `data/raw/prices/` for downloaded CSVs, then run "
-                "`make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual`, "
-                "`make price-validate`, `make price-preview`, and `make price-apply`."
-            )
-        st.caption(
-            "Manual fallback is CLI-only: fill `data/imports/prices.csv` with verified OHLCV rows, then run "
-            "`make price-validate`, `make price-preview`, and `make price-apply`."
-        )
-
-    st.markdown("### Ticker Coverage / Onboarding")
     onboarding_tables = load_data_onboarding_tables()
     coverage_frame, coverage_message = onboarding_tables["ticker_data_coverage.csv"]
     actions_frame, actions_message = onboarding_tables["data_onboarding_actions.csv"]
-    if coverage_frame is None and actions_frame is None:
-        st.info(
-            "Ticker coverage outputs have not been generated yet. Run "
-            "`python3 -m src.data_onboarding --write-output`."
-        )
-    else:
-        summary = summarize_ticker_coverage(coverage_frame)
-        metric_cols = st.columns(4)
-        metric_cols[0].metric("Usable Price Data", summary["usable_price_tickers"])
-        metric_cols[1].metric("DCF Ready", summary["dcf_ready_tickers"])
-        metric_cols[2].metric("Peer Ready", summary["peer_ready_tickers"])
-        metric_cols[3].metric("Only Optional Gaps", summary["optional_only_missing_tickers"])
+    staged_imports = validate_imports(base_dir=BASE_DIR)
+    universe_summary = summarize_universe_manager(BASE_DIR)
+    staged_universe = universe_summary["staged_universe"]
 
-        if coverage_frame is not None and not coverage_frame.empty:
-            coverage_columns = [
+    health_tabs = st.tabs(["Actions", "Coverage", "Sources", "Price Refresh", "Staged Imports"])
+
+    with health_tabs[0]:
+        if action_queue_frame is None:
+            st.info(action_queue_message or "No action queue is available yet.")
+        else:
+            queue_summary = action_queue_summary(action_queue_frame)
+            metric_cols = st.columns(3)
+            metric_cols[0].metric("Critical", queue_summary["critical"])
+            metric_cols[1].metric("High", queue_summary["high"])
+            metric_cols[2].metric("Medium", queue_summary["medium"])
+            render_signal_cards(top_priority_signals(action_queue_frame, limit=3))
+            queue_columns = [
+                column
+                for column in [
+                    "priority",
+                    "urgency",
+                    "action_type",
+                    "ticker",
+                    "title",
+                    "recommended_action",
+                    "example_command",
+                    "reason",
+                ]
+                if column in action_queue_frame.columns
+            ]
+            st.dataframe(clean_display_frame(action_queue_frame[queue_columns].head(15)), width="stretch", hide_index=True)
+
+    with health_tabs[1]:
+        if data_quality_frame is None and liquidity_frame is None and correlation_frame is None:
+            st.info(
+                "Research health outputs have not been generated yet. Run "
+                "`python3 -m src.research_health --write-output` or `python3 -m src.report_generator`."
+            )
+        else:
+            health_summary = summarize_research_health_tables(data_quality_frame, liquidity_frame, correlation_frame)
+            metric_cols = st.columns(4)
+            metric_cols[0].metric("Research Ready", health_summary["research_ready"])
+            metric_cols[1].metric("Partial Coverage", health_summary["partial_coverage"])
+            metric_cols[2].metric("Needs Price Data", health_summary["needs_price_data"])
+            metric_cols[3].metric("High Co-movement", health_summary["high_correlation"])
+
+            if coverage_frame is not None and not coverage_frame.empty:
+                summary = summarize_ticker_coverage(coverage_frame)
+                metric_cols = st.columns(4)
+                metric_cols[0].metric("Usable Price Data", summary["usable_price_tickers"])
+                metric_cols[1].metric("DCF Ready", summary["dcf_ready_tickers"])
+                metric_cols[2].metric("Peer Ready", summary["peer_ready_tickers"])
+                metric_cols[3].metric("Only Optional Gaps", summary["optional_only_missing_tickers"])
+
+            if data_quality_frame is not None and not data_quality_frame.empty:
+                data_quality_columns = [
+                    column
+                    for column in [
+                        "Ticker",
+                        "ReadinessStatus",
+                        "DataQualityScore",
+                        "MomentumReady",
+                        "DCFReady",
+                        "PeerReady",
+                        "PriceHistoryDays",
+                        "MissingDataFields",
+                        "NextBestAction",
+                        "Reason",
+                    ]
+                    if column in data_quality_frame.columns
+                ]
+                st.dataframe(style_frame(clean_display_frame(data_quality_frame[data_quality_columns])), width="stretch", hide_index=True)
+            else:
+                st.info(data_quality_message or "No data-quality rows are available.")
+
+            with st.expander("Liquidity Context", expanded=False):
+                if liquidity_frame is not None and not liquidity_frame.empty:
+                    liquidity_columns = [
+                        column
+                        for column in [
+                            "Ticker",
+                            "LiquidityStatus",
+                            "AvgDollarVolume20D",
+                            "AvgVolume20D",
+                            "VolumeTrend5DVs20D",
+                            "VolatilityProxy20D",
+                            "MissingDataFields",
+                            "Reason",
+                        ]
+                        if column in liquidity_frame.columns
+                    ]
+                    st.dataframe(style_frame(clean_display_frame(liquidity_frame[liquidity_columns])), width="stretch", hide_index=True)
+                else:
+                    st.info(liquidity_message or "No liquidity rows are available.")
+
+            with st.expander("Correlation Concentration Context", expanded=False):
+                if correlation_frame is not None and not correlation_frame.empty:
+                    correlation_columns = [
+                        column
+                        for column in [
+                            "Ticker",
+                            "CorrelationStatus",
+                            "MostCorrelatedTicker",
+                            "Correlation",
+                            "OverlapDays",
+                            "MissingDataFields",
+                            "Reason",
+                        ]
+                        if column in correlation_frame.columns
+                    ]
+                    st.dataframe(style_frame(clean_display_frame(correlation_frame[correlation_columns])), width="stretch", hide_index=True)
+                else:
+                    st.info(correlation_message or "No correlation rows are available.")
+
+            if actions_frame is not None and not actions_frame.empty:
+                with st.expander("Top Onboarding Actions", expanded=False):
+                    top_actions = actions_frame.sort_values(["priority", "ticker", "dataset"], na_position="last").head(10)
+                    action_columns = [
+                        column
+                        for column in ["priority", "ticker", "dataset", "status", "reason", "recommended_action", "target_file"]
+                        if column in top_actions.columns
+                    ]
+                    st.dataframe(clean_display_frame(top_actions[action_columns]), width="stretch", hide_index=True)
+            elif actions_message:
+                st.info(actions_message)
+
+    with health_tabs[2]:
+        if status_frame is None and gap_frame is None:
+            st.info(
+                "Data source status outputs have not been generated yet. Run "
+                "`python3 -m src.data_sources --write-output`."
+            )
+        else:
+            if status_frame is not None and not status_frame.empty:
+                display_status = status_frame.copy()
+                if "availability_status" in display_status.columns:
+                    display_status["availability_status"] = display_status["availability_status"].map(friendly_data_source_status)
+                columns = [
+                    column
+                    for column in [
+                        "dataset",
+                        "availability_status",
+                        "row_count",
+                        "source_name",
+                        "required_for",
+                        "fallback_action",
+                        "notes",
+                    ]
+                    if column in display_status.columns
+                ]
+                st.dataframe(clean_display_frame(display_status[columns]), width="stretch", hide_index=True)
+            else:
+                st.info(status_message or "No data source status rows are available.")
+            if gap_frame is not None and not gap_frame.empty:
+                with st.expander("Data Gap Report", expanded=False):
+                    display_gaps = gap_frame.copy()
+                    if "status" in display_gaps.columns:
+                        display_gaps["status"] = display_gaps["status"].map(friendly_data_source_status)
+                    st.dataframe(clean_display_frame(display_gaps), width="stretch", hide_index=True)
+            else:
+                st.info(gap_message or "No data gaps were reported.")
+
+    with health_tabs[3]:
+        if price_status_frame is None:
+            st.info(
+                (price_status_message or "Price update status is unavailable.")
+                + " If the remote source fails, add verified rows to `data/imports/prices.csv`, then run "
+                "`make price-validate`, `make price-preview`, and `make price-apply`."
+            )
+        else:
+            status_counts = summarize_price_update_status(price_status_frame)
+            if status_counts:
+                statuses = ["fetched", "skipped_fresh", "parse_error", "source_unavailable", "network_error", "no_rows", "failed"]
+                metric_cols = st.columns(4)
+                metric_cols[0].metric("Fetched", status_counts.get("fetched", 0))
+                metric_cols[1].metric("Skipped Fresh", status_counts.get("skipped_fresh", 0))
+                metric_cols[2].metric("Parse / Source Errors", sum(status_counts.get(status, 0) for status in statuses[2:]))
+                metric_cols[3].metric("Fallback Used", int(price_status_frame.get("fallback_used", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"}).sum()))
+            display_columns = [
                 column
                 for column in [
                     "ticker",
-                    "has_prices",
-                    "price_history_days",
-                    "dcf_ready",
-                    "peer_ready",
-                    "has_earnings",
-                    "has_analyst_estimates",
-                    "next_best_action",
+                    "status",
+                    "rows_fetched",
+                    "rows_merged",
+                    "error_category",
+                    "error_message",
+                    "fallback_used",
+                    "recommended_action",
                 ]
-                if column in coverage_frame.columns
+                if column in price_status_frame.columns
             ]
-            st.dataframe(clean_display_frame(coverage_frame[coverage_columns]), width="stretch", hide_index=True)
-        else:
-            st.info(coverage_message or "No ticker coverage rows are available.")
-
-        if actions_frame is not None and not actions_frame.empty:
-            st.markdown("#### Top 10 Onboarding Actions")
-            top_actions = actions_frame.sort_values(["priority", "ticker", "dataset"], na_position="last").head(10)
-            action_columns = [
-                column
-                for column in ["priority", "ticker", "dataset", "status", "reason", "recommended_action", "target_file"]
-                if column in top_actions.columns
-            ]
-            st.dataframe(clean_display_frame(top_actions[action_columns]), width="stretch", hide_index=True)
-        else:
-            st.info(actions_message or "No onboarding action rows are available.")
-
-    staged_imports = validate_imports(base_dir=BASE_DIR)
-    st.markdown("### Staged Import Status")
-    if staged_imports["status"] == "no_staged_files":
-        st.info(staged_imports["warnings"][0])
-    else:
-        staged_rows = []
-        for item in staged_imports["files"]:
-            staged_rows.append(
-                {
-                    "File": item["file_name"],
-                    "Dataset": item["dataset_name"],
-                    "Status": item["validation"]["status"],
-                    "Rows": item["validation"]["row_count"],
-                    "Warnings": "; ".join(item["validation"]["warnings"]) or "-",
-                }
+            st.dataframe(clean_display_frame(price_status_frame[display_columns]), width="stretch", hide_index=True)
+            problematic_statuses = {"parse_error", "source_unavailable", "network_error", "failed"}
+            if "status" in price_status_frame.columns and price_status_frame["status"].astype(str).str.lower().isin(problematic_statuses).any():
+                st.warning(
+                    "Remote price refresh had source issues. Use `data/raw/prices/` for downloaded CSVs, then run "
+                    "`make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual`, "
+                    "`make price-validate`, `make price-preview`, and `make price-apply`."
+                )
+            st.caption(
+                "Manual fallback is CLI-only: fill `data/imports/prices.csv` with verified OHLCV rows, then run "
+                "`make price-validate`, `make price-preview`, and `make price-apply`."
             )
-        st.dataframe(pd.DataFrame(staged_rows), width="stretch", hide_index=True)
-        preview = preview_import_merge(base_dir=BASE_DIR)
-        if preview.get("preview"):
-            st.caption("Preview only. Apply remains CLI-only.")
-            st.dataframe(pd.DataFrame(preview["preview"]), width="stretch", hide_index=True)
 
-    universe_summary = summarize_universe_manager(BASE_DIR)
-    staged_universe = universe_summary["staged_universe"]
-    st.markdown("### Staged Universe Import")
-    st.json(staged_universe, expanded=False)
+    with health_tabs[4]:
+        if staged_imports["status"] == "no_staged_files":
+            st.info(staged_imports["warnings"][0])
+        else:
+            staged_rows = []
+            for item in staged_imports["files"]:
+                staged_rows.append(
+                    {
+                        "File": item["file_name"],
+                        "Dataset": item["dataset_name"],
+                        "Status": item["validation"]["status"],
+                        "Rows": item["validation"]["row_count"],
+                        "Warnings": "; ".join(item["validation"]["warnings"]) or "-",
+                    }
+                )
+            st.dataframe(pd.DataFrame(staged_rows), width="stretch", hide_index=True)
+            preview = preview_import_merge(base_dir=BASE_DIR)
+            if preview.get("preview"):
+                st.caption("Preview only. Apply remains CLI-only.")
+                st.dataframe(pd.DataFrame(preview["preview"]), width="stretch", hide_index=True)
 
-    st.markdown("### Runtime Artifact Hygiene")
-    st.write("- `data/cache/` is ignored for local cache payloads.")
-    st.write("- `data/backups/` is ignored for safe import/apply backups.")
-    st.write("- `data/imports/*.csv` is ignored so staged imports stay local until reviewed.")
-    st.write("- `outputs/*stock_report.json` is ignored so exported reports do not dirty the repo.")
+        st.markdown("#### Staged Universe Import")
+        st.json(staged_universe, expanded=False)
+
+        st.markdown("#### Runtime Artifact Hygiene")
+        st.write("- `data/cache/` is ignored for local cache payloads.")
+        st.write("- `data/backups/` is ignored for safe import/apply backups.")
+        st.write("- `data/imports/*.csv` is ignored so staged imports stay local until reviewed.")
+        st.write("- `outputs/*stock_report.json` is ignored so exported reports do not dirty the repo.")
 
 
 def render_universe_manager(universe_summary: dict[str, Any]) -> None:
