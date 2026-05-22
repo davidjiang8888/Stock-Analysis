@@ -4339,6 +4339,26 @@ def test_data_health_fix_first_cards_use_lane_front_doors_when_commands_are_miss
     assert cards[0][2] == "make focus-peers TICKER=AMD"
 
 
+def test_data_health_fix_first_cards_normalize_legacy_status_copy():
+    actions = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "dataset": "fundamentals",
+                "ticker": "NVDA",
+                "reason": "Local fundamentals still need staged validation.",
+                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the staged fundamentals.",
+                "focus_command": "make focus-fundamentals TICKER=NVDA",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_fix_first_cards(actions)
+
+    assert "make status-check TOP_N=5" in cards[0][1]
+
+
 def test_data_health_action_path_cards_surface_best_and_lane_commands():
     actions = pd.DataFrame(
         [

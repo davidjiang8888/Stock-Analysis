@@ -3133,7 +3133,11 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
         ticker = format_missing(row.get("ticker"), fallback="")
         title = f"P{priority} {dataset}" + (f" - {ticker}" if ticker else "")
         reason = compact_reason(row.get("reason"), max_sentences=1, max_chars=150)
-        action = format_missing(row.get("recommended_action"), fallback="Review local data coverage.")
+        action = compact_reason(
+            row.get("recommended_action") or "Review local data coverage.",
+            max_sentences=1,
+            max_chars=150,
+        )
         command = preferred_row_command(
             row,
             ticker_focus_command(row.get("dataset"), row.get("ticker"), "make data-wizard TOP_N=10"),
