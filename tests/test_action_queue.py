@@ -204,8 +204,35 @@ def test_action_queue_uses_operator_friendly_onboarding_titles():
     )
 
     assert rows[0].title == "Fix price coverage for AMD"
+    assert rows[0].example_command == "make price-refresh TICKERS=AMD"
     assert any(row.title == "Stage fundamentals for NVDA" for row in rows)
     assert any(row.title == "Add peer mappings for TSLA" for row in rows)
+
+
+def test_action_queue_normalizes_legacy_sec_stage_example_commands():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(
+            [
+                {
+                    "priority": 2,
+                    "ticker": "NVDA",
+                    "dataset": "fundamentals",
+                    "status": "missing_or_incomplete",
+                    "reason": "No local fundamentals row is present for this ticker yet.",
+                    "recommended_action": "Run SEC staging.",
+                    "target_file": "data/imports/fundamentals.csv",
+                    "focus_command": "make focus-fundamentals TICKER=NVDA",
+                    "example_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=nvda, msft",
+                },
+            ]
+        ),
+        data_gaps=pd.DataFrame(),
+        data_quality=pd.DataFrame(),
+    )
+
+    assert rows[0].example_command == "make sec-stage TICKERS=NVDA,MSFT"
 
 
 def test_action_queue_uses_staged_import_titles_for_global_gap_rows():

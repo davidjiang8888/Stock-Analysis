@@ -249,6 +249,34 @@ def _example_command_rank(item: ActionQueueItem) -> int:
     return 0
 
 
+def _normalize_queue_command(command: str) -> str:
+    text = str(command or "").strip()
+    if not text:
+        return text
+    sec_stage_match = re.fullmatch(
+        r"SEC_USER_AGENT=(?:'[^']*'|\"[^\"]*\"|\S+)\s+make sec-stage TICKERS=(.+)",
+        text,
+    )
+    if sec_stage_match:
+        tickers = ",".join(
+            part.strip().upper()
+            for part in sec_stage_match.group(1).split(",")
+            if part.strip()
+        )
+        if tickers:
+            return f"make sec-stage TICKERS={tickers}"
+    price_match = re.fullmatch(r"python3 -m src\.data_update --tickers (.+)", text)
+    if price_match:
+        tickers = ",".join(
+            part.strip().upper()
+            for part in price_match.group(1).split(",")
+            if part.strip()
+        )
+        if tickers:
+            return f"make price-refresh TICKERS={tickers}"
+    return text
+
+
 def _price_normalize_command(ticker: str) -> str:
     ticker = _normalized_ticker(ticker)
     if not ticker:
@@ -369,7 +397,7 @@ def _normalize_onboarding_example_command(
     focus_command: str,
     example_command: str,
 ) -> str:
-    text = str(example_command or "").strip()
+    text = _normalize_queue_command(str(example_command or "").strip())
     fallback = _example_command_for_focus_command(focus_command, ticker)
     if not fallback:
         return text
@@ -390,7 +418,7 @@ def _normalize_data_quality_coverage_action(
     normalized_status = str(status or "").strip()
     normalized_recommended = str(recommended_action or "").strip()
     normalized_focus = str(focus_command or "").strip()
-    normalized_example = str(example_command or "").strip()
+    normalized_example = _normalize_queue_command(str(example_command or "").strip())
     lane = _coverage_lane_from_context(missing_fields, normalized_focus, normalized_recommended)
 
     if normalized_status == "Needs Price Data":
@@ -565,8 +593,8 @@ def build_action_queue_rows(
                 recommended_action = _price_focus_recommended_action(ticker)
             fallback_command = _price_normalize_command(ticker)
             example_command = (
-                str(worklist_row.get("example_command", "")).strip()
-                or str(row.get("example_command", "")).strip()
+                _normalize_queue_command(str(worklist_row.get("example_command", "")).strip())
+                or _normalize_queue_command(str(row.get("example_command", "")).strip())
                 or fallback_command
             )
             focus_command = (
@@ -610,7 +638,7 @@ def build_action_queue_rows(
             if status == "Needs Price Data":
                 recommended_action = str(row.get("NextBestAction", "")).strip()
                 focus_command = str(row.get("FocusCommand", "")).strip() or focus_command_for_ticker("prices", ticker)
-                example_command = str(row.get("ExampleCommand", "")).strip() or _price_normalize_command(ticker)
+                example_command = _normalize_queue_command(str(row.get("ExampleCommand", "")).strip()) or _price_normalize_command(ticker)
                 if ticker and "make focus-price" not in recommended_action:
                     recommended_action = _price_focus_recommended_action(ticker)
                 items.append(
@@ -633,7 +661,7 @@ def build_action_queue_rows(
             elif status in {"Needs Enrichment", "Partial Coverage"} and ticker:
                 recommended_action = str(row.get("NextBestAction", "")).strip()
                 focus_command = str(row.get("FocusCommand", "")).strip() or _focus_command_from_action_text(recommended_action, ticker)
-                example_command = str(row.get("ExampleCommand", "")).strip()
+                example_command = _normalize_queue_command(str(row.get("ExampleCommand", "")).strip())
                 missing_fields = str(row.get("MissingDataFields", "")).strip()
                 recommended_action, focus_command, example_command = _normalize_data_quality_coverage_action(
                     ticker=ticker,
@@ -729,7 +757,7 @@ def build_action_queue_rows(
                 )
                 if not ticker:
                     focus_command = _global_gap_command(dataset, command_bundles)
-            example_command = str(row.get("example_command", "")).strip()
+            example_command = _normalize_queue_command(str(row.get("example_command", "")).strip())
             if not example_command:
                 example_command = (
                     _global_gap_example_command(dataset, command_bundles)
