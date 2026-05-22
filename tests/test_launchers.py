@@ -9,6 +9,7 @@ def test_makefile_contains_convenience_targets():
         "status",
         "test",
         "pipeline",
+        "stock-report",
         "monthly",
         "track-record",
         "validate-data",
@@ -82,6 +83,7 @@ def test_makefile_help_documents_key_workflows():
         "make daily",
         "make dashboard-smoke",
         "make data-sources-check",
+        "make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json]",
         "make data-wizard",
         "make unlock-ladder",
         "make unlock-summary",
@@ -129,6 +131,8 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "- Use `make pipeline` to generate the core local outputs." in readme
     assert "- Use `make dashboard` to run the dashboard." in readme
     assert "## Run the pipeline\n\nGenerate all active outputs:\n\n```bash\nmake pipeline" in readme
+    assert "Use the repo-native front door to generate a structured local stock report:\n\n```bash\nmake stock-report TICKER=NVDA" in readme
+    assert "If you want to write JSON to a file through the same front door:\n\n```bash\nmake stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json" in readme
     for phrase in (
         'export SEC_USER_AGENT="Your Name your.email@example.com"',
         "make sec-stage TICKERS=NVDA,MSFT",
@@ -165,6 +169,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "If you want the broader queue explicitly instead of the holdings-first slice, use the same bundle views with `--scope broader_queue`, or the matching Make shortcuts:\n\n```bash\nmake bundle-prices-broader\nmake detail-prices-broader\nmake runbook-prices-broader" in readme
     assert "To validate your local CSV datasets and see schema/freshness warnings:\n\n```bash\nmake validate-data" in readme
     assert "If you explicitly want machine-readable validation output:\n\n```bash\npython -m src.stock_report --validate-local-data --json" in readme
+    assert "If you intentionally want lower-level CLI control for ticker discovery, provider selection, or direct JSON output, the raw module commands remain available:\n\n```bash\npython -m src.stock_report --list-local-tickers" in readme
     assert "To scaffold header-only local enrichment templates without fabricating any production data:\n\n```bash\nmake templates" in readme
     assert "make imports-validate" in readme
     assert "make imports-preview" in readme
@@ -178,7 +183,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "If you want a larger CLI-only smoke run:\n\n```bash\nmake universe-preview\nmake universe-apply" in readme
     assert "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50" not in readme
     assert "If you want to enrich canonical local fundamentals safely, use the staged SEC + import flow:\n\n```bash\nexport SEC_USER_AGENT=\"Your Name your.email@example.com\"\nmake sec-stage TICKERS=NVDA,MSFT\nmake imports-validate\nmake imports-preview\nmake imports-apply\nmake validate-data" in readme
-    assert "make imports-apply\nmake validate-data\npython -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json" in readme
+    assert "make imports-apply\nmake validate-data\nmake stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json" in readme
     assert "If the current blocker path is already satisfied and you want the monthly layer directly, use:\n\n```bash\nmake monthly" in readme
     assert "The local track-record module uses only local historical prices:\n\n```bash\nmake track-record" in readme
 
@@ -249,6 +254,7 @@ def test_daily_launcher_reuses_current_make_targets():
 def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
+    assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),)" in makefile
     assert "verify:\n\t$(MAKE) test\n\t$(MAKE) pipeline\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
     assert "daily:\n\t$(MAKE) price-refresh\n\t$(MAKE) pipeline\n\t$(MAKE) monthly\n\t$(MAKE) track-record\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
     assert "verify:\n\tpython3 -m pytest tests -q" not in makefile

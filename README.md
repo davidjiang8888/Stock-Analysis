@@ -449,16 +449,16 @@ This section is additive and does not replace the existing CSV-first screener pa
 
 ### JSON / CLI export
 
-You can generate a structured JSON stock report from the command line:
+Use the repo-native front door to generate a structured local stock report:
 
 ```bash
-python -m src.stock_report --ticker NVDA --provider local
+make stock-report TICKER=NVDA
 ```
 
-To discover locally available tickers first:
+If you want to write JSON to a file through the same front door:
 
 ```bash
-python -m src.stock_report --list-local-tickers
+make stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json
 ```
 
 To validate your local CSV datasets and see schema/freshness warnings:
@@ -493,13 +493,11 @@ python -m src.stock_report --write-import-staging
 
 For a demo/smoke workflow:
 
+If you intentionally want lower-level CLI control for ticker discovery, provider selection, or direct JSON output, the raw module commands remain available:
+
 ```bash
+python -m src.stock_report --list-local-tickers
 python -m src.stock_report --ticker AAPL --provider mock
-```
-
-To write JSON to a file:
-
-```bash
 python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
 ```
 
@@ -529,7 +527,7 @@ make imports-validate
 make imports-preview
 make imports-apply
 make onboarding
-python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
+make stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json
 ```
 
 ## Optional daily price-data update
@@ -993,7 +991,7 @@ If you want richer deterministic valuation coverage without relying on yfinance:
 ```bash
 make validate-data
 make templates
-python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
+make stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json
 ```
 
 This workflow remains CSV-first. yfinance is optional, unofficial / research-grade, and should only be used when you explicitly opt in.
@@ -1068,7 +1066,7 @@ make imports-validate
 make imports-preview
 make imports-apply
 make validate-data
-python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
+make stock-report TICKER=NVDA OUTPUT=outputs/nvda_stock_report.json
 ```
 
 To add peer mappings through the same workflow, use `data/imports/peers.csv` with:

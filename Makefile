@@ -1,4 +1,4 @@
-.PHONY: help status test pipeline monthly track-record validate-data data-sources-check research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help status test pipeline stock-report monthly track-record validate-data data-sources-check research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
 
 help:
 	@echo "Stock Research Screener convenience commands"
@@ -7,6 +7,7 @@ help:
 	@echo "  make status           Print read-only local project status"
 	@echo "  make test             Run unit tests"
 	@echo "  make pipeline         Generate core CSV outputs"
+	@echo "  make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json] Generate one local stock report JSON"
 	@echo "  make verify           Run deterministic local verification"
 	@echo "  make validate-all     Run extended local validation and dashboard smoke check"
 	@echo "  make daily            Optional broader end-to-end local workflow refresh"
@@ -81,6 +82,12 @@ status:
 
 pipeline:
 	python3 -m src.report_generator
+
+stock-report:
+ifndef TICKER
+	$(error TICKER is required, for example: make stock-report TICKER=NVDA)
+endif
+	python3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),)
 
 monthly:
 	python3 -m src.monthly_picks --generate --top-n 5
