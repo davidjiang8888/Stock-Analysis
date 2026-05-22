@@ -742,7 +742,7 @@ After the blocker work is done, `make dashboard` opens the Streamlit dashboard f
 make daily
 ```
 
-`make daily` runs the local price updater, report generator, monthly picks, track record, local-data validation, and the action queue in order.
+`make daily` runs the local price updater, report generator, monthly picks, track record, local-data validation, and then refreshes the source-status, onboarding, research-health, action-queue, and project-status operator artifacts.
 
 If price history is the main blocker, run:
 
@@ -1148,6 +1148,19 @@ make status
 - `outputs/peer_mapping_queue.csv`
 - `outputs/ticker_unlock_ladder.csv`
 - `outputs/command_bundles.csv`
+
+`make onboarding` now also refreshes:
+
+- `outputs/data_source_status.csv`
+- `outputs/data_gap_report.csv`
+- `outputs/data_quality_wizard.csv`
+- `outputs/liquidity_risk.csv`
+- `outputs/correlation_risk.csv`
+- `outputs/research_action_queue.csv`
+- `outputs/project_status.json`
+- `outputs/project_status_summary.csv`
+- `outputs/project_status_top_actions.csv`
+- `outputs/project_status_next_steps.csv`
 
 The wizard is read-only. It does not fetch, stage, merge, or fabricate data. Use the existing safe workflows for actual data changes:
 

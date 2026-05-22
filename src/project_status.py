@@ -5,12 +5,18 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
+
 from src.data_onboarding import build_onboarding_payload
 from src.data_sources import build_data_source_payload
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 
 
 PROBLEM_SOURCE_STATUSES = {"partial", "missing_file", "source_unavailable", "manual_only"}
+PROJECT_STATUS_JSON = "project_status.json"
+PROJECT_STATUS_SUMMARY_CSV = "project_status_summary.csv"
+PROJECT_STATUS_TOP_ACTIONS_CSV = "project_status_top_actions.csv"
+PROJECT_STATUS_NEXT_STEPS_CSV = "project_status_next_steps.csv"
 
 
 def _count_true(rows: list[dict[str, Any]], field: str) -> int:
@@ -228,6 +234,40 @@ def build_project_status_payload(
     }
 
 
+def write_project_status_output(
+    project_root: Path | str | None = None,
+    *,
+    data_dir: Path | str | None = None,
+    output_dir: Path | str | None = None,
+    top_n: int = 10,
+) -> dict[str, Any]:
+    root = resolve_project_root(project_root)
+    data_path = resolve_data_dir(data_dir, root)
+    output_path = resolve_outputs_dir(output_dir, root)
+    payload = build_project_status_payload(root, data_dir=data_path, output_dir=output_path, top_n=top_n)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    json_path = output_path / PROJECT_STATUS_JSON
+    summary_path = output_path / PROJECT_STATUS_SUMMARY_CSV
+    top_actions_path = output_path / PROJECT_STATUS_TOP_ACTIONS_CSV
+    next_steps_path = output_path / PROJECT_STATUS_NEXT_STEPS_CSV
+
+    json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    pd.DataFrame([payload["summary"]]).to_csv(summary_path, index=False)
+    pd.DataFrame(payload["top_onboarding_actions"]).to_csv(top_actions_path, index=False)
+    pd.DataFrame(payload["recommended_next_command_rows"]).to_csv(next_steps_path, index=False)
+
+    return {
+        **payload,
+        "written_files": {
+            "project_status_json": str(json_path),
+            "project_status_summary": str(summary_path),
+            "project_status_top_actions": str(top_actions_path),
+            "project_status_next_steps": str(next_steps_path),
+        },
+    }
+
+
 def _print_human(payload: dict[str, Any]) -> None:
     summary = payload["summary"]
     print("Project status summary:")
@@ -261,6 +301,7 @@ def _print_human(payload: dict[str, Any]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Print a read-only local project status snapshot.")
     parser.add_argument("--json", action="store_true", help="Print JSON output.")
+    parser.add_argument("--write-output", action="store_true", help="Write machine-readable project status outputs.")
     parser.add_argument("--project-root", help="Project root for default data/output directories.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
@@ -270,7 +311,11 @@ def main() -> None:
     root = resolve_project_root(args.project_root)
     data_path = resolve_data_dir(args.data_dir, root)
     output_path = resolve_outputs_dir(args.output_dir, root)
-    payload = build_project_status_payload(root, data_dir=data_path, output_dir=output_path, top_n=args.top_n)
+    payload = (
+        write_project_status_output(root, data_dir=data_path, output_dir=output_path, top_n=args.top_n)
+        if args.write_output
+        else build_project_status_payload(root, data_dir=data_path, output_dir=output_path, top_n=args.top_n)
+    )
 
     if args.json:
         print(json.dumps(payload, indent=2))
@@ -278,6 +323,10 @@ def main() -> None:
 
     print(format_path_context(root, data_path, output_path))
     _print_human(payload)
+    if args.write_output:
+        print("Wrote:")
+        for path in payload.get("written_files", {}).values():
+            print(f"- {path}")
 
 
 if __name__ == "__main__":

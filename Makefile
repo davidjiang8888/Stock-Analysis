@@ -21,7 +21,7 @@ help:
 	@echo "  make action-queue     Generate prioritized data/research actions"
 	@echo ""
 	@echo "Data onboarding:"
-	@echo "  make onboarding       Write source status, coverage, and action queue outputs"
+	@echo "  make onboarding       Write source status, coverage, research-health, action queue, and project status outputs"
 	@echo "  make data-wizard      Show prioritized data coverage unlocks"
 	@echo "  make unlock-ladder    Show one next-step unlock stage per ticker"
 	@echo "  make unlock-summary   Show grouped unlock priorities by holdings, theme, and sector ETF"
@@ -97,7 +97,11 @@ verify:
 	python3 -m pytest tests -q
 	python3 -m src.report_generator
 	python3 -m src.stock_report --validate-local-data
+	python3 -m src.data_sources --write-output
+	python3 -m src.data_onboarding --write-output
+	python3 -m src.research_health --write-output
 	python3 -m src.action_queue --write-output
+	python3 -m src.project_status --write-output
 
 validate-all:
 	scripts/validate_all.sh
@@ -201,7 +205,9 @@ endif
 onboarding:
 	python3 -m src.data_sources --write-output
 	python3 -m src.data_onboarding --write-output
+	python3 -m src.research_health --write-output
 	python3 -m src.action_queue --write-output
+	python3 -m src.project_status --write-output
 
 templates:
 	python3 -m src.data_onboarding --write-templates
@@ -249,7 +255,11 @@ daily:
 	python3 -m src.monthly_picks --generate --top-n 5
 	python3 -m src.track_record --monthly-picks
 	python3 -m src.stock_report --validate-local-data
+	python3 -m src.data_sources --write-output
+	python3 -m src.data_onboarding --write-output
+	python3 -m src.research_health --write-output
 	python3 -m src.action_queue --write-output
+	python3 -m src.project_status --write-output
 
 dashboard:
 	streamlit run src/dashboard.py

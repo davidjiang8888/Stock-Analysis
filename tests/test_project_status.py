@@ -1,10 +1,11 @@
+import json
 from pathlib import Path
 import sys
 
 import pandas as pd
 import pytest
 
-from src.project_status import build_project_status_payload, main
+from src.project_status import build_project_status_payload, main, write_project_status_output
 
 
 def _write_minimal_local_data(root: Path) -> None:
@@ -43,7 +44,37 @@ def test_project_status_payload_is_read_only_and_summarizes_local_gaps(tmp_path:
     assert payload["recommended_next_command_rows"][0]["Command"] == "make focus-price TICKER=NVDA"
     assert "make runbook-prices" in payload["recommended_next_commands"]
     assert "make verify" in payload["recommended_next_commands"]
-    assert not (tmp_path / "outputs" / "project_status.csv").exists()
+    assert not (tmp_path / "outputs" / "project_status.json").exists()
+
+
+def test_project_status_write_output_persists_machine_readable_files(tmp_path: Path):
+    _write_minimal_local_data(tmp_path)
+
+    payload = write_project_status_output(tmp_path, top_n=3)
+    outputs_dir = tmp_path / "outputs"
+
+    json_path = outputs_dir / "project_status.json"
+    summary_path = outputs_dir / "project_status_summary.csv"
+    top_actions_path = outputs_dir / "project_status_top_actions.csv"
+    next_steps_path = outputs_dir / "project_status_next_steps.csv"
+
+    assert json_path.exists()
+    assert summary_path.exists()
+    assert top_actions_path.exists()
+    assert next_steps_path.exists()
+    assert payload["written_files"]["project_status_json"] == str(json_path)
+
+    written_payload = json.loads(json_path.read_text(encoding="utf-8"))
+    assert written_payload["summary"]["tickers_total"] == 1
+
+    summary_frame = pd.read_csv(summary_path)
+    assert summary_frame.iloc[0]["tickers_total"] == 1
+
+    actions_frame = pd.read_csv(top_actions_path)
+    assert actions_frame.iloc[0]["focus_command"] == "make focus-price TICKER=NVDA"
+
+    next_steps_frame = pd.read_csv(next_steps_path)
+    assert next_steps_frame.iloc[0]["Command"] == "make focus-price TICKER=NVDA"
 
 
 def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
@@ -64,6 +95,22 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
     assert "fix top prices blocker (nvda): make focus-price ticker=nvda" in output
     assert "no verified local price history is present for this ticker yet." in output or "at least 21 are needed" in output
     assert "run price coverage bundle: make runbook-prices" in output
+
+
+def test_project_status_human_write_output_reports_written_files(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
+    _write_minimal_local_data(tmp_path)
+
+    argv_before = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--write-output", "--top-n", "2"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = argv_before
+
+    assert "wrote:" in output
+    assert "project_status.json" in output
+    assert "project_status_summary.csv" in output
 
 
 def test_project_status_prefers_bundle_matching_top_blocker_ticker(tmp_path: Path):
