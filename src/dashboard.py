@@ -4288,8 +4288,9 @@ def theme_deep_research_cards(
             {
                 "kicker": "THEME DCF / PEERS",
                 "title": "No theme deep-research board yet",
-                "body": "Generate the SEC stage queue and peer mapping queue to see which themes next benefit from deeper fundamentals or peer work.",
+                "body": "Run make onboarding to refresh the onboarding outputs and generate the SEC stage queue plus peer mapping queue for theme-level deep-research blockers.",
                 "badges": ["read-only"],
+                "command": "make onboarding",
             }
         ]
 
@@ -4456,8 +4457,9 @@ def overview_deep_research_leverage_cards(
             {
                 "kicker": "DEEP RESEARCH LEVERAGE",
                 "title": "No deep-research leverage view yet",
-                "body": "Generate the SEC stage queue and peer mapping queue to rank which deeper research lane unlocks the most local value next.",
+                "body": "Run make onboarding to refresh the onboarding outputs and generate the SEC stage queue plus peer mapping queue before ranking the highest-leverage deep-research lane.",
                 "badges": ["read-only"],
+                "command": "make onboarding",
             }
         ]
 
@@ -4533,8 +4535,9 @@ def overview_deep_research_priority_bridge_cards(
             {
                 "kicker": "DEEP RESEARCH PRIORITIES",
                 "title": "No deep-research shortlist yet",
-                "body": "Generate the SEC stage queue and peer mapping queue to surface the next names for deeper fundamentals or peer work.",
+                "body": "Run make onboarding to refresh the onboarding outputs and generate the SEC stage queue plus peer mapping queue for the next deep-research names.",
                 "badges": ["read-only"],
+                "command": "make onboarding",
             }
         ]
 

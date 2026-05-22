@@ -1956,6 +1956,8 @@ def test_theme_deep_research_cards_handle_missing_inputs_gracefully():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "no theme deep-research board yet" in rendered
+    assert cards[0]["command"] == "make onboarding"
+    assert "make onboarding" in rendered
     assert "buy" not in rendered
 
 
@@ -2093,6 +2095,8 @@ def test_overview_deep_research_leverage_cards_handle_missing_inputs_gracefully(
 
     assert len(cards) == 1
     assert "no deep-research leverage view yet" in rendered
+    assert cards[0]["command"] == "make onboarding"
+    assert "make onboarding" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -2174,6 +2178,8 @@ def test_overview_deep_research_priority_bridge_cards_handle_missing_inputs_grac
 
     assert len(cards) == 1
     assert "no deep-research shortlist yet" in rendered
+    assert cards[0]["command"] == "make onboarding"
+    assert "make onboarding" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
