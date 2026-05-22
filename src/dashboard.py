@@ -4206,6 +4206,13 @@ def overview_coverage_hotspot_cards(action_queue: pd.DataFrame | None, limit: in
         "earnings": ("OPTIONAL CONTEXT", "Earnings", "Optional earnings context is still missing for some single-name reports."),
         "analyst_estimates": ("OPTIONAL CONTEXT", "Analyst Estimates", "Optional analyst context is still missing for some single-name reports."),
     }
+    command_map = {
+        "prices": "make runbook-prices-broader",
+        "fundamentals": "make runbook-fundamentals-broader",
+        "peers": "make runbook-peers-broader",
+        "earnings": "make onboarding",
+        "analyst_estimates": "make onboarding",
+    }
 
     cards: list[dict[str, object]] = []
     grouped = (
@@ -4238,6 +4245,7 @@ def overview_coverage_hotspot_cards(action_queue: pd.DataFrame | None, limit: in
                 "title": title,
                 "body": body,
                 "badges": [f"P{int(row.get('best_priority', 999))}", f"{ticker_count} tickers"],
+                "command": command_map.get(action_type, "make action-queue-check TOP_N=10"),
             }
         )
 

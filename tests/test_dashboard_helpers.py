@@ -4854,8 +4854,11 @@ def test_overview_coverage_hotspot_cards_surface_dataset_pressure():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Prices"
+    assert cards[0]["command"] == "make runbook-prices-broader"
     assert any(card["title"] == "Fundamentals" for card in cards)
+    assert any(card.get("command") == "make runbook-fundamentals-broader" for card in cards)
     assert any(card["title"] == "Peers" for card in cards)
+    assert any(card.get("command") == "make runbook-peers-broader" for card in cards)
     assert "2 action rows and 2 affected tickers" in rendered
     assert "examples:" in rendered
     assert "nvda" in rendered
@@ -4873,6 +4876,22 @@ def test_overview_coverage_hotspot_cards_handle_missing_queue():
     assert cards[0]["command"] == "make action-queue"
     assert "make action-queue" in rendered
     assert "prices, fundamentals, peers, or optional context" in rendered
+
+
+def test_overview_coverage_hotspot_cards_use_onboarding_for_optional_context():
+    queue = pd.DataFrame(
+        [
+            {"priority": 1, "action_type": "earnings", "ticker": "AVGO"},
+            {"priority": 2, "action_type": "analyst_estimates", "ticker": "AMD"},
+        ]
+    )
+
+    cards = dashboard.overview_coverage_hotspot_cards(queue)
+
+    assert cards[0]["title"] == "Earnings"
+    assert cards[0]["command"] == "make onboarding"
+    assert cards[1]["title"] == "Analyst Estimates"
+    assert cards[1]["command"] == "make onboarding"
 
 
 def test_monthly_pick_card_html_is_product_style_and_clean():
