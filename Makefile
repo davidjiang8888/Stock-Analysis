@@ -1,4 +1,4 @@
-.PHONY: help status test pipeline stock-report local-tickers monthly track-record validate-data data-sources-check data-sources research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help status test pipeline stock-report local-tickers monthly track-record validate-data data-sources-check data-sources research-health action-queue action-queue-check verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
 
 help:
 	@echo "Stock Research Screener convenience commands"
@@ -23,6 +23,7 @@ help:
 	@echo "  make monthly          Generate monthly research candidates"
 	@echo "  make track-record     Generate local monthly picks track record"
 	@echo "  make research-health  Generate data quality, liquidity, and correlation outputs"
+	@echo "  make action-queue-check Print the current read-only action queue summary"
 	@echo "  make action-queue     Generate prioritized data/research actions"
 	@echo ""
 	@echo "Data onboarding:"
@@ -116,6 +117,9 @@ research-health:
 
 action-queue:
 	python3 -m src.action_queue --write-output
+
+action-queue-check:
+	python3 -m src.action_queue --check
 
 verify:
 	$(MAKE) test

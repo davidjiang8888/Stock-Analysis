@@ -1173,10 +1173,11 @@ Generate it with:
 
 ```bash
 make status
+make action-queue-check
 make action-queue
 ```
 
-The queue stays read-only and research-only. It does not apply imports or write market data for you; it only ranks what to fix next and shows the relevant local file or command.
+Use `make action-queue-check` for the current read-only summary view and `make action-queue` when you explicitly want to refresh `outputs/research_action_queue.csv`. The queue stays read-only and research-only. It does not apply imports or write market data for you; it only ranks what to fix next and shows the relevant local file or command.
 
 ## Data coverage wizard
 
