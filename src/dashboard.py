@@ -5579,6 +5579,17 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
         bundle_name = format_missing(lane_rows.iloc[0].get("bundle_name"), "Local bundle")
         tickers = format_missing(lane_rows.iloc[0].get("tickers"), "No tickers")
         goal_summary = compact_reason(lane_rows.iloc[0].get("goal_summary"), max_sentences=1, max_chars=110)
+        target_file = format_missing(lane_rows.iloc[0].get("target_file"), "")
+        staged_summary = ""
+        if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
+            staged_summary = compact_reason(lane_rows.iloc[0].get("safe_next_step"), max_sentences=1, max_chars=150)
+            if staged_summary == "Not available":
+                if target_file == "data/imports/fundamentals.csv":
+                    staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
+                elif target_file == "data/imports/peers.csv":
+                    staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
+                else:
+                    staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
         target_history_rows = _target_rows_hint(lane_rows.iloc[0].get("target_history_rows"))
         suggested_start_date = format_missing(lane_rows.iloc[0].get("suggested_start_date"), "")
         hint_text = ""
@@ -5602,7 +5613,7 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
             {
                 "kicker": f"{lane.upper()} LANE",
                 "title": bundle_name,
-                "body": (f"{goal_summary}{hint_text}. " if goal_summary else "") + f"{tickers}. " + " | ".join(steps),
+                "body": (f"{goal_summary}{hint_text}. " if goal_summary not in {"", "Not available"} else (f"{staged_summary}{hint_text}. " if staged_summary not in {"", "Not available"} else "")) + f"{tickers}. " + " | ".join(steps),
                 "badges": [
                     format_missing(lane_rows.iloc[0].get("scope"), "scope").replace("_", " "),
                     "runbook",

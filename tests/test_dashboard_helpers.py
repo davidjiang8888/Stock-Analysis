@@ -6905,6 +6905,32 @@ def test_overview_bundle_runbook_cards_surface_lane_steps_safely():
     assert "sell" not in rendered
 
 
+def test_overview_bundle_runbook_cards_use_staged_follow_through_when_goal_summary_is_missing():
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Review staged import",
+                "command": "make imports-validate",
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "",
+                "target_file": "data/imports/fundamentals.csv",
+                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_bundle_runbook_cards(runbook)
+
+    assert cards[0]["command"] == "make imports-validate"
+    assert "make imports-preview" in cards[0]["body"].lower()
+    assert "make imports-apply" in cards[0]["body"].lower()
+    assert "review staged import" in cards[0]["body"].lower()
+
+
 def test_overview_bundle_handoff_cards_surface_follow_through_safely():
     bundles = pd.DataFrame(
         [
