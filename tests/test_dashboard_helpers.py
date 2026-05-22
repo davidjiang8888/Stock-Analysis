@@ -3265,6 +3265,19 @@ def test_monthly_picks_track_record_gap_points_to_blocker_command():
     assert "make price-worklist" in rendered
 
 
+def test_monthly_picks_track_record_gap_uses_track_record_front_door_without_blocker_queue():
+    full_picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": ""}] * 5)
+
+    cards = dashboard.monthly_picks_next_step_cards(full_picks, None, None, 5, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "Improve track-record coverage"
+    assert cards[0]["command"] == "make track-record"
+    assert "make track-record" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_stock_report_brief_html_summarizes_readiness_without_advice():
     html = dashboard.stock_report_brief_html(
         {

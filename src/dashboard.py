@@ -5736,14 +5736,17 @@ def monthly_picks_next_step_cards(
             "command": command_text,
         }
     elif not has_track_record or not has_equity:
+        track_record_command = command_text
+        if track_record_command in {"", "Not available", "make status"}:
+            track_record_command = "make track-record"
         primary = {
             "kicker": "NEXT STEP",
             "title": "Improve track-record coverage",
             "body": (
-                f"Candidates exist, but local history is still too short for a fuller benchmark comparison. Run {command_text} to improve price coverage before treating performance context as complete."
+                f"Candidates exist, but local history is still too short for a fuller benchmark comparison. Run {track_record_command} to refresh or improve track-record coverage before treating performance context as complete."
             ),
             "badges": ["history needed", "sp y benchmark".replace(" ", "")],
-            "command": command_text,
+            "command": track_record_command,
         }
     else:
         primary = {
