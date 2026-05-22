@@ -555,16 +555,27 @@ def summarize_peer_mapping_queue(worklist: pd.DataFrame | None) -> dict[str, int
             "priority_2": 0,
             "holdings": 0,
             "missing_peer_mapping": 0,
+            "mapped_peer_follow_through": 0,
+            "staged_peer_import": 0,
         }
 
     priorities = pd.to_numeric(worklist.get("priority", pd.Series(dtype=float)), errors="coerce").fillna(0)
     holdings_mask = worklist.get("is_holding", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"})
-    missing_peer_mapping_mask = ~worklist.get("has_peer_mapping", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"})
+    has_peer_mapping_mask = worklist.get("has_peer_mapping", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"})
+    missing_peer_mapping_mask = ~has_peer_mapping_mask
+    peer_ready_mask = worklist.get("peer_ready", pd.Series(dtype=object)).astype(str).str.lower().isin({"true", "1", "yes"})
+    mapped_peer_follow_through_mask = has_peer_mapping_mask & ~peer_ready_mask
+    staged_peer_import_mask = (
+        worklist.get("focus_command", pd.Series(dtype=object)).astype(str).str.strip().str.lower().eq("make imports-validate")
+        & worklist.get("target_file", pd.Series(dtype=object)).astype(str).str.strip().eq("data/imports/peers.csv")
+    )
     return {
         "priority_1": int(priorities.eq(1).sum()),
         "priority_2": int(priorities.eq(2).sum()),
         "holdings": int(holdings_mask.sum()),
         "missing_peer_mapping": int(missing_peer_mapping_mask.sum()),
+        "mapped_peer_follow_through": int(mapped_peer_follow_through_mask.sum()),
+        "staged_peer_import": int(staged_peer_import_mask.sum()),
     }
 
 
@@ -3986,15 +3997,31 @@ def overview_research_pressure_cards(
     )
 
     peer_summary = summarize_peer_mapping_queue(peer_mapping_queue)
+    peer_missing = peer_summary.get("missing_peer_mapping", 0)
+    peer_follow_through = peer_summary.get("mapped_peer_follow_through", 0)
+    staged_peer_imports = peer_summary.get("staged_peer_import", 0)
     cards.append(
         {
             "kicker": "PEER PRESSURE",
-            "title": f"{peer_summary.get('missing_peer_mapping', 0)} missing peer mappings",
+            "title": (
+                f"{peer_missing} missing peer mappings"
+                if not peer_follow_through
+                else f"{peer_missing} missing peer mappings · {peer_follow_through} mapped follow-through"
+            ),
             "body": (
                 f"{peer_summary.get('priority_1', 0)} holdings-first peer unlocks and "
-                f"{peer_summary.get('priority_2', 0)} theme-level follow-ons are visible in the local queue."
+                f"{peer_summary.get('priority_2', 0)} theme-level follow-ons are visible in the local queue. "
+                + (
+                    f"{staged_peer_imports} staged peer import{'s' if staged_peer_imports != 1 else ''} already need validate/preview/apply."
+                    if staged_peer_imports
+                    else (
+                        f"{peer_follow_through} mapped peer set{'s' if peer_follow_through != 1 else ''} still need peer-relative follow-through beyond the initial mapping step."
+                        if peer_follow_through
+                        else "Manual peer research is still the main blocker here."
+                    )
+                )
             ),
-            "badges": ["peers", "manual research"],
+            "badges": ["peers", "staged follow-through" if staged_peer_imports else "manual research" if peer_missing else "peer support data"],
         }
     )
 

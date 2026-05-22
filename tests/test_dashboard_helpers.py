@@ -1021,6 +1021,9 @@ def test_summarize_peer_mapping_queue_counts_priority_and_missing_mappings():
             "priority": [1, 2, 4],
             "is_holding": [True, False, True],
             "has_peer_mapping": [False, True, False],
+            "peer_ready": [False, False, False],
+            "focus_command": ["make focus-peers TICKER=NVDA", "make imports-validate", "make focus-peers TICKER=TSLA"],
+            "target_file": ["data/imports/peers.csv", "data/imports/peers.csv", "data/imports/peers.csv"],
         }
     )
 
@@ -1030,6 +1033,8 @@ def test_summarize_peer_mapping_queue_counts_priority_and_missing_mappings():
     assert summary["priority_2"] == 1
     assert summary["holdings"] == 2
     assert summary["missing_peer_mapping"] == 2
+    assert summary["mapped_peer_follow_through"] == 1
+    assert summary["staged_peer_import"] == 1
 
 
 def test_summarize_ticker_unlock_ladder_counts_stages():
@@ -1491,6 +1496,9 @@ def test_overview_research_pressure_cards_compare_price_fundamentals_and_peers()
             "priority": [1, 2, 4],
             "is_holding": [True, False, True],
             "has_peer_mapping": [False, True, False],
+            "peer_ready": [False, False, False],
+            "focus_command": ["make focus-peers TICKER=NVDA", "make imports-validate", "make focus-peers TICKER=TSLA"],
+            "target_file": ["data/imports/peers.csv", "data/imports/peers.csv", "data/imports/peers.csv"],
         }
     )
     unlock_summary = pd.DataFrame(
@@ -1510,6 +1518,8 @@ def test_overview_research_pressure_cards_compare_price_fundamentals_and_peers()
     assert "2 urgent price gaps" in rendered
     assert "1 holdings-first dcf unlocks" in rendered
     assert "2 missing peer mappings" in rendered
+    assert "1 mapped follow-through" in rendered
+    assert "1 staged peer import already need validate/preview/apply" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
