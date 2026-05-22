@@ -3193,7 +3193,7 @@ def missing_data_guide_rows() -> list[dict[str, str]]:
         },
         {
             "Dashboard Label": "Needs peers.csv",
-            "What to do": "Use `make focus-peers TICKER=...` or the peer runbook path from `make status`, then add manually researched mappings through `data/imports/peers.csv`.",
+            "What to do": "Use `make focus-peers TICKER=...` or the peer runbook path from `make status`, then add manually researched mappings through `data/imports/peers.csv`. If mappings already exist, finish the staged peer fundamentals or peer price follow-through the queue points to.",
         },
         {
             "Dashboard Label": "Needs earnings.csv",
@@ -3259,7 +3259,7 @@ def empty_state_command_rows() -> list[dict[str, str]]:
     return [
         {"Scenario": "No local prices or short history", "Next step": "make status, then use the first make focus-price TICKER=... or make runbook-prices-broader path. For downloaded files, use make price-normalize INPUT=... TICKER=... SOURCE=..."},
         {"Scenario": "No local fundamentals for valuation", "Next step": "make status, then use make focus-fundamentals TICKER=... or make runbook-fundamentals-broader, then validate/preview/apply"},
-        {"Scenario": "No peer-relative context", "Next step": "make status, then use make focus-peers TICKER=... or make runbook-peers-broader, or run make templates and fill peers.csv locally"},
+        {"Scenario": "No peer-relative context", "Next step": "make status, then use make focus-peers TICKER=... or make runbook-peers-broader. If mappings are missing, run make templates and fill data/imports/peers.csv; if mappings already exist, follow the staged peer fundamentals or price blocker the queue prints."},
         {"Scenario": "No earnings or analyst estimates", "Next step": "Leave them missing safely unless you have a trusted local source"},
         {"Scenario": "No staged imports to review", "Next step": "Use templates or SEC/manual price staging first, then come back to preview/apply"},
     ]
@@ -5224,7 +5224,7 @@ def stock_report_brief_html(payload: dict[str, Any]) -> str:
     cards = [
         ("Valuation", format_missing(valuation.get("status"), "Not available"), format_missing(valuation.get("coverage"), "Coverage not available")),
         ("DCF", dcf_label, "Uses local fundamentals only"),
-        ("Peer Relative", peer_label, "Requires data/peers.csv plus peer data"),
+        ("Peer Relative", peer_label, "Requires manually researched peer mappings plus peer fundamentals or peer price/market-cap context"),
         ("Earnings", earnings_label, "Optional local earnings file"),
         ("Analyst Estimates", estimates_label, "Optional trusted local estimates file"),
         ("Missing Data", str(missing_count), "Warnings shown in Sources & Gaps"),
@@ -6052,8 +6052,8 @@ def render_overview(
             actions.append(
                 (
                     "Peer context needs local research",
-                    "No peer-ready tickers detected. Add verified peer mappings manually if peer-relative valuation matters.",
-                    "make templates",
+                    "No peer-ready tickers detected. Run make status, then use the printed peer focus or runbook path. Add verified mappings only when they are missing, and otherwise follow the staged peer-data blocker.",
+                    "make status",
                     "neutral",
                 )
             )

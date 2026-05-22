@@ -2362,6 +2362,7 @@ def test_stock_report_brief_html_summarizes_readiness_without_advice():
     assert "NVDA research snapshot" in html
     assert "DCF Ready" in html
     assert "Peers Need Data" in html
+    assert "peer fundamentals or peer price/market-cap context" in html
     assert "Earnings Missing" in html
     assert "2" in html
     assert "buy" not in html.lower()
@@ -3646,6 +3647,8 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "price-normalize" in empty_rendered
     assert "make focus-fundamentals" in empty_rendered
     assert "peers.csv" in empty_rendered
+    assert "staged peer fundamentals or price blocker" in empty_rendered
+    assert "staged peer fundamentals or peer price follow-through" in rendered
 
 
 def test_priority_now_falls_back_to_status_first_ready_path():
