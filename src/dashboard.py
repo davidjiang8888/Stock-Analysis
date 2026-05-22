@@ -5134,7 +5134,7 @@ def overview_best_current_name_cards(
     if coverage is None or coverage.empty:
         return [
             {
-                "kicker": "BEST CURRENT NAMES",
+                "kicker": "READY NAME STATUS",
                 "title": "No current ready names yet",
                 "body": "Run make onboarding to refresh the onboarding outputs and surface which names are already usable with today’s local coverage.",
                 "badges": ["read-only"],
@@ -5163,7 +5163,7 @@ def overview_best_current_name_cards(
     if ready.empty:
         return [
             {
-                "kicker": "BEST CURRENT NAMES",
+                "kicker": "READY NAME STATUS",
                 "title": "No current ready names yet",
                 "body": "Price-ready names will appear here once local momentum coverage is usable.",
                 "badges": ["needs prices"],
@@ -6082,7 +6082,7 @@ def overview_ready_name_handoff_cards(
 
     next_tab = next((card for card in overview_handoff_cards() if card.get("title") == surface), overview_handoff_cards()[0])
     ticker = format_missing(best_name.get("kicker"), "Not available")
-    if ticker == "BEST CURRENT NAMES":
+    if ticker in {"BEST CURRENT NAMES", "READY NAME STATUS"}:
         ticker = format_missing(best_name.get("title"), "Not available")
 
     return [
