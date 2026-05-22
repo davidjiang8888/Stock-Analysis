@@ -2541,6 +2541,7 @@ def data_health_overview_cards(
         dataset_title = "No validation rows"
         dataset_body = "Run local validation to inspect configured CSV datasets."
         dataset_badges = ["make validate-data"]
+        dataset_command = "make validate-data"
     else:
         status_series = validation_rows.get("validation_status", pd.Series(dtype=object)).astype(str)
         valid_count = int(status_series.isin({"valid", "valid_with_warnings"}).sum())
@@ -2548,6 +2549,7 @@ def data_health_overview_cards(
         dataset_title = f"{valid_count} usable datasets"
         dataset_body = f"{missing_count} optional local file{'s' if missing_count != 1 else ''} missing. Partial reports remain safe."
         dataset_badges = ["CSV-first", f"{len(validation_rows)} checked"]
+        dataset_command = "make validate-data"
 
     price_counts = summarize_price_update_status(price_status_frame)
     price_problem_count = sum(
@@ -2562,6 +2564,7 @@ def data_health_overview_cards(
             "make price-preview, and make price-apply."
         )
         price_badges = ["make runbook-prices-broader", "manual fallback"]
+        price_command = "make runbook-prices-broader"
     elif price_problem_count:
         price_title = f"{price_problem_count} price issue{'s' if price_problem_count != 1 else ''}"
         price_body = (
@@ -2569,15 +2572,18 @@ def data_health_overview_cards(
             "make price-validate, make price-preview, and make price-apply."
         )
         price_badges = ["make price-status TOP_N=10", "manual fallback"]
+        price_command = "make price-status TOP_N=10"
     else:
         price_title = f"{price_counts.get('fetched', 0)} fetched"
         price_body = "Latest price refresh did not report blocking source errors."
         price_badges = ["make price-status TOP_N=10"]
+        price_command = "make price-status TOP_N=10"
 
     queue_summary = action_queue_summary(action_queue_frame)
     action_title = f"{queue_summary['critical']} critical actions"
     action_body = f"{queue_summary['high']} high-priority and {queue_summary['medium']} medium-priority remediation rows are queued."
     action_badges = ["make action-queue-check TOP_N=10", "read-only dashboard"]
+    action_command = "make action-queue-check TOP_N=10"
 
     coverage_summary = summarize_ticker_coverage(coverage_frame)
     coverage_title = f"{coverage_summary['usable_price_tickers']} price-ready tickers"
@@ -2587,12 +2593,13 @@ def data_health_overview_cards(
         f"{coverage_summary['optional_only_missing_tickers']} missing only optional files."
     )
     coverage_badges = ["make data-wizard TOP_N=10"]
+    coverage_command = "make data-wizard TOP_N=10"
 
     return [
-        {"kicker": "DATASETS", "title": dataset_title, "body": dataset_body, "badges": dataset_badges},
-        {"kicker": "PRICES", "title": price_title, "body": price_body, "badges": price_badges},
-        {"kicker": "NEXT ACTIONS", "title": action_title, "body": action_body, "badges": action_badges},
-        {"kicker": "COVERAGE", "title": coverage_title, "body": coverage_body, "badges": coverage_badges},
+        {"kicker": "DATASETS", "title": dataset_title, "body": dataset_body, "badges": dataset_badges, "command": dataset_command},
+        {"kicker": "PRICES", "title": price_title, "body": price_body, "badges": price_badges, "command": price_command},
+        {"kicker": "NEXT ACTIONS", "title": action_title, "body": action_body, "badges": action_badges, "command": action_command},
+        {"kicker": "COVERAGE", "title": coverage_title, "body": coverage_body, "badges": coverage_badges, "command": coverage_command},
     ]
 
 

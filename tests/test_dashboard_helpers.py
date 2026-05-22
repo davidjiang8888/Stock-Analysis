@@ -5652,6 +5652,10 @@ def test_data_health_overview_cards_prioritize_price_and_actions():
     assert "1 price issue" in rendered
     assert "1 critical actions" in rendered
     assert "1 price-ready tickers" in rendered
+    assert cards[0]["command"] == "make validate-data"
+    assert cards[1]["command"] == "make price-status TOP_N=10"
+    assert cards[2]["command"] == "make action-queue-check TOP_N=10"
+    assert cards[3]["command"] == "make data-wizard TOP_N=10"
     assert "make price-status top_n=10" in rendered.lower()
     assert "make action-queue-check top_n=10" in rendered.lower()
     assert "make data-wizard top_n=10" in rendered.lower()
@@ -5666,6 +5670,10 @@ def test_data_health_overview_cards_without_price_status_use_runbook_first_guida
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "price status not generated" in rendered
+    assert cards[0]["command"] == "make validate-data"
+    assert cards[1]["command"] == "make runbook-prices-broader"
+    assert cards[2]["command"] == "make action-queue-check TOP_N=10"
+    assert cards[3]["command"] == "make data-wizard TOP_N=10"
     assert "make runbook-prices-broader" in rendered
     assert "make focus-price" in rendered
     assert "manual fallback" in rendered
