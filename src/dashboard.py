@@ -5217,6 +5217,7 @@ def overview_best_current_name_cards(
                     "dcf ready" if bool(row.get("dcf_ready_bool")) else "momentum ready",
                     "peer ready" if bool(row.get("peer_ready_bool")) else "partial context",
                 ],
+                "command": "make verify" if next_surface == "Stock Report Beta" else "make monthly",
             }
         )
     return cards

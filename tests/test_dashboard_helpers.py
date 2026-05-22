@@ -3470,7 +3470,9 @@ def test_overview_best_current_name_cards_route_ready_names_to_next_surface():
     assert len(cards) == 2
     assert cards[0]["kicker"] == "NVDA"
     assert cards[0]["title"] == "Stock Report Beta"
+    assert cards[0]["command"] == "make verify"
     assert cards[1]["title"] == "Monthly Picks"
+    assert cards[1]["command"] == "make monthly"
     assert "holding" in rendered
     assert "deeper single-name review" in rendered
     assert "buy" not in rendered
