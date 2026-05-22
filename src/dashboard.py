@@ -3139,7 +3139,14 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
         ticker = format_missing(first.get("ticker"), "portfolio")
         command = format_missing(first.get("focus_command"), "")
         if not command or command == "Not available":
-            command = preferred_row_command(first, "make status")
+            command = preferred_row_command(
+                first,
+                ticker_focus_command(
+                    first.get("blocking_dataset"),
+                    first.get("ticker"),
+                    "make data-wizard TOP_N=10",
+                ),
+            )
         current_status = format_missing(first.get("current_status"), "")
         why_it_matters = compact_reason(first.get("why_it_matters"), max_sentences=1, max_chars=140)
         recommended_action = compact_reason(first.get("recommended_action"), max_sentences=1, max_chars=150)

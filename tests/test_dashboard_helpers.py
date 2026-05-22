@@ -4571,6 +4571,31 @@ def test_data_coverage_wizard_cards_handle_missing_output():
     assert "make data-wizard" in rendered
 
 
+def test_data_coverage_wizard_cards_use_lane_front_doors_when_commands_are_missing():
+    wizard = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "unlock_goal": "Unlock DCF",
+                "blocking_dataset": "fundamentals",
+                "current_status": "shares_outstanding missing",
+                "why_it_matters": "DCF needs shares and cash-flow inputs.",
+                "recommended_action": "Stage candidate fundamentals before validating and previewing the import.",
+                "focus_command": "",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.data_coverage_wizard_cards(wizard)
+    valuation_card = next(card for card in cards if card["kicker"] == "VALUATION")
+
+    assert valuation_card["title"] == "1 blocker"
+    assert valuation_card["command"] == "make focus-fundamentals TICKER=AMD"
+    assert "make focus-fundamentals TICKER=AMD" in valuation_card["badges"]
+
+
 def test_universe_preset_cards_include_preview_commands():
     cards = dashboard.universe_preset_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values())
