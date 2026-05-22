@@ -4757,7 +4757,41 @@ def overview_workflow_path_cards(
     project_status_payload: dict[str, Any] | None,
     action_queue: pd.DataFrame | None,
 ) -> list[dict[str, object]]:
-    commands = [row.get("Command", "") for row in project_status_command_rows(project_status_payload)]
+    command_rows = project_status_command_rows(project_status_payload)
+    structured_rows = bool(project_status_payload and project_status_payload.get("recommended_next_command_rows"))
+    if structured_rows and command_rows:
+        cards: list[dict[str, object]] = []
+        for index, row in enumerate(command_rows[:3], start=1):
+            command = format_missing(row.get("Command"), "make status")
+            reason = compact_reason(row.get("Reason"), max_sentences=2, max_chars=220)
+            body = reason or "Repo-native next step from the current local workflow snapshot."
+            badges = ["workflow", "command"]
+            lowered = command.lower()
+            if index == 1:
+                badges = ["today", "data first"]
+            elif "verify" in lowered:
+                badges = ["verify", "safe"]
+                body = reason or "Run deterministic verification so the current CSV outputs and dashboard state are trustworthy."
+            elif "dashboard-smoke" in lowered:
+                badges = ["ui", "workflow"]
+                body = reason or "Open or smoke-check the dashboard after the data and verification steps are complete."
+            elif "focus-" in lowered:
+                badges = ["single name", "workflow"]
+            elif "runbook-" in lowered or "imports-" in lowered:
+                badges = ["staged flow", "workflow"]
+            cards.append(
+                {
+                    "kicker": f"STEP {index}",
+                    "title": command,
+                    "body": body,
+                    "badges": badges,
+                    "command": command,
+                }
+            )
+        if cards:
+            return cards
+
+    commands = [row.get("Command", "") for row in command_rows]
     first_command = "make status"
     if action_queue is not None and not action_queue.empty:
         top_signal = top_priority_signals(action_queue, limit=1)
