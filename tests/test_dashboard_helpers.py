@@ -8569,6 +8569,8 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
     assert "dcf readiness" in rendered
     assert "make sec-stage" in rendered
     assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
     assert "make status-check top_n=5" in rendered
     assert "meta" in rendered
     assert "buy" not in rendered
@@ -9002,6 +9004,9 @@ def test_overview_bundle_handoff_cards_surface_peer_manual_follow_through():
     assert cards[2]["command"] == "make status-check TOP_N=5"
     assert "make templates" in rendered
     assert "data/imports/peers.csv" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
     assert "make status-check top_n=5" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
