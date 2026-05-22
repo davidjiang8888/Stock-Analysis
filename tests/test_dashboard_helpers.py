@@ -5425,7 +5425,8 @@ def test_data_health_command_bundle_cards_use_review_fallback_when_summaries_are
     cards = dashboard.data_health_command_bundle_cards(bundles)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "review peer path." in cards[0]["body"].lower()
+    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -6971,7 +6972,7 @@ def test_overview_command_bundle_cards_use_review_fallback_when_summaries_are_mi
     cards = dashboard.overview_command_bundle_cards(bundles)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "review peer path." in cards[0]["body"].lower()
+    assert "staged local workflow next" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 

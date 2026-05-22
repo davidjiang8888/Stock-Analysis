@@ -2699,8 +2699,9 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
 
     cards: list[dict[str, object]] = []
     for _, row in ordered.head(limit).iterrows():
+        command = preferred_bundle_command(row, "")
         goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
-        lane_summary = review_path_fallback(row.get("lane"))
+        lane_summary = command_family_fallback(command, review_path_fallback(row.get("lane")))
         target_file = format_missing(row.get("target_file"), "")
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
@@ -2737,7 +2738,7 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
                     format_missing(row.get("scope"), "scope").replace("_", " "),
                     f"{format_value(row.get('ticker_count'), fallback='0')} tickers",
                 ],
-                "command": preferred_bundle_command(row, ""),
+                "command": command,
             }
         )
     return cards
@@ -5419,10 +5420,11 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
 
     cards: list[dict[str, object]] = []
     for _, row in ordered.head(limit).iterrows():
+        command = preferred_bundle_command(row, "")
         lane = format_missing(row.get("lane"), "bundle").replace("_", " ")
         scope = format_missing(row.get("scope"), "scope").replace("_", " ")
         goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
-        lane_summary = review_path_fallback(row.get("lane"))
+        lane_summary = command_family_fallback(command, review_path_fallback(row.get("lane")))
         target_file = format_missing(row.get("target_file"), "")
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
@@ -5456,7 +5458,7 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
                     f"{' (' + '; '.join(hints) + ')' if hints else ''}"
                 ),
                 "badges": [scope, f"{format_value(row.get('ticker_count'), fallback='0')} tickers"],
-                "command": preferred_bundle_command(row, ""),
+                "command": command,
             }
         )
     return cards
