@@ -2519,7 +2519,7 @@ def data_health_overview_cards(
         f"{coverage_summary['peer_ready_tickers']} peer-ready, "
         f"{coverage_summary['optional_only_missing_tickers']} missing only optional files."
     )
-    coverage_badges = ["make status"]
+    coverage_badges = ["make data-wizard TOP_N=10"]
 
     return [
         {"kicker": "DATASETS", "title": dataset_title, "body": dataset_body, "badges": dataset_badges},
