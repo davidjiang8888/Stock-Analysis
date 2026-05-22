@@ -736,6 +736,8 @@ make dashboard
 - `make verify`
 - `make dashboard-smoke`
 
+It also refreshes the supporting read-only operator artifacts first, so the terminal snapshot, onboarding/status CSVs, research-health outputs, action queue, and durable project-status files stay in sync after local data changes.
+
 After the blocker work is done, `make dashboard` opens the Streamlit dashboard from the repo root. If you want the broader end-to-end pipeline after the blocker pass, run:
 
 ```bash

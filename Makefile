@@ -73,7 +73,7 @@ test:
 	python3 -m pytest tests -q
 
 status:
-	python3 -m src.project_status
+	python3 -m src.project_status --refresh-artifacts
 
 pipeline:
 	python3 -m src.report_generator

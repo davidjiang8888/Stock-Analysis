@@ -8,8 +8,11 @@ from typing import Any
 import pandas as pd
 
 from src.data_onboarding import build_onboarding_payload
-from src.data_sources import build_data_source_payload
+from src.data_onboarding import write_onboarding_outputs
+from src.data_sources import build_data_source_payload, write_data_source_outputs
+from src.action_queue import write_action_queue_output
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.research_health import run as run_research_health
 
 
 PROBLEM_SOURCE_STATUSES = {"partial", "missing_file", "source_unavailable", "manual_only"}
@@ -240,10 +243,16 @@ def write_project_status_output(
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
     top_n: int = 10,
+    refresh_supporting_outputs: bool = False,
 ) -> dict[str, Any]:
     root = resolve_project_root(project_root)
     data_path = resolve_data_dir(data_dir, root)
     output_path = resolve_outputs_dir(output_dir, root)
+    if refresh_supporting_outputs:
+        write_data_source_outputs(root, data_dir=data_path, output_dir=output_path)
+        write_onboarding_outputs(root, data_dir=data_path, output_dir=output_path)
+        run_research_health(root, data_dir=data_path, output_dir=output_path)
+        write_action_queue_output(root, data_dir=data_path, output_dir=output_path)
     payload = build_project_status_payload(root, data_dir=data_path, output_dir=output_path, top_n=top_n)
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -302,6 +311,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Print a read-only local project status snapshot.")
     parser.add_argument("--json", action="store_true", help="Print JSON output.")
     parser.add_argument("--write-output", action="store_true", help="Write machine-readable project status outputs.")
+    parser.add_argument(
+        "--refresh-artifacts",
+        action="store_true",
+        help="Refresh supporting read-only operator artifacts before printing status.",
+    )
     parser.add_argument("--project-root", help="Project root for default data/output directories.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
@@ -311,9 +325,16 @@ def main() -> None:
     root = resolve_project_root(args.project_root)
     data_path = resolve_data_dir(args.data_dir, root)
     output_path = resolve_outputs_dir(args.output_dir, root)
+    should_write_output = args.write_output or args.refresh_artifacts
     payload = (
-        write_project_status_output(root, data_dir=data_path, output_dir=output_path, top_n=args.top_n)
-        if args.write_output
+        write_project_status_output(
+            root,
+            data_dir=data_path,
+            output_dir=output_path,
+            top_n=args.top_n,
+            refresh_supporting_outputs=args.refresh_artifacts,
+        )
+        if should_write_output
         else build_project_status_payload(root, data_dir=data_path, output_dir=output_path, top_n=args.top_n)
     )
 

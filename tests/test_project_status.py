@@ -13,6 +13,7 @@ def _write_minimal_local_data(root: Path) -> None:
     outputs_dir = root / "outputs"
     data_dir.mkdir()
     outputs_dir.mkdir()
+    (root / "config.yaml").write_text(Path("config.yaml").read_text(encoding="utf-8"), encoding="utf-8")
     pd.DataFrame(
         [
             {"ticker": "NVDA", "date": "2026-01-01", "open": 10, "high": 11, "low": 9, "close": 10, "volume": 1000},
@@ -111,6 +112,41 @@ def test_project_status_human_write_output_reports_written_files(tmp_path: Path,
     assert "wrote:" in output
     assert "project_status.json" in output
     assert "project_status_summary.csv" in output
+
+
+def test_project_status_refresh_artifacts_writes_supporting_operator_outputs(tmp_path: Path):
+    _write_minimal_local_data(tmp_path)
+
+    payload = write_project_status_output(tmp_path, top_n=2, refresh_supporting_outputs=True)
+    outputs_dir = tmp_path / "outputs"
+
+    assert (outputs_dir / "data_source_status.csv").exists()
+    assert (outputs_dir / "data_gap_report.csv").exists()
+    assert (outputs_dir / "ticker_data_coverage.csv").exists()
+    assert (outputs_dir / "data_onboarding_actions.csv").exists()
+    assert (outputs_dir / "data_quality_wizard.csv").exists()
+    assert (outputs_dir / "liquidity_risk.csv").exists()
+    assert (outputs_dir / "correlation_risk.csv").exists()
+    assert (outputs_dir / "research_action_queue.csv").exists()
+    assert (outputs_dir / "project_status.json").exists()
+    assert payload["recommended_next_command_rows"][0]["Command"] == "make focus-price TICKER=NVDA"
+
+
+def test_project_status_human_refresh_artifacts_keeps_cli_clean(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
+    _write_minimal_local_data(tmp_path)
+
+    argv_before = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--refresh-artifacts", "--top-n", "2"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = argv_before
+
+    assert "project status summary" in output
+    assert "fix top prices blocker (nvda): make focus-price ticker=nvda" in output
+    assert "wrote:" not in output
+    assert (tmp_path / "outputs" / "project_status.json").exists()
 
 
 def test_project_status_prefers_bundle_matching_top_blocker_ticker(tmp_path: Path):
