@@ -2923,7 +2923,7 @@ def data_health_deep_research_target_cards(
                 f"Staged fundamentals import is waiting in {target_file}. "
                 "Run make imports-validate, then make imports-preview, then make imports-apply."
                 if staged_fundamentals_import
-                else "Review fundamentals path."
+                else command_family_fallback(command, "Review fundamentals path.")
             )
             cards.append(
                 {
@@ -2949,11 +2949,23 @@ def data_health_deep_research_target_cards(
         for _, row in peer_rows.head(limit_per_lane).iterrows():
             target_file = format_missing(row.get("target_file"), "")
             staged_peer_import = target_file == "data/imports/peers.csv"
+            command = (
+                preferred_row_command(row, "make imports-validate")
+                if staged_peer_import
+                else (
+                    preferred_row_command(
+                        row,
+                        ticker_focus_command("peers", row.get("ticker"), fallback=format_missing(row.get("example_command"), "")),
+                    )
+                    if format_missing(row.get("focus_command"), "")
+                    else ticker_focus_command("peers", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
+                )
+            )
             fallback_action = (
                 f"Staged peer import is waiting in {target_file}. "
                 "Run make imports-validate, then make imports-preview, then make imports-apply."
                 if staged_peer_import
-                else "Review peer path."
+                else command_family_fallback(command, "Review peer path.")
             )
             cards.append(
                 {
@@ -2967,11 +2979,7 @@ def data_health_deep_research_target_cards(
                         "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
                         "dcf ready" if str(row.get("dcf_ready", "")).lower() in {"true", "1"} else "dcf blocked",
                     ],
-                    "command": (
-                        preferred_row_command(row, "make imports-validate")
-                        if staged_peer_import
-                        else ticker_focus_command("peers", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
-                    ),
+                    "command": command,
                 }
             )
 
@@ -3019,7 +3027,7 @@ def overview_deep_research_target_cards(
                 f"Staged fundamentals import is waiting in {target_file}. "
                 "Run make imports-validate, then make imports-preview, then make imports-apply."
                 if staged_fundamentals_import
-                else "Review fundamentals path."
+                else command_family_fallback(command, "Review fundamentals path.")
             )
             cards.append(
                 {
@@ -3045,11 +3053,23 @@ def overview_deep_research_target_cards(
         for _, row in peer_rows.head(limit_per_lane).iterrows():
             target_file = format_missing(row.get("target_file"), "")
             staged_peer_import = target_file == "data/imports/peers.csv"
+            command = (
+                preferred_row_command(row, "make imports-validate")
+                if staged_peer_import
+                else (
+                    preferred_row_command(
+                        row,
+                        ticker_focus_command("peers", row.get("ticker"), fallback=format_missing(row.get("example_command"), "")),
+                    )
+                    if format_missing(row.get("focus_command"), "")
+                    else ticker_focus_command("peers", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
+                )
+            )
             fallback_action = (
                 f"Staged peer import is waiting in {target_file}. "
                 "Run make imports-validate, then make imports-preview, then make imports-apply."
                 if staged_peer_import
-                else "Review peer path."
+                else command_family_fallback(command, "Review peer path.")
             )
             cards.append(
                 {
@@ -3063,11 +3083,7 @@ def overview_deep_research_target_cards(
                         "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
                         "dcf ready" if str(row.get("dcf_ready", "")).lower() in {"true", "1"} else "dcf blocked",
                     ],
-                    "command": (
-                        preferred_row_command(row, "make imports-validate")
-                        if staged_peer_import
-                        else ticker_focus_command("peers", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
-                    ),
+                    "command": command,
                 }
             )
 

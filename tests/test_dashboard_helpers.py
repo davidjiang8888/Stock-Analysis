@@ -6330,6 +6330,30 @@ def test_overview_deep_research_target_cards_use_review_fallback_when_action_is_
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_overview_deep_research_target_cards_use_runbook_fallback_when_action_is_missing():
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "is_holding": False,
+                "theme": "Semis",
+                "price_history_days": 84,
+                "missing_required_for_dcf": "fundamentals row",
+                "recommended_action": "",
+                "focus_command": "make runbook-fundamentals",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_target_cards(sec_queue, pd.DataFrame())
+
+    assert cards[0]["command"] == "make runbook-fundamentals"
+    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_overview_deep_research_target_cards_use_peer_review_fallback_when_action_is_missing():
     peer_queue = pd.DataFrame(
         [
@@ -6349,6 +6373,30 @@ def test_overview_deep_research_target_cards_use_peer_review_fallback_when_actio
     cards = dashboard.overview_deep_research_target_cards(pd.DataFrame(), peer_queue)
 
     assert "review peer path." in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
+def test_overview_deep_research_target_cards_use_peer_runbook_fallback_when_action_is_missing():
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "is_holding": False,
+                "theme": "EV",
+                "dcf_ready": False,
+                "missing_required_for_peer_relative": "peer mapping",
+                "recommended_action": "",
+                "focus_command": "make runbook-peers",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_target_cards(pd.DataFrame(), peer_queue)
+
+    assert cards[0]["command"] == "make runbook-peers"
+    assert "staged local workflow next" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
