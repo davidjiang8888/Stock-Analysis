@@ -164,16 +164,22 @@ def test_reorder_columns_surfaces_summary_and_research_context_first():
             "CompositeScore": [55.0],
             "PrimaryPurpose": ["Momentum Leader"],
             "DataGaps": ["Not enough price history"],
+            "NextBestAction": ["Run make focus-price TICKER=NVDA"],
+            "FocusCommand": ["make focus-price TICKER=NVDA"],
+            "ExampleCommand": ["make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"],
             "GeneratedAt": ["2026-05-21T00:00:00Z"],
         }
     )
 
     reordered = dashboard.reorder_columns(frame)
 
-    assert list(reordered.columns[:5]) == [
+    assert list(reordered.columns[:8]) == [
         "Ticker",
         "PrimaryPurpose",
         "CompositeScore",
+        "NextBestAction",
+        "FocusCommand",
+        "ExampleCommand",
         "ReasonSummary",
         "DataGaps",
     ]
@@ -3156,6 +3162,7 @@ def test_dashboard_column_labels_cover_bundle_goal_fields():
     assert dashboard.COLUMN_LABELS["FallbackManualCommand"] == "Fallback Manual Command"
     assert dashboard.COLUMN_LABELS["ExactNextCommand"] == "Exact Next Command"
     assert dashboard.COLUMN_LABELS["FocusCommand"] == "Focus Command"
+    assert dashboard.COLUMN_LABELS["ExampleCommand"] == "Example Command"
 
 
 def test_overview_command_bundle_cards_surface_bundle_commands_safely():
