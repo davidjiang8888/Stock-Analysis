@@ -1687,7 +1687,10 @@ def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[Tick
             target_file = "data/imports/prices.csv"
             focus_command = focus_command_for_ticker("prices", coverage.ticker)
             example_command = f"make price-normalize INPUT=data/raw/prices/{coverage.ticker}.csv TICKER={coverage.ticker} SOURCE=yahoo_manual"
-            safe_next_step = "Use data/raw/prices/ plus price normalize/validate/preview/apply when the free source is unreliable."
+            safe_next_step = (
+                "Use data/raw/prices/, then run make price-normalize, make price-validate, "
+                "make price-preview, and make price-apply when the free source is unreliable."
+            )
         elif not coverage.dcf_ready:
             current_unlock_stage = "fundamentals"
             next_unlock_goal = "Unlock DCF"
@@ -1974,7 +1977,10 @@ def build_command_bundles(
                 follow_up_command="make price-status",
                 target_file="data/imports/prices.csv",
                 why_it_matters=why_it_matters,
-                safe_next_step="If the free refresh fails, use data/raw/prices/ plus make price-normalize before price validate/preview/apply.",
+                safe_next_step=(
+                    "If the free refresh fails, use data/raw/prices/, then run make price-normalize, "
+                    "make price-validate, make price-preview, and make price-apply."
+                ),
             )
         )
 

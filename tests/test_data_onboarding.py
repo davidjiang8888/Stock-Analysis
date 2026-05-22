@@ -1146,6 +1146,10 @@ def test_command_bundles_surface_holdings_first_price_and_sec_paths(tmp_path: Pa
     assert price_bundle["suggested_start_date"]
     assert price_bundle["primary_command"].startswith("make price-refresh TICKERS=")
     assert "AMD" in price_bundle["primary_command"]
+    assert "make price-normalize" in price_bundle["safe_next_step"]
+    assert "make price-validate" in price_bundle["safe_next_step"]
+    assert "make price-preview" in price_bundle["safe_next_step"]
+    assert "make price-apply" in price_bundle["safe_next_step"]
     assert fundamentals_bundle["scope"] == "broader_queue"
     assert "AMD" in fundamentals_bundle["tickers"]
     assert "DCF readiness" in fundamentals_bundle["goal_summary"]

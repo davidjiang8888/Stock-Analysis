@@ -3613,6 +3613,10 @@ def test_data_health_overview_cards_without_price_status_use_status_first_guidan
     assert "price status not generated" in rendered
     assert "make status" in rendered
     assert "manual fallback" in rendered
+    assert "make price-normalize" in rendered
+    assert "make price-validate" in rendered
+    assert "make price-preview" in rendered
+    assert "make price-apply" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
