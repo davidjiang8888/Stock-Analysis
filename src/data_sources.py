@@ -277,7 +277,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         expected_local_file="data/peers.csv",
         fallback_action=(
             "Start with make status, then follow the printed peer focus or runbook path. "
-            "Use make templates and fill data/imports/peers.csv manually with researched mappings."
+            "Run make templates, then fill data/imports/peers.csv manually with researched mappings."
         ),
         notes="Peer mappings require local research and are never guessed.",
     ),

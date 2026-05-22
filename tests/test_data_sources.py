@@ -66,6 +66,7 @@ def test_data_source_registry_contains_required_datasets():
     peers_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "peers")
     assert "make templates" in peers_entry.fallback_action
     assert "make status" in peers_entry.fallback_action
+    assert "run make templates, then fill data/imports/peers.csv" in peers_entry.fallback_action.lower()
     earnings_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "earnings")
     assert "make templates" in earnings_entry.fallback_action
     analyst_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "analyst_estimates")
@@ -117,6 +118,7 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     assert gap_lookup["fundamentals"]["target_file"] == "data/imports/fundamentals.csv"
     assert gap_lookup["peers"]["target_file"] == "data/imports/peers.csv"
     assert "make templates" in gap_lookup["peers"]["recommended_action"]
+    assert "run make templates, then fill data/imports/peers.csv" in gap_lookup["peers"]["recommended_action"].lower()
     assert gap_lookup["peers"]["focus_command"] == "make status"
     assert gap_lookup["peers"]["example_command"] == "make runbook-peers-broader"
     assert "make templates" in gap_lookup["earnings"]["recommended_action"]

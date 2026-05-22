@@ -4573,6 +4573,7 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "data health tab" in nav_rendered
     assert "make status" in empty_rendered
     assert "make focus-price" in empty_rendered
+    assert "run make templates, then fill data/imports/peers.csv" in empty_rendered
     assert "price-normalize" in empty_rendered
     assert "make focus-fundamentals" in empty_rendered
     assert "make imports-validate" in rendered
