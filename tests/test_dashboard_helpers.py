@@ -1724,6 +1724,59 @@ def test_top_priority_signals_use_command_family_fallbacks_when_row_copy_is_miss
     assert "not available" not in " ".join(signal["body"] for signal in signals).lower()
 
 
+def test_top_priority_signals_keep_staged_follow_through_visible():
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "fundamentals",
+                "ticker": "NVDA",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            },
+            {
+                "priority": 2,
+                "urgency": "high",
+                "action_type": "peers",
+                "ticker": "TSLA",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+            },
+            {
+                "priority": 3,
+                "urgency": "high",
+                "action_type": "prices",
+                "ticker": "AMD",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make price-validate",
+                "example_command": "",
+                "target_file": "data/imports/prices.csv",
+            },
+        ]
+    )
+
+    signals = dashboard.top_priority_signals(queue, limit=3)
+
+    assert signals[0]["command"] == "make imports-validate"
+    assert "make imports-preview" in signals[0]["body"].lower()
+    assert "make imports-apply" in signals[0]["body"].lower()
+    assert signals[1]["command"] == "make imports-validate"
+    assert "make imports-preview" in signals[1]["body"].lower()
+    assert "make imports-apply" in signals[1]["body"].lower()
+    assert signals[2]["command"] == "make price-validate"
+    assert "make price-preview" in signals[2]["body"].lower()
+    assert "make price-apply" in signals[2]["body"].lower()
+    assert "use staged local imports if the free refresh fails" not in " ".join(signal["body"] for signal in signals).lower()
+
+
 def test_operator_summary_helpers_normalize_legacy_status_copy():
     queue = pd.DataFrame(
         [
