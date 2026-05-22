@@ -4043,6 +4043,7 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
         priority = int(row.get("priority") or 999)
         dataset = format_missing(row.get("dataset"))
         ticker = format_missing(row.get("ticker"), fallback="")
+        target_file = format_missing(row.get("target_file"), "")
         command = preferred_row_command(
             row,
             ticker_focus_command(row.get("dataset"), row.get("ticker"), "make status-check TOP_N=5"),
@@ -4056,6 +4057,34 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
             body = recommended_action
         elif body == "Review local data coverage.":
             body = "Local data coverage needs attention."
+        staged_follow_through = ""
+        if target_file == "data/imports/fundamentals.csv":
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged fundamentals import."
+        elif target_file == "data/imports/peers.csv":
+            staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged peer import."
+        elif target_file == "data/imports/prices.csv":
+            staged_follow_through = "Run make price-validate, then make price-preview, then make price-apply for the staged price import."
+        if staged_follow_through:
+            normalized_body = body.lower()
+            needs_staged_upgrade = False
+            if target_file == "data/imports/prices.csv":
+                needs_staged_upgrade = (
+                    "make price-validate" not in normalized_body
+                    or "make price-preview" not in normalized_body
+                    or "make price-apply" not in normalized_body
+                )
+            else:
+                needs_staged_upgrade = (
+                    "make imports-validate" not in normalized_body
+                    or "make imports-preview" not in normalized_body
+                    or "make imports-apply" not in normalized_body
+                )
+            if needs_staged_upgrade:
+                body = (
+                    f"{reason} {staged_follow_through}".strip()
+                    if reason and reason != "Not available"
+                    else staged_follow_through
+                )
         title = f"P{priority} {dataset}" + (f" - {ticker}" if ticker else "")
         tone = "danger" if priority <= 1 else "warning" if priority <= 2 else "neutral"
         actions.append((title, compact_reason(body, max_sentences=2, max_chars=220), command, tone))

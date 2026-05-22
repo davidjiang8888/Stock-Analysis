@@ -1948,6 +1948,56 @@ def test_project_status_action_cards_use_command_family_fallbacks_when_row_copy_
     assert "not available" not in " ".join(action[1] for action in actions).lower()
 
 
+def test_project_status_action_cards_keep_staged_import_follow_through_visible():
+    payload = {
+        "top_onboarding_actions": [
+            {
+                "priority": 1,
+                "dataset": "fundamentals",
+                "ticker": "NVDA",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            },
+            {
+                "priority": 2,
+                "dataset": "peers",
+                "ticker": "TSLA",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+            },
+            {
+                "priority": 3,
+                "dataset": "prices",
+                "ticker": "AMD",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make price-validate",
+                "example_command": "",
+                "target_file": "data/imports/prices.csv",
+            },
+        ]
+    }
+
+    actions = dashboard.project_status_action_cards(payload)
+
+    assert actions[0][2] == "make imports-validate"
+    assert "make imports-preview" in actions[0][1].lower()
+    assert "make imports-apply" in actions[0][1].lower()
+    assert actions[1][2] == "make imports-validate"
+    assert "make imports-preview" in actions[1][1].lower()
+    assert "make imports-apply" in actions[1][1].lower()
+    assert actions[2][2] == "make price-validate"
+    assert "make price-preview" in actions[2][1].lower()
+    assert "make price-apply" in actions[2][1].lower()
+    assert "use staged local imports if the free refresh fails" not in " ".join(action[1] for action in actions).lower()
+
+
 def test_project_status_command_rows_prefer_structured_rows():
     payload = {
         "recommended_next_command_rows": [
