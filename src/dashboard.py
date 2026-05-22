@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import re
 from pathlib import Path
 from typing import Any
 
@@ -1552,6 +1553,17 @@ def normalize_operator_command(command: object) -> str:
         return "make status"
     if command_text == "make dashboard":
         return "make dashboard-smoke"
+    price_match = re.fullmatch(r"python3 -m src\.data_update --tickers (.+)", command_text)
+    if price_match:
+        tickers = ",".join(
+            part.strip().upper()
+            for part in price_match.group(1).split(",")
+            if part.strip()
+        )
+        if tickers:
+            return f"make price-refresh TICKERS={tickers}"
+    if command_text == "python3 -m src.universe_builder --apply-import":
+        return "make universe-apply"
     return command_text
 
 
