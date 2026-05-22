@@ -5728,6 +5728,9 @@ def monthly_picks_next_step_cards(
         "badges": ["data moat", "command"],
     }
     command_text = format_missing(fallback_command.get("title"), "make status")
+    coverage_command = command_text
+    if coverage_command in {"", "Not available", "make status"}:
+        coverage_command = "make data-wizard TOP_N=10"
 
     if picks_frame is None:
         primary = {
@@ -5742,20 +5745,20 @@ def monthly_picks_next_step_cards(
             "kicker": "NEXT STEP",
             "title": "Improve candidate coverage",
             "body": (
-                f"Current local filters did not support any monthly candidates. Run {command_text} to improve local price or fundamentals coverage instead of forcing weaker names into the list."
+                f"Current local filters did not support any monthly candidates. Run {coverage_command} to improve local price or fundamentals coverage instead of forcing weaker names into the list."
             ),
             "badges": ["coverage first", "no forced fills"],
-            "command": command_text,
+            "command": coverage_command,
         }
     elif candidate_count < top_n:
         primary = {
             "kicker": "NEXT STEP",
             "title": "Improve candidate coverage",
             "body": (
-                f"Only {candidate_count} of {top_n} conservative slots are filled. Run {command_text} to improve local price or fundamentals coverage before forcing weaker names into the list."
+                f"Only {candidate_count} of {top_n} conservative slots are filled. Run {coverage_command} to improve local price or fundamentals coverage before forcing weaker names into the list."
             ),
             "badges": ["coverage first", "no forced fills"],
-            "command": command_text,
+            "command": coverage_command,
         }
     elif not has_track_record or not has_equity:
         track_record_command = command_text
