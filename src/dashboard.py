@@ -6853,6 +6853,7 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
                 "make action-queue-check TOP_N=10",
             ),
         )
+        lowered_command = command.lower()
         reason = normalize_operator_copy(row.get("reason"))
         recommended_action = normalize_operator_copy(row.get("recommended_action"))
         target_file = format_missing(row.get("target_file"), "")
@@ -6863,6 +6864,22 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
             body_source = f"{reason} {recommended_action}".strip() if reason else recommended_action
         elif reason and reason != "Not available":
             body_source = reason
+        if lowered_command == "make imports-validate":
+            normalized_body = body_source.lower()
+            if "make imports-preview" not in normalized_body or "make imports-apply" not in normalized_body:
+                body_source = (
+                    f"{reason} Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+                    if reason and reason != "Not available"
+                    else "Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+                )
+        elif lowered_command == "make price-validate":
+            normalized_body = body_source.lower()
+            if "make price-preview" not in normalized_body or "make price-apply" not in normalized_body:
+                body_source = (
+                    f"{reason} Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
+                    if reason and reason != "Not available"
+                    else "Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
+                )
         staged_follow_through = ""
         if target_file == "data/imports/fundamentals.csv":
             staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged fundamentals import."

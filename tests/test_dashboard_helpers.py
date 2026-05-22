@@ -1716,11 +1716,12 @@ def test_top_priority_signals_use_command_family_fallbacks_when_row_copy_is_miss
     signals = dashboard.top_priority_signals(queue, limit=3)
 
     assert signals[0]["title"] == "make imports-validate"
-    assert "staged local workflow next" in signals[0]["body"].lower()
+    assert "make imports-preview" in signals[0]["body"].lower()
+    assert "make imports-apply" in signals[0]["body"].lower()
     assert signals[1]["title"] == "make bundle-peers"
     assert "highest-leverage local bundle first" in signals[1]["body"].lower()
     assert signals[2]["title"] == "make runbook-peers"
-    assert "staged local workflow next" in signals[2]["body"].lower()
+    assert "ordered lane runbook" in signals[2]["body"].lower()
     assert "not available" not in " ".join(signal["body"] for signal in signals).lower()
 
 
@@ -4900,7 +4901,8 @@ def test_overview_workflow_path_cards_use_imports_and_bundle_fallbacks_when_acti
 
     assert imports_cards[0]["title"] == "make imports-validate"
     assert "staged flow" in [badge.lower() for badge in imports_cards[0]["badges"]]
-    assert "use the staged local workflow next" in imports_cards[0]["body"].lower()
+    assert "make imports-preview" in imports_cards[0]["body"].lower()
+    assert "make imports-apply" in imports_cards[0]["body"].lower()
     assert bundle_cards[0]["title"] == "make bundle-peers"
     assert "bundle first" in [badge.lower() for badge in bundle_cards[0]["badges"]]
     assert "highest-leverage local bundle first" in bundle_cards[0]["body"].lower()
@@ -5208,7 +5210,8 @@ def test_overview_workflow_reason_card_uses_imports_and_bundle_fallbacks_when_qu
 
     assert imports_card["title"] == "make imports-validate"
     assert "nvda" in " ".join(str(value) for value in imports_card.values()).lower()
-    assert "staged local workflow next" in " ".join(str(value) for value in imports_card.values()).lower()
+    assert "make imports-preview" in " ".join(str(value) for value in imports_card.values()).lower()
+    assert "make imports-apply" in " ".join(str(value) for value in imports_card.values()).lower()
     assert bundle_card["title"] == "make bundle-peers"
     assert "highest-leverage local bundle first" in " ".join(str(value) for value in bundle_card.values()).lower()
     assert "not available" not in " ".join(str(value) for value in imports_card.values()).lower()
@@ -5237,7 +5240,7 @@ def test_overview_workflow_reason_card_uses_runbook_fallback_when_queue_copy_is_
 
     assert card["title"] == "make runbook-peers"
     assert "tsla" in rendered
-    assert "staged local workflow next" in rendered
+    assert "ordered lane runbook" in rendered
     assert "not available" not in rendered
 
 
@@ -6857,8 +6860,9 @@ def test_data_health_action_path_cards_use_command_family_fallbacks_when_row_cop
     cards = dashboard.data_health_action_path_cards(actions, queue)
 
     assert cards[0]["title"] == "make imports-validate"
-    assert "staged local workflow next" in cards[0]["body"].lower()
-    assert any("staged local workflow next" in str(card.get("body", "")).lower() for card in cards[1:])
+    assert "make imports-preview" in cards[0]["body"].lower()
+    assert "make imports-apply" in cards[0]["body"].lower()
+    assert any("ordered lane runbook" in str(card.get("body", "")).lower() for card in cards[1:])
     assert any(card.get("command") == "make runbook-peers" for card in cards[1:])
     assert "not available" not in " ".join(str(value) for card in cards for value in card.values()).lower()
 
