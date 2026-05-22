@@ -238,8 +238,19 @@ def _recommended_next_command_rows(
         )
         if command:
             bundle_name = _first_non_empty(top_bundle.get("bundle_name"), "Top bundle")
+            scope = str(top_bundle.get("scope") or "").strip().lower()
+            if scope == "broader_queue" and "(Broader Queue)" not in bundle_name:
+                bundle_name = f"{bundle_name} (Broader Queue)"
             reason = _first_non_empty(top_bundle.get("goal_summary"), top_bundle.get("why_it_matters"))
-            rows.append({"Step": f"Run {bundle_name}", "Command": command, "Reason": reason})
+            if command.startswith("make runbook-"):
+                step = f"Open {bundle_name} runbook"
+            elif command.startswith("make detail-"):
+                step = f"Open {bundle_name} details"
+            elif command.startswith("make bundle-"):
+                step = f"Run {bundle_name}"
+            else:
+                step = f"Run {bundle_name}"
+            rows.append({"Step": step, "Command": command, "Reason": reason})
 
     problem_source_rows = _recommended_source_command_rows(problem_sources)
     if problem_source_rows:

@@ -336,7 +336,7 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
     assert "command: make sec-stage tickers=nvda" in output
     assert "fix top prices blocker (nvda): make focus-price ticker=nvda" in output
     assert "no verified local price history is present for this ticker yet." in output or "at least 21 are needed" in output
-    assert "run price coverage bundle: make runbook-prices" in output
+    assert "open price coverage bundle runbook: make runbook-prices" in output
 
 
 def test_project_status_human_write_output_reports_written_files(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
@@ -445,6 +445,7 @@ def test_project_status_prefers_bundle_matching_top_blocker_ticker(tmp_path: Pat
     payload = build_project_status_payload(tmp_path, top_n=5)
 
     assert payload["top_onboarding_actions"][0]["ticker"] == "AMD"
+    assert payload["recommended_next_command_rows"][1]["Step"] == "Open Price Coverage Bundle (Broader Queue) runbook"
     assert payload["recommended_next_command_rows"][1]["Command"] == "make runbook-prices-broader"
 
 
@@ -479,4 +480,5 @@ def test_project_status_prefers_holdings_first_price_blockers_when_priority_matc
     assert payload["top_onboarding_actions"][0]["ticker"] == "META"
     assert payload["top_onboarding_actions"][0]["focus_command"] == "make focus-price TICKER=META"
     assert payload["recommended_next_command_rows"][0]["Command"] == "make focus-price TICKER=META"
+    assert payload["recommended_next_command_rows"][1]["Step"] == "Open Price Coverage Bundle runbook"
     assert payload["recommended_next_command_rows"][1]["Command"] == "make runbook-prices"
