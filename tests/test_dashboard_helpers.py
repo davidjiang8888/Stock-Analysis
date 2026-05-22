@@ -6251,6 +6251,32 @@ def test_data_coverage_wizard_cards_use_review_fallback_when_row_copy_is_missing
     assert "not available" not in peer_card["body"].lower()
 
 
+def test_data_coverage_wizard_cards_use_staged_flow_fallback_when_row_copy_is_missing():
+    wizard = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "unlock_goal": "Unlock DCF",
+                "blocking_dataset": "fundamentals",
+                "current_status": "",
+                "why_it_matters": "",
+                "recommended_action": "",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.data_coverage_wizard_cards(wizard)
+    valuation_card = next(card for card in cards if card["kicker"] == "VALUATION")
+
+    assert valuation_card["title"] == "1 blocker"
+    assert valuation_card["command"] == "make imports-validate"
+    assert "staged local workflow next" in valuation_card["body"].lower()
+    assert "not available" not in valuation_card["body"].lower()
+
+
 def test_universe_preset_cards_include_preview_commands():
     cards = dashboard.universe_preset_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values())

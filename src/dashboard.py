@@ -3325,7 +3325,7 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
         if recommended_action and recommended_action != "Not available":
             body_parts.append(recommended_action)
         if len(body_parts) == 1:
-            body_parts.append(review_path_fallback(first.get("blocking_dataset")))
+            body_parts.append(command_family_fallback(command, review_path_fallback(first.get("blocking_dataset"))))
         cards.append(
             {
                 "kicker": kicker,
