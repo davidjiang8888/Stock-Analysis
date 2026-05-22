@@ -4649,6 +4649,7 @@ def test_data_health_command_bundle_runbook_cards_surface_peer_manual_step():
 
     assert "fill peer mappings manually" in rendered
     assert "data/imports/peers.csv" in rendered
+    assert "make status-check top_n=5" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -5808,6 +5809,7 @@ def test_overview_bundle_runbook_cards_surface_lane_steps_safely():
     assert "run bundle command" in rendered
     assert "unlock monthly picks" in rendered
     assert "21 target rows" in rendered
+    assert "make status-check top_n=5" not in rendered
     assert "start by 2025-12-01" in rendered
     assert "make price-normalize input=data/raw/prices/meta.csv ticker=meta source=yahoo_manual" in rendered
     assert "make sec-stage tickers=nvda" in rendered

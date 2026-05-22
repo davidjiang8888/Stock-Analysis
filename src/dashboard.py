@@ -2731,7 +2731,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             normalized_command = normalize_operator_command(command)
             if command:
                 first_command = first_command or normalized_command or command
-                steps.append(f"{step_label}: {command}")
+                steps.append(f"{step_label}: {normalized_command or command}")
         cards.append(
             {
                 "kicker": f"{lane.upper()} RUNBOOK",
@@ -5365,7 +5365,7 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
             normalized_command = normalize_operator_command(command)
             first_command = first_command or normalized_command or command
             steps.append(
-                f"{format_missing(row.get('step_label'), 'Step')}: {command}"
+                f"{format_missing(row.get('step_label'), 'Step')}: {normalized_command or command}"
             )
         cards.append(
             {
