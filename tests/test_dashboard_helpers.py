@@ -5503,6 +5503,15 @@ def test_data_health_action_path_cards_use_command_family_fallbacks_when_row_cop
                 "recommended_action": "",
                 "focus_command": "make imports-validate",
                 "example_command": "",
+            },
+            {
+                "priority": 3,
+                "dataset": "peers",
+                "ticker": "TSLA",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make runbook-peers",
+                "example_command": "",
             }
         ]
     )
@@ -5527,6 +5536,7 @@ def test_data_health_action_path_cards_use_command_family_fallbacks_when_row_cop
     assert cards[0]["title"] == "make imports-validate"
     assert "staged local workflow next" in cards[0]["body"].lower()
     assert any("staged local workflow next" in str(card.get("body", "")).lower() for card in cards[1:])
+    assert any(card.get("command") == "make runbook-peers" for card in cards[1:])
     assert "not available" not in " ".join(str(value) for card in cards for value in card.values()).lower()
 
 
