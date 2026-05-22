@@ -5634,13 +5634,20 @@ def overview_bundle_handoff_cards(
     staged_summary = ""
     if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
         staged_summary = compact_reason(top_bundle.get("safe_next_step"), max_sentences=1, max_chars=150)
+        if target_file == "data/imports/fundamentals.csv":
+            default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
+        elif target_file == "data/imports/peers.csv":
+            default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
+        else:
+            default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
         if staged_summary == "Not available":
-            if target_file == "data/imports/fundamentals.csv":
-                staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
-            elif target_file == "data/imports/peers.csv":
-                staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
-            else:
-                staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+            staged_summary = default_staged_summary
+        elif target_file == "data/imports/prices.csv" and (
+            "make price-validate" not in staged_summary
+            or "make price-preview" not in staged_summary
+            or "make price-apply" not in staged_summary
+        ):
+            staged_summary = default_staged_summary
     bundle_summary = (
         goal_summary
         if goal_summary not in {"", "Not available"}
@@ -5707,6 +5714,19 @@ def overview_bundle_handoff_cards(
         ]
         if part and part != "Not available"
     ).lower()
+    follow_through_summary = compact_reason(top_bundle.get("safe_next_step"), max_sentences=2, max_chars=220)
+    if staged_summary not in {"", "Not available"} and (
+        follow_through_summary in {"", "Not available"}
+        or (
+            target_file == "data/imports/prices.csv"
+            and (
+                "make price-validate" not in follow_through_summary
+                or "make price-preview" not in follow_through_summary
+                or "make price-apply" not in follow_through_summary
+            )
+        )
+    ):
+        follow_through_summary = staged_summary
     if (
         str(top_bundle.get("lane", "")).strip().lower() == "prices"
         and "monthly picks" in monthly_refresh_context
@@ -5731,9 +5751,9 @@ def overview_bundle_handoff_cards(
             "body": (
                 (
                     f"After the primary command, use {follow_up_command} and check {first_ticker} first. "
-                    f"{compact_reason(top_bundle.get('safe_next_step'), max_sentences=2, max_chars=220)}"
+                    f"{follow_through_summary}"
                 )
-                if follow_up_command and compact_reason(top_bundle.get("safe_next_step"), max_sentences=2, max_chars=220) not in {"", "Not available"}
+                if follow_up_command and follow_through_summary not in {"", "Not available"}
                 else f"After the primary command, use {follow_up_command or 'Data Health'} and check {first_ticker} first "
                 "to confirm the bundle moved the expected local blocker."
             ),

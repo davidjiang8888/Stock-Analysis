@@ -8951,6 +8951,9 @@ def test_overview_bundle_handoff_cards_use_monthly_front_door_for_price_bundle_r
 
     assert cards[2]["title"] == "Refresh monthly context"
     assert cards[2]["command"] == "make monthly"
+    assert "make price-validate" in rendered
+    assert "make price-preview" in rendered
+    assert "make price-apply" in rendered
     assert "make monthly" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -9030,6 +9033,9 @@ def test_overview_bundle_handoff_cards_use_monthly_front_door_when_goal_summary_
 
     assert cards[2]["title"] == "Refresh monthly context"
     assert cards[2]["command"] == "make monthly"
+    assert "make price-validate" in rendered
+    assert "make price-preview" in rendered
+    assert "make price-apply" in rendered
     assert "make monthly" in rendered
 
 
