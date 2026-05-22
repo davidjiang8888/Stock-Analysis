@@ -1913,7 +1913,7 @@ def test_stock_report_next_step_cards_prioritize_missing_prices_first():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Fix price coverage"
-    assert "src.data_update --tickers nvda" in rendered
+    assert "make focus-price ticker=nvda" in rendered
     assert "data gaps" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -1938,6 +1938,7 @@ def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_revi
     )
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
     assert cards[0]["title"] == "Stage fundamentals"
+    assert cards[0]["command"] == "make focus-fundamentals TICKER=NVDA"
 
     payload["valuation_readiness"]["dcf_ready"] = True
     coverage = pd.DataFrame(
@@ -1948,6 +1949,7 @@ def test_stock_report_next_step_cards_route_to_fundamentals_then_peers_then_revi
     )
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": False})
     assert cards[0]["title"] == "Add peer mappings"
+    assert cards[0]["command"] == "make focus-peers TICKER=NVDA"
 
     payload["valuation_readiness"]["peer_ready"] = True
     cards = dashboard.stock_report_next_step_cards(payload, coverage, {"peer_dataset_present": True})
@@ -2577,7 +2579,8 @@ def test_data_health_deep_research_target_cards_surface_dcf_and_peer_targets_saf
 
     assert cards[0]["kicker"] == "DCF TARGET"
     assert "peer target" in rendered
-    assert "make" in rendered or "python3 -m src.stock_report --sec-stage-fundamentals" in rendered
+    assert "make focus-fundamentals ticker=nvda" in rendered
+    assert "make focus-peers ticker=tsla" in rendered
     assert "fundamentals row" in rendered
     assert "peer mapping" in rendered
     assert "buy" not in rendered
@@ -2659,7 +2662,8 @@ def test_overview_deep_research_target_cards_surface_dcf_and_peer_targets_safely
     assert "unlock peers" in rendered
     assert "fundamentals row" in rendered
     assert "peer mapping" in rendered
-    assert "sec-stage-fundamentals" in rendered
+    assert "make focus-fundamentals ticker=nvda" in rendered
+    assert "make focus-peers ticker=tsla" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

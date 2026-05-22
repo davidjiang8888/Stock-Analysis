@@ -1172,6 +1172,19 @@ def format_missing(value: object, fallback: str = "Not available") -> str:
     return text
 
 
+def ticker_focus_command(lane: str, ticker: object, fallback: str = "") -> str:
+    ticker_text = format_missing(ticker, fallback="").upper()
+    if not ticker_text:
+        return fallback
+    lane_key = format_missing(lane, fallback="").strip().lower()
+    command_map = {
+        "prices": f"make focus-price TICKER={ticker_text}",
+        "fundamentals": f"make focus-fundamentals TICKER={ticker_text}",
+        "peers": f"make focus-peers TICKER={ticker_text}",
+    }
+    return command_map.get(lane_key, fallback)
+
+
 def format_value(value: object, fallback: str = "Not available") -> str:
     text = format_missing(value, fallback=fallback)
     if text == fallback:
@@ -1652,7 +1665,7 @@ def stock_report_next_step_cards(
                     "Use the manual staged price workflow if the free refresh path stays unreliable."
                 ),
                 "badges": ["prices", "data moat"],
-                "command": f"python3 -m src.data_update --tickers {ticker}",
+                "command": ticker_focus_command("prices", ticker, fallback=f"python3 -m src.data_update --tickers {ticker}"),
             }
         )
     elif not readiness.get("dcf_ready") and not has_fundamentals:
@@ -1665,7 +1678,11 @@ def stock_report_next_step_cards(
                     "Stage SEC fundamentals before leaning on valuation."
                 ),
                 "badges": ["fundamentals", "sec queue"],
-                "command": f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}",
+                "command": ticker_focus_command(
+                    "fundamentals",
+                    ticker,
+                    fallback=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}",
+                ),
             }
         )
     elif not readiness.get("peer_ready") or not peer_summary.get("peer_dataset_present"):
@@ -1678,7 +1695,7 @@ def stock_report_next_step_cards(
                     "Add manually researched peers if this name matters for deeper relative work."
                 ),
                 "badges": ["peers", "manual research"],
-                "command": "python3 -m src.data_onboarding --write-templates",
+                "command": ticker_focus_command("peers", ticker, fallback="python3 -m src.data_onboarding --write-templates"),
             }
         )
     else:
@@ -2190,7 +2207,7 @@ def data_health_deep_research_target_cards(
                         "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
                         f"{format_value(row.get('price_history_days'), fallback='0')} price rows",
                     ],
-                    "command": format_missing(row.get("example_command"), ""),
+                    "command": ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), "")),
                 }
             )
 
@@ -2212,7 +2229,7 @@ def data_health_deep_research_target_cards(
                         "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
                         "dcf ready" if str(row.get("dcf_ready", "")).lower() in {"true", "1"} else "dcf blocked",
                     ],
-                    "command": format_missing(row.get("example_command"), ""),
+                    "command": ticker_focus_command("peers", row.get("ticker"), fallback=format_missing(row.get("example_command"), "")),
                 }
             )
 
@@ -2254,7 +2271,7 @@ def overview_deep_research_target_cards(
                         "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
                         f"P{format_value(row.get('priority'), fallback='-')}",
                     ],
-                    "command": format_missing(row.get("example_command"), ""),
+                    "command": ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), "")),
                 }
             )
 
@@ -2276,7 +2293,7 @@ def overview_deep_research_target_cards(
                         "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
                         "dcf ready" if str(row.get("dcf_ready", "")).lower() in {"true", "1"} else "dcf blocked",
                     ],
-                    "command": format_missing(row.get("example_command"), ""),
+                    "command": ticker_focus_command("peers", row.get("ticker"), fallback=format_missing(row.get("example_command"), "")),
                 }
             )
 
