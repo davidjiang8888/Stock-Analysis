@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from src.action_queue import write_action_queue_output
+from src.data_onboarding import write_onboarding_outputs
 from src.data_update import enrich_price_update_status_frame
 from src.data_sources import write_data_source_outputs
 from src.providers.local_data_catalog import LocalDataCatalog
@@ -230,7 +231,15 @@ def load_data_source_status_tables(
 def load_data_onboarding_tables(
     outputs_dir: Path = OUTPUTS_DIR,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
-    return {filename: load_output(outputs_dir / filename) for filename in DATA_ONBOARDING_FILES}
+    tables = {filename: load_output(outputs_dir / filename) for filename in DATA_ONBOARDING_FILES}
+    coverage_frame, _ = tables.get("ticker_data_coverage.csv", (None, None))
+    if coverage_frame is not None and not coverage_frame.empty:
+        required_columns = {"target_file", "focus_command", "example_command"}
+        if not required_columns.issubset(set(coverage_frame.columns)):
+            write_onboarding_outputs(BASE_DIR, output_dir=outputs_dir)
+            for filename in DATA_ONBOARDING_FILES:
+                tables[filename] = load_output(outputs_dir / filename)
+    return tables
 
 
 def load_research_health_tables(

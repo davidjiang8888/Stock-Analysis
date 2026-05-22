@@ -615,6 +615,47 @@ def test_load_research_health_tables_refreshes_stale_wizard_artifact(tmp_path):
     assert "make price-normalize" in amd_row["ExampleCommand"]
 
 
+def test_load_data_onboarding_tables_refreshes_stale_coverage_artifact(tmp_path):
+    pd.DataFrame(
+        [
+            {
+                "ticker": "AMD",
+                "has_prices": False,
+                "price_history_days": 0,
+                "has_fundamentals": False,
+                "dcf_ready": False,
+                "has_peer_mapping": False,
+                "peer_ready": False,
+                "has_earnings": False,
+                "has_analyst_estimates": False,
+                "usable_for_momentum": False,
+                "usable_for_monthly_picks": False,
+                "usable_for_dcf": False,
+                "usable_for_peer_relative": False,
+                "missing_required_for_momentum": "prices",
+                "missing_required_for_dcf": "fundamentals row",
+                "missing_required_for_peer_relative": "peer mapping",
+                "next_best_action": "old",
+            }
+        ]
+    ).to_csv(tmp_path / "ticker_data_coverage.csv", index=False)
+
+    old_base = dashboard.BASE_DIR
+    try:
+        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
+        tables = dashboard.load_data_onboarding_tables(tmp_path)
+    finally:
+        dashboard.BASE_DIR = old_base
+
+    frame, message = tables["ticker_data_coverage.csv"]
+    assert message is None
+    assert frame is not None
+    assert {"target_file", "focus_command", "example_command"} <= set(frame.columns)
+    amd_row = frame.loc[frame["ticker"] == "AMD"].iloc[0]
+    assert amd_row["focus_command"] == "make focus-price TICKER=AMD"
+    assert "make price-normalize" in amd_row["example_command"]
+
+
 def test_onboarding_tables_handle_missing_outputs_and_summary():
     tables = dashboard.load_data_onboarding_tables(Path("/tmp/nonexistent-dashboard-test-dir"))
 

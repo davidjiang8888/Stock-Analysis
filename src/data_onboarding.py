@@ -32,6 +32,9 @@ COVERAGE_COLUMNS = [
     "missing_required_for_dcf",
     "missing_required_for_peer_relative",
     "next_best_action",
+    "target_file",
+    "focus_command",
+    "example_command",
 ]
 
 ACTION_COLUMNS = [
@@ -291,6 +294,9 @@ class TickerCoverage:
     missing_required_for_dcf: str
     missing_required_for_peer_relative: str
     next_best_action: str
+    target_file: str
+    focus_command: str
+    example_command: str
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -835,8 +841,36 @@ def build_ticker_coverage(
             missing_required_for_dcf=_missing_join(missing_dcf),
             missing_required_for_peer_relative=_missing_join(missing_peer),
             next_best_action="",
+            target_file="",
+            focus_command="",
+            example_command="",
         )
         provisional.next_best_action = _action_for_coverage(provisional)
+        if not provisional.has_prices or provisional.price_history_days < 21:
+            provisional.target_file = "data/imports/prices.csv"
+            provisional.focus_command = focus_command_for_ticker("prices", provisional.ticker)
+            provisional.example_command = (
+                f"make price-normalize INPUT=data/raw/prices/{provisional.ticker}.csv "
+                f"TICKER={provisional.ticker} SOURCE=yahoo_manual"
+            )
+        elif not provisional.has_fundamentals or not provisional.dcf_ready:
+            provisional.target_file = "data/imports/fundamentals.csv"
+            provisional.focus_command = focus_command_for_ticker("fundamentals", provisional.ticker)
+            provisional.example_command = (
+                f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {provisional.ticker}"
+            )
+        elif not provisional.has_peer_mapping or not provisional.peer_ready:
+            provisional.target_file = "data/imports/peers.csv" if not provisional.has_peer_mapping else "data/fundamentals.csv, data/prices.csv"
+            provisional.focus_command = focus_command_for_ticker("peers", provisional.ticker)
+            provisional.example_command = "make templates" if not provisional.has_peer_mapping else "python3 -m src.stock_report --validate-local-data"
+        elif not provisional.has_earnings:
+            provisional.target_file = "data/imports/earnings.csv"
+            provisional.focus_command = "make templates"
+            provisional.example_command = "make templates"
+        elif not provisional.has_analyst_estimates:
+            provisional.target_file = "data/imports/analyst_estimates.csv"
+            provisional.focus_command = "make templates"
+            provisional.example_command = "make templates"
         rows.append(provisional)
     return rows
 

@@ -148,6 +148,22 @@ def test_onboarding_actions_prioritize_prices_fundamentals_peers_before_estimate
     assert "make templates" in smh_action["recommended_action"]
 
 
+def test_build_ticker_coverage_surfaces_operator_commands(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    coverage = build_ticker_coverage(tmp_path)
+    amd = next(row.to_dict() for row in coverage if row.ticker == "AMD")
+    nvda = next(row.to_dict() for row in coverage if row.ticker == "NVDA")
+
+    assert list(amd.keys()) == COVERAGE_COLUMNS
+    assert amd["focus_command"] == "make focus-price TICKER=AMD"
+    assert amd["target_file"] == "data/imports/prices.csv"
+    assert "make price-normalize" in amd["example_command"]
+    assert nvda["focus_command"] == "make focus-peers TICKER=NVDA"
+    assert nvda["target_file"] == "data/fundamentals.csv, data/prices.csv"
+    assert "validate-local-data" in nvda["example_command"]
+
+
 def test_build_onboarding_actions_uses_normalize_first_price_workflow(tmp_path: Path):
     _write_fixture(tmp_path)
 
