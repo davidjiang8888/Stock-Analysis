@@ -155,6 +155,23 @@ def _gap_target_file(dataset: str, ticker: str) -> str:
     return ""
 
 
+def _ticker_gap_recommended_action(dataset: str, ticker: str) -> str:
+    ticker = str(ticker or "").strip().upper()
+    if dataset == "prices" and ticker:
+        return (
+            f"Run make focus-price TICKER={ticker}, or run python3 -m src.data_update "
+            f"--tickers {ticker} and normalize verified downloaded OHLCV files into "
+            "data/imports/prices.csv."
+        )
+    if dataset == "fundamentals" and ticker:
+        return (
+            f"Run make focus-fundamentals TICKER={ticker}, or stage explicit local "
+            f"fundamentals with python3 -m src.stock_report --sec-stage-fundamentals "
+            f"--tickers {ticker}."
+        )
+    return ""
+
+
 DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
     DataSourceRegistryEntry(
         dataset="prices",
@@ -512,7 +529,7 @@ def build_data_gap_report(
                     status="missing_file" if not price_tickers else "partial",
                     reason=f"No local price rows were found for {ticker}.",
                     required_for=price_status.required_for,
-                    recommended_action=price_status.fallback_action,
+                    recommended_action=_ticker_gap_recommended_action("prices", ticker),
                     target_file=_gap_target_file("prices", ticker),
                     focus_command=_gap_focus_command("prices", ticker),
                     example_command=_gap_example_command("prices", ticker),
@@ -528,7 +545,7 @@ def build_data_gap_report(
                     status="partial",
                     reason=f"No local fundamentals row was found for {ticker}.",
                     required_for=fundamentals_status.required_for,
-                    recommended_action=fundamentals_status.fallback_action,
+                    recommended_action=_ticker_gap_recommended_action("fundamentals", ticker),
                     target_file=_gap_target_file("fundamentals", ticker),
                     focus_command=_gap_focus_command("fundamentals", ticker),
                     example_command=_gap_example_command("fundamentals", ticker),

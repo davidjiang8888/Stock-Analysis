@@ -22,6 +22,11 @@ def _write_minimal_local_data(root: Path) -> None:
         "2026-01-02,NVDA,100,1000\n",
         encoding="utf-8",
     )
+    (data_dir / "fundamentals.csv").write_text(
+        "ticker,theme,sector,pe_ratio,revenue_growth,profit_margin,debt_to_equity\n"
+        "NVDA,AI,Semis,30,0.2,0.3,0.4\n",
+        encoding="utf-8",
+    )
     (data_dir / "universe.csv").write_text(
         "ticker,theme,sectoretf,defaultpurpose,marketcapbucket,notes\n"
         "NVDA,AI,SMH,Momentum Leader,Large,fixture\n"
@@ -105,9 +110,23 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     assert gap_lookup["analyst_estimates"]["focus_command"] == "make templates"
     assert gap_lookup["analyst_estimates"]["example_command"] == "make templates"
     price_gap = next(gap for gap in payload["data_gaps"] if gap["dataset"] == "prices" and gap["ticker"] == "MSFT")
+    assert price_gap["recommended_action"] == (
+        "Run make focus-price TICKER=MSFT, or run python3 -m src.data_update "
+        "--tickers MSFT and normalize verified downloaded OHLCV files into "
+        "data/imports/prices.csv."
+    )
     assert price_gap["focus_command"] == "make focus-price TICKER=MSFT"
     assert price_gap["example_command"] == "make price-normalize INPUT=data/raw/prices/MSFT.csv TICKER=MSFT SOURCE=yahoo_manual"
     assert price_gap["target_file"] == "data/imports/prices.csv"
+    fundamentals_gap = next(gap for gap in payload["data_gaps"] if gap["dataset"] == "fundamentals" and gap["ticker"] == "MSFT")
+    assert fundamentals_gap["recommended_action"] == (
+        "Run make focus-fundamentals TICKER=MSFT, or stage explicit local "
+        "fundamentals with python3 -m src.stock_report --sec-stage-fundamentals "
+        "--tickers MSFT."
+    )
+    assert fundamentals_gap["focus_command"] == "make focus-fundamentals TICKER=MSFT"
+    assert fundamentals_gap["example_command"] == "python3 -m src.stock_report --sec-stage-fundamentals --tickers MSFT"
+    assert fundamentals_gap["target_file"] == "data/imports/fundamentals.csv"
 
 
 def test_write_data_source_outputs_creates_csvs(tmp_path: Path):
