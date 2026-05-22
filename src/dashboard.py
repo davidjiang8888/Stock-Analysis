@@ -3891,6 +3891,15 @@ def overview_deep_research_handoff_cards(
     command_text = format_missing(top_priority.get("command"), "")
     if not command_text or command_text == "Not available":
         command_text = format_missing(fallback_command.get("title"), "make onboarding")
+    command_reason = compact_reason(top_priority.get("body"), max_sentences=3, max_chars=240)
+    if command_text == format_missing(fallback_command.get("title"), "make onboarding"):
+        fallback_reason = compact_reason(fallback_command.get("body"), max_sentences=2, max_chars=220)
+        if fallback_reason and fallback_reason != "Not available":
+            command_reason = fallback_reason
+    if not command_reason or command_reason == "Not available":
+        command_reason = (
+            f"Run {command_text} next so the local queue step for {ticker} is explicit and reviewable before deeper interpretation."
+        )
 
     return [
         {
@@ -3904,9 +3913,7 @@ def overview_deep_research_handoff_cards(
         {
             "kicker": "DEEP RESEARCH COMMAND",
             "title": command_text,
-            "body": (
-                f"Run {command_text} next so the local queue step for {ticker} is explicit and reviewable before deeper interpretation."
-            ),
+            "body": command_reason,
             "badges": ["command", "read-only"],
             "command": command_text,
         },
@@ -4610,6 +4617,20 @@ def overview_best_local_research_path_cards(
     first_name = format_missing(best_name.get("kicker"), "Not available")
     command_text = format_missing(next_command.get("title"), "make onboarding")
     tab_text = format_missing(next_tab.get("title"), "Data Health")
+    command_reason = compact_reason(next_command.get("body"), max_sentences=2, max_chars=220)
+    queue_signal = top_priority_signals(action_queue, limit=1) if action_queue is not None else []
+    queue_reason = compact_reason(queue_signal[0].get("body"), max_sentences=2, max_chars=220) if queue_signal else ""
+    generic_reason_markers = (
+        "repo-native next step from the current read-only project status snapshot",
+        "refresh local data coverage, onboarding outputs, and action guidance before broader research work",
+    )
+    if queue_reason and any(marker in command_reason.lower() for marker in generic_reason_markers):
+        command_reason = queue_reason
+    if not command_reason or command_reason == "Not available":
+        command_reason = (
+            f"Run {command_text} next to improve or confirm the current local research path "
+            "before trusting broader downstream interpretation."
+        )
 
     return [
         {
@@ -4624,10 +4645,7 @@ def overview_best_local_research_path_cards(
         {
             "kicker": "NEXT COMMAND",
             "title": command_text,
-            "body": (
-                f"Run {command_text} next to improve or confirm the current local research path "
-                "before trusting broader downstream interpretation."
-            ),
+            "body": command_reason,
             "badges": [str(item) for item in next_command.get("badges", [])][:2] or ["command", "read-only"],
             "command": command_text,
         },
@@ -4733,6 +4751,21 @@ def overview_current_top_surfaces_cards(
     blocked_name = format_missing(deep_cards[0].get("title"), "Not available")
     command_text = format_missing(command_cards[0].get("title"), "make help") if command_cards else "make help"
     next_tab = format_missing(ready_cards[2].get("title"), "Data Health")
+    command_reason = (
+        compact_reason(command_cards[0].get("body"), max_sentences=2, max_chars=220)
+        if command_cards
+        else "Highest-value repo-native command from the current local workflow state."
+    )
+    queue_signal = top_priority_signals(action_queue, limit=1) if action_queue is not None else []
+    queue_reason = compact_reason(queue_signal[0].get("body"), max_sentences=2, max_chars=220) if queue_signal else ""
+    generic_reason_markers = (
+        "repo-native next step from the current read-only project status snapshot",
+        "refresh local data coverage, onboarding outputs, and action guidance before broader research work",
+    )
+    if queue_reason and any(marker in command_reason.lower() for marker in generic_reason_markers):
+        command_reason = queue_reason
+    if not command_reason or command_reason == "Not available":
+        command_reason = "Highest-value repo-native command from the current local workflow state."
 
     return [
         {
@@ -4754,9 +4787,7 @@ def overview_current_top_surfaces_cards(
         {
             "kicker": "BEST NEXT COMMAND",
             "title": command_text,
-            "body": (
-                "Highest-value repo-native command from the current local workflow state."
-            ),
+            "body": command_reason,
             "badges": [str(item) for item in command_cards[0].get("badges", [])][:2] if command_cards else ["command"],
             "command": command_text,
         },

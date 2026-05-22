@@ -1084,7 +1084,8 @@ def test_overview_deep_research_handoff_cards_stitch_name_command_and_tab():
                 "action_type": "fundamentals",
                 "ticker": "NVDA",
                 "title": "Stage fundamentals",
-                "reason": "Need more local inputs.",
+                "reason": "DCF inputs are still incomplete.",
+                "recommended_action": "Run SEC staging for fundamentals, then validate and preview before applying.",
                 "example_command": "make sec-stage-queue",
             }
         ]
@@ -1096,6 +1097,7 @@ def test_overview_deep_research_handoff_cards_stitch_name_command_and_tab():
     assert len(cards) == 3
     assert cards[0]["title"] == "NVDA"
     assert "sec-stage-fundamentals --tickers nvda" in rendered
+    assert "stage or add richer verified fundamentals" in rendered
     assert cards[2]["title"] == "Data Health"
     assert "stock report beta" in rendered
     assert "buy" not in rendered
@@ -1304,7 +1306,8 @@ def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_t
                 "action_type": "prices",
                 "ticker": "NVDA",
                 "title": "Repair prices",
-                "reason": "Need more local rows.",
+                "reason": "NVDA update failed during remote refresh.",
+                "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.",
                 "example_command": "make price-worklist",
             }
         ]
@@ -1318,6 +1321,7 @@ def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_t
     assert cards[1]["title"] == "NVDA"
     assert cards[2]["title"] == "make onboarding"
     assert cards[3]["title"] == "Stock Report Beta"
+    assert "normalize verified downloaded ohlcv rows" in rendered
     assert "best currently usable local name" in rendered
     assert "top deeper-research blocker" in rendered
     assert "buy" not in rendered
@@ -1605,7 +1609,8 @@ def test_overview_best_local_research_path_cards_stitch_name_command_and_tab():
                 "action_type": "prices",
                 "ticker": "NVDA",
                 "title": "Repair prices",
-                "reason": "Need more local rows.",
+                "reason": "NVDA update failed during remote refresh.",
+                "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.",
                 "example_command": "make price-worklist",
             }
         ]
@@ -1621,6 +1626,7 @@ def test_overview_best_local_research_path_cards_stitch_name_command_and_tab():
     assert "best current name" in rendered
     assert "next command" in rendered
     assert "next tab" in rendered
+    assert "normalize verified downloaded ohlcv rows" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
