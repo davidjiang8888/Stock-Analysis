@@ -6158,18 +6158,23 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
             ("Latest Price", latest_price, "From data/prices.csv"),
         ]
     )
+    fallback_command = overview_next_command_cards(None, action_queue_frame, limit=1)[0] if action_queue_frame is not None else {
+        "title": "make status",
+        "badges": ["data moat", "command"],
+    }
+    blocker_command = format_missing(fallback_command.get("title"), "make status")
 
     if picks_frame is None:
         render_notice_card(
-            "Monthly picks are not generated yet",
-            picks_message or "Generate the local candidate list after refreshing pipeline outputs. This stays research-only and may return fewer than five names.",
-            "python3 -m src.monthly_picks --generate --top-n 5",
+            "Monthly context is not available yet",
+            picks_message or "Run make status so the local blocker path and monthly research files refresh together before interpreting this tab. This stays research-only and may still return fewer than five names.",
+            "make status",
         )
     elif picks_frame.empty:
         render_notice_card(
             "No monthly candidates passed the current filters",
             "The output exists, but the conservative scoring rules did not find supported local candidates. Improve price/fundamental coverage before broadening interpretation.",
-            "make status",
+            blocker_command,
             tone="warning",
         )
     else:
@@ -6234,7 +6239,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         render_notice_card(
             "Track record needs more local history",
             track_record_status_message(track_frame, equity_frame),
-            "python3 -m src.track_record --monthly-picks",
+            blocker_command,
         )
     with st.expander("Track-record table and archive detail", expanded=False):
         if track_frame is not None and not track_frame.empty:
@@ -6245,13 +6250,13 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         else:
             render_notice_card(
                 "Track-record table is not available yet",
-                "Run the track-record command after monthly picks exist. If local price history is short, the result will explain that instead of fabricating performance.",
-                "python3 -m src.track_record --monthly-picks",
+                "Track-record files are still unavailable. Run the current blocker path first; if local price history is still short afterward, the track-record output will stay explicit instead of fabricating performance.",
+                blocker_command,
             )
             render_notice_card(
                 "No monthly archive yet",
                 "The archive appears only after enough local monthly pick and price-history rows exist. Nothing is backfilled or invented.",
-                "python3 -m src.track_record --monthly-picks",
+                blocker_command,
             )
 
     with st.expander("Methodology", expanded=False):

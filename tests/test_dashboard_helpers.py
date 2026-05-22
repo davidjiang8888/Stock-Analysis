@@ -2309,6 +2309,29 @@ def test_monthly_picks_next_step_cards_cover_generation_coverage_history_and_rev
     assert "dashboard-smoke" in cards[0]["body"]
 
 
+def test_monthly_picks_track_record_gap_points_to_blocker_command():
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "NVDA",
+                "title": "Repair prices",
+                "reason": "Need more local rows.",
+                "example_command": "make price-worklist",
+            }
+        ]
+    )
+    full_picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": ""}] * 5)
+
+    cards = dashboard.monthly_picks_next_step_cards(full_picks, None, None, 5, queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "improve track-record coverage" in rendered
+    assert "make price-worklist" in rendered
+
+
 def test_stock_report_brief_html_summarizes_readiness_without_advice():
     html = dashboard.stock_report_brief_html(
         {
