@@ -68,7 +68,7 @@ def test_action_queue_uses_research_health_when_price_data_is_missing():
     assert rows[0].ticker == "AMD"
     assert rows[0].action_type == "prices"
     assert rows[0].focus_command == "make focus-price TICKER=AMD"
-    assert "Refresh or import prices" in rows[0].recommended_action
+    assert "make focus-price TICKER=AMD" in rows[0].recommended_action
     assert rows[0].example_command == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
 
 
@@ -228,6 +228,54 @@ def test_action_queue_payload_refreshes_stale_onboarding_actions(tmp_path: Path)
     assert fundamentals_rows
     assert fundamentals_rows[0]["focus_command"] == "make focus-fundamentals TICKER=NVDA"
     assert fundamentals_rows[0]["example_command"] == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
+
+
+def test_action_queue_payload_refreshes_stale_price_actions_from_data_quality(tmp_path: Path):
+    outputs_dir = tmp_path / "outputs"
+    data_dir = tmp_path / "data"
+    outputs_dir.mkdir()
+    data_dir.mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    pd.DataFrame(
+        [
+            {"ticker": "AMD", "theme": "AI", "sectoretf": "SMH", "defaultpurpose": "Momentum Leader"},
+        ]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    pd.DataFrame(columns=["ticker", "shares", "primarypurpose"]).to_csv(data_dir / "holdings.csv", index=False)
+    (outputs_dir / "data_onboarding_actions.csv").write_text(
+        "priority,ticker,dataset,status,reason,recommended_action,target_file,focus_command,example_command\n",
+        encoding="utf-8",
+    )
+    (outputs_dir / "data_gap_report.csv").write_text(
+        "dataset,ticker,status,reason,required_for,recommended_action,local_file,source_name\n",
+        encoding="utf-8",
+    )
+    pd.DataFrame(
+        [
+            {
+                "Ticker": "AMD",
+                "DataQualityScore": 0,
+                "ReadinessStatus": "Needs Price Data",
+                "MomentumReady": False,
+                "MonthlyPicksReady": False,
+                "DCFReady": False,
+                "PeerReady": False,
+                "EarningsAvailable": False,
+                "AnalystEstimatesAvailable": False,
+                "PriceHistoryDays": 0,
+                "MissingDataFields": "prices",
+                "NextBestAction": "Run python3 -m src.data_update --tickers AMD, or add verified rows to data/imports/prices.csv and run validate/preview/apply.",
+                "Reason": "AMD has 0 local price rows.",
+            }
+        ]
+    ).to_csv(outputs_dir / "data_quality_wizard.csv", index=False)
+
+    payload = build_action_queue_payload(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
+
+    amd_row = next(row for row in payload["action_queue"] if row["ticker"] == "AMD" and row["action_type"] == "prices")
+    assert amd_row["focus_command"] == "make focus-price TICKER=AMD"
+    assert "normalize verified downloaded OHLCV files into data/imports/prices.csv" in amd_row["recommended_action"]
+    assert amd_row["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
 
 
 def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_rows():

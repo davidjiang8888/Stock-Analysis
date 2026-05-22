@@ -57,7 +57,10 @@ def test_data_quality_wizard_scores_readiness_and_reasons():
             "has_analyst_estimates": False,
             "usable_for_momentum": False,
             "usable_for_monthly_picks": False,
-            "next_best_action": "Add verified local prices.",
+            "next_best_action": (
+                "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and "
+                "normalize verified downloaded OHLCV rows into data/imports/prices.csv."
+            ),
         },
     ]
 
@@ -68,6 +71,7 @@ def test_data_quality_wizard_scores_readiness_and_reasons():
     assert frame.loc[frame["Ticker"] == "AMD", "ReadinessStatus"].iloc[0] == "Needs Price Data"
     assert frame["Reason"].fillna("").str.len().gt(0).all()
     assert "prices" in frame.loc[frame["Ticker"] == "AMD", "MissingDataFields"].iloc[0]
+    assert "make focus-price TICKER=AMD" in frame.loc[frame["Ticker"] == "AMD", "NextBestAction"].iloc[0]
 
 
 def test_liquidity_risk_calculates_context_without_recommendations():

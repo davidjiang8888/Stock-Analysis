@@ -629,8 +629,8 @@ def _missing_join(items: list[str]) -> str:
 
 def _price_action_text(ticker: str) -> str:
     return (
-        f"Run python3 -m src.data_update --tickers {ticker}, or normalize verified downloaded OHLCV rows into "
-        "data/imports/prices.csv."
+        f"Run make focus-price TICKER={ticker}, or run python3 -m src.data_update --tickers {ticker} and "
+        "normalize verified downloaded OHLCV rows into data/imports/prices.csv."
     )
 
 
@@ -940,11 +940,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
 def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[DataCoverageWizardRow]:
     rows: list[DataCoverageWizardRow] = []
     for row in coverage_rows:
-        price_command = f"python3 -m src.data_update --tickers {row.ticker}"
-        price_action = (
-            f"Refresh {row.ticker} prices, or normalize verified downloaded OHLCV rows into "
-            "data/imports/prices.csv before validate/preview/apply."
-        )
+        price_action = _price_action_text(row.ticker)
         if not row.usable_for_momentum:
             rows.append(
                 DataCoverageWizardRow(
@@ -957,7 +953,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     recommended_action=price_action,
                     target_file="data/imports/prices.csv",
                     focus_command=focus_command_for_ticker("prices", row.ticker),
-                    example_command=price_command,
+                    example_command=f"make price-normalize INPUT=data/raw/prices/{row.ticker}.csv TICKER={row.ticker} SOURCE=yahoo_manual",
                     safe_next_step="Use make price-normalize for downloaded CSVs, then make price-validate and make price-preview before applying.",
                 )
             )
@@ -973,7 +969,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     recommended_action=price_action,
                     target_file="data/imports/prices.csv",
                     focus_command=focus_command_for_ticker("prices", row.ticker),
-                    example_command=price_command,
+                    example_command=f"make price-normalize INPUT=data/raw/prices/{row.ticker}.csv TICKER={row.ticker} SOURCE=yahoo_manual",
                     safe_next_step="Add verified historical OHLCV rows locally; do not infer or backfill synthetic returns.",
                 )
             )
@@ -986,7 +982,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     blocking_dataset="fundamentals",
                     current_status=row.missing_required_for_dcf or "DCF inputs incomplete",
                     why_it_matters="DCF needs free cash flow or revenue plus FCF margin, and shares outstanding.",
-                    recommended_action="Run SEC staging for candidate fundamentals, then validate and preview before applying.",
+                    recommended_action=_fundamentals_action_text(row.ticker),
                     target_file="data/imports/fundamentals.csv",
                     focus_command=focus_command_for_ticker("fundamentals", row.ticker),
                     example_command=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {row.ticker}",
@@ -1002,7 +998,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     blocking_dataset="peers",
                     current_status=row.missing_required_for_peer_relative or "Peer-relative inputs incomplete",
                     why_it_matters="Peer-relative valuation needs manual peer mappings plus peer fundamentals and price or market-cap context.",
-                    recommended_action="Add manually researched peer mappings and peer data through local CSV imports.",
+                    recommended_action=_peer_action_text(row.ticker, missing_mapping=not row.has_peer_mapping),
                     target_file="data/imports/peers.csv",
                     focus_command=focus_command_for_ticker("peers", row.ticker),
                     example_command="python3 -m src.data_onboarding --write-templates",

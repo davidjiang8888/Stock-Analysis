@@ -93,7 +93,10 @@ def test_data_onboarding_coverage_works_with_local_fixtures(tmp_path: Path):
     assert coverage["NVDA"]["price_history_days"] == 22
     assert coverage["NVDA"]["dcf_ready"] is True
     assert coverage["AMD"]["usable_for_momentum"] is False
-    assert coverage["AMD"]["next_best_action"] == "Run python3 -m src.data_update --tickers AMD, or normalize verified downloaded OHLCV rows into data/imports/prices.csv."
+    assert coverage["AMD"]["next_best_action"] == (
+        "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize "
+        "verified downloaded OHLCV rows into data/imports/prices.csv."
+    )
     assert "make focus-peers TICKER=NVDA" in coverage["NVDA"]["next_best_action"]
     assert "peer-relative valuation" in coverage["NVDA"]["next_best_action"]
 
@@ -159,6 +162,14 @@ def test_data_coverage_wizard_ranks_core_unlocks_before_optional_context(tmp_pat
     assert any(row["focus_command"] == "make focus-price TICKER=AMD" for row in amd_rows if row["blocking_dataset"] == "prices")
     assert any(row["focus_command"] == "make focus-fundamentals TICKER=AMD" for row in amd_rows if row["blocking_dataset"] == "fundamentals")
     assert any(row["focus_command"] == "make focus-peers TICKER=AMD" for row in amd_rows if row["blocking_dataset"] == "peers")
+    assert any(
+        "make focus-price TICKER=AMD" in row["recommended_action"]
+        and row["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+        for row in amd_rows
+        if row["blocking_dataset"] == "prices"
+    )
+    assert any("make focus-fundamentals TICKER=AMD" in row["recommended_action"] for row in amd_rows if row["blocking_dataset"] == "fundamentals")
+    assert any("make focus-peers TICKER=AMD" in row["recommended_action"] for row in amd_rows if row["blocking_dataset"] == "peers")
     assert goals.index("Add Earnings Context") > goals.index("Unlock Peer Relative")
     assert goals.index("Add Analyst Estimate Context") > goals.index("Unlock Peer Relative")
 

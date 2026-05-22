@@ -45,9 +45,6 @@ STALE_ONBOARDING_REASONS = {
     "peer mapping",
     "peer fundamentals or peer price/market-cap context",
 }
-STALE_DATA_QUALITY_PRICE_ACTIONS = {
-    "refresh or import prices.",
-}
 STALE_DATA_GAP_ACTIONS = {
     "fundamentals": {
         "run sec staging for fundamentals, then validate, preview, and apply the staged import.",
@@ -114,8 +111,7 @@ def _data_quality_needs_refresh(frame: pd.DataFrame) -> bool:
 
     stale_price_rows = frame.loc[frame["ReadinessStatus"].astype(str).str.strip() == "Needs Price Data"]
     if not stale_price_rows.empty:
-        normalized_actions = stale_price_rows["NextBestAction"].astype(str).str.strip().str.lower()
-        if normalized_actions.isin(STALE_DATA_QUALITY_PRICE_ACTIONS).any():
+        if not stale_price_rows["NextBestAction"].astype(str).str.contains(r"make focus-price\s+TICKER=", regex=True).all():
             return True
 
     enrichment_rows = frame.loc[frame["ReadinessStatus"].astype(str).str.strip().isin({"Needs Enrichment", "Partial Coverage"})]
@@ -184,6 +180,16 @@ def _price_normalize_command(ticker: str) -> str:
     if not ticker:
         return "make status"
     return f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
+
+
+def _price_focus_recommended_action(ticker: str) -> str:
+    ticker = _normalized_ticker(ticker)
+    if not ticker:
+        return "Run make status, then follow the printed price focus or runbook path."
+    return (
+        f"Run make focus-price TICKER={ticker}, or run python3 -m src.data_update --tickers {ticker} and "
+        "normalize verified downloaded OHLCV files into data/imports/prices.csv."
+    )
 
 
 def _focus_command_from_action_text(action_text: str, ticker: str) -> str:
@@ -345,6 +351,9 @@ def build_action_queue_rows(
             status = str(row.get("ReadinessStatus", "")).strip()
             ticker = _normalized_ticker(row.get("Ticker"))
             if status == "Needs Price Data":
+                recommended_action = str(row.get("NextBestAction", "")).strip()
+                if ticker and "make focus-price" not in recommended_action:
+                    recommended_action = _price_focus_recommended_action(ticker)
                 items.append(
                     ActionQueueItem(
                         priority=1,
@@ -353,7 +362,7 @@ def build_action_queue_rows(
                         ticker=ticker,
                         title=f"Add enough local price history for {ticker}",
                         status=status,
-                        recommended_action=str(row.get("NextBestAction", "")).strip() or "Refresh or manually import prices for this ticker.",
+                        recommended_action=recommended_action or "Refresh or manually import prices for this ticker.",
                         focus_command=focus_command_for_ticker("prices", ticker),
                         example_command=_price_normalize_command(ticker),
                         source_file="data/imports/prices.csv",
