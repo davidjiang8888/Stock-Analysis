@@ -4002,8 +4002,9 @@ def holdings_unlock_cards(
             {
                 "kicker": "HOLDINGS FIRST",
                 "title": "No holdings unlock board yet",
-                "body": "Add holdings rows, then run make status to refresh onboarding outputs and surface blocked portfolio names before broader universe work.",
+                "body": "Add holdings rows, then run make onboarding to refresh onboarding outputs and surface blocked portfolio names before broader universe work.",
                 "badges": ["read-only"],
+                "command": "make onboarding",
             }
         ]
 
@@ -4083,8 +4084,9 @@ def holdings_deep_research_cards(
             {
                 "kicker": "HOLDINGS DCF / PEERS",
                 "title": "No holdings deep-research board yet",
-                "body": "Add holdings rows, then run make status to refresh onboarding outputs and see which portfolio names next benefit from SEC staging or manual peer research.",
+                "body": "Add holdings rows, then run make onboarding to refresh onboarding outputs and see which portfolio names next benefit from SEC staging or manual peer research.",
                 "badges": ["read-only"],
+                "command": "make onboarding",
             }
         ]
 
