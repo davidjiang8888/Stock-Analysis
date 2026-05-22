@@ -542,6 +542,41 @@ def test_price_update_status_table_columns_surface_command_fields():
     ]
 
 
+def test_load_action_queue_refreshes_stale_queue_artifact(tmp_path):
+    pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "AMD",
+                "title": "Repair price history for AMD",
+                "status": "parse_error",
+                "recommended_action": "Retry later or use staged manual prices in data/imports/prices.csv.",
+                "example_command": "python3 -m src.data_update --tickers AMD",
+                "source_file": "data/imports/prices.csv",
+                "source_artifact": "outputs/price_update_status.csv",
+                "reason": "AMD parse failed",
+            }
+        ]
+    ).to_csv(tmp_path / "research_action_queue.csv", index=False)
+
+    old_base = dashboard.BASE_DIR
+    try:
+        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
+        frame, message = dashboard.load_action_queue(tmp_path)
+    finally:
+        dashboard.BASE_DIR = old_base
+
+    assert message is None
+    assert frame is not None
+    assert "focus_command" in frame.columns
+    assert "example_command" in frame.columns
+    price_rows = frame.loc[frame["action_type"].astype(str).str.strip().eq("prices")]
+    assert not price_rows.empty
+    assert price_rows["recommended_action"].astype(str).str.contains("make focus-price").all()
+
+
 def test_onboarding_tables_handle_missing_outputs_and_summary():
     tables = dashboard.load_data_onboarding_tables(Path("/tmp/nonexistent-dashboard-test-dir"))
 

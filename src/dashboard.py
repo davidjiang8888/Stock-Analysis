@@ -7,6 +7,7 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
+from src.action_queue import write_action_queue_output
 from src.data_update import enrich_price_update_status_frame
 from src.data_sources import write_data_source_outputs
 from src.providers.local_data_catalog import LocalDataCatalog
@@ -243,7 +244,22 @@ def load_action_queue(
     path = outputs_dir / ACTION_QUEUE_FILE
     if not path.exists():
         return None, "`research_action_queue.csv` has not been generated yet. Run `python3 -m src.action_queue --write-output` or `make action-queue`."
-    return load_output(path)
+    frame, message = load_output(path)
+    if frame is None:
+        return frame, message
+    needs_refresh = False
+    if "focus_command" not in frame.columns or "example_command" not in frame.columns:
+        needs_refresh = True
+    elif {"action_type", "recommended_action"}.issubset(frame.columns):
+        price_rows = frame.loc[frame["action_type"].astype(str).str.strip().eq("prices")]
+        if not price_rows.empty:
+            normalized_actions = price_rows["recommended_action"].astype(str).str.strip().str.lower()
+            if not normalized_actions.str.contains("make focus-price").all():
+                needs_refresh = True
+    if needs_refresh:
+        write_action_queue_output(BASE_DIR, output_dir=outputs_dir)
+        return load_output(path)
+    return frame, message
 
 
 def load_price_update_status(
