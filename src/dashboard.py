@@ -3944,19 +3944,19 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
         priority = int(row.get("priority") or 999)
         dataset = format_missing(row.get("dataset"))
         ticker = format_missing(row.get("ticker"), fallback="")
+        command = preferred_row_command(
+            row,
+            ticker_focus_command(row.get("dataset"), row.get("ticker"), "make status-check TOP_N=5"),
+        )
         reason = normalize_operator_copy(row.get("reason"))
         recommended_action = normalize_operator_copy(row.get("recommended_action"))
-        body = review_path_fallback(row.get("dataset"))
+        body = command_family_fallback(command, review_path_fallback(row.get("dataset")))
         if reason and reason != "Not available":
             body = f"{reason} {recommended_action}".strip() if recommended_action and recommended_action != reason else reason
         elif recommended_action and recommended_action != "Not available":
             body = recommended_action
         elif body == "Review local data coverage.":
             body = "Local data coverage needs attention."
-        command = preferred_row_command(
-            row,
-            ticker_focus_command(row.get("dataset"), row.get("ticker"), "make status-check TOP_N=5"),
-        )
         title = f"P{priority} {dataset}" + (f" - {ticker}" if ticker else "")
         tone = "danger" if priority <= 1 else "warning" if priority <= 2 else "neutral"
         actions.append((title, compact_reason(body, max_sentences=2, max_chars=220), command, tone))

@@ -1891,6 +1891,39 @@ def test_project_status_action_cards_use_review_fallback_when_row_copy_is_missin
     assert "not available" not in actions[0][1].lower()
 
 
+def test_project_status_action_cards_use_command_family_fallbacks_when_row_copy_is_missing():
+    payload = {
+        "top_onboarding_actions": [
+            {
+                "priority": 1,
+                "dataset": "fundamentals",
+                "ticker": "NVDA",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+            },
+            {
+                "priority": 2,
+                "dataset": "peers",
+                "ticker": "",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make bundle-peers",
+                "example_command": "",
+            },
+        ]
+    }
+
+    actions = dashboard.project_status_action_cards(payload)
+
+    assert actions[0][2] == "make imports-validate"
+    assert "staged local workflow next" in actions[0][1].lower()
+    assert actions[1][2] == "make bundle-peers"
+    assert "highest-leverage local bundle first" in actions[1][1].lower()
+    assert "not available" not in " ".join(action[1] for action in actions).lower()
+
+
 def test_project_status_command_rows_prefer_structured_rows():
     payload = {
         "recommended_next_command_rows": [
