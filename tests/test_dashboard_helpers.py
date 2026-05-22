@@ -3643,6 +3643,8 @@ def test_overview_current_top_surfaces_cards_handle_missing_inputs_gracefully():
     assert cards[1]["title"] == "No deep-research shortlist yet"
     assert cards[2]["title"] == "make onboarding"
     assert cards[3]["title"] == "Data Health"
+    assert "no locally ready name yet" in cards[0]["body"].lower()
+    assert "highest-leverage blocker" in cards[0]["body"].lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -4654,6 +4656,8 @@ def test_overview_best_local_research_path_cards_fall_back_gracefully():
     assert cards[0]["title"] == "No current ready names yet"
     assert cards[1]["title"] == "make onboarding"
     assert cards[2]["title"] == "Data Health"
+    assert "no locally ready name yet" in cards[0]["body"].lower()
+    assert "clear the highest-leverage blocker" in cards[0]["body"].lower()
     assert "no current ready names yet" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

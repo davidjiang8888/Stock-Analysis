@@ -6008,8 +6008,15 @@ def overview_best_local_research_path_cards(
             "kicker": "BEST CURRENT NAME",
             "title": first_name,
             "body": (
-                f"Start with {first_name} because it is the clearest locally usable name right now. "
-                f"Use {best_title} next for the most appropriate research surface."
+                (
+                    f"No locally ready name yet. Use {tab_text} next to clear the highest-leverage blocker "
+                    "before treating any name as ready."
+                )
+                if first_name == "No current ready names yet"
+                else (
+                    f"Start with {first_name} because it is the clearest locally usable name right now. "
+                    f"Use {best_title} next for the most appropriate research surface."
+                )
             ),
             "badges": [str(item) for item in best_name.get("badges", [])][:2] or ["local coverage"],
         },
@@ -6177,7 +6184,11 @@ def overview_current_top_surfaces_cards(
             "kicker": "BEST READY NAME",
             "title": ready_name,
             "body": (
-                f"Best currently usable local name. Next surface: {next_tab}."
+                (
+                    f"No locally ready name yet. Next surface: {next_tab} until the highest-leverage blocker is cleared."
+                )
+                if ready_name == "No current ready names yet"
+                else f"Best currently usable local name. Next surface: {next_tab}."
             ),
             "badges": [str(item) for item in ready_cards[0].get("badges", [])][:2] or ["local coverage"],
         },
