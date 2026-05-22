@@ -2085,6 +2085,65 @@ def test_theme_unlock_cards_fall_back_to_universe_preview_when_only_holdings_con
     assert "sell" not in rendered
 
 
+def test_unlock_cards_use_stage_front_doors_when_commands_are_missing():
+    holdings = pd.DataFrame(
+        [
+            {"Ticker": "NVDA", "PrimaryPurpose": "Momentum Leader"},
+        ]
+    )
+    ladder = pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "current_unlock_stage": "fundamentals",
+                "next_unlock_goal": "Unlock DCF",
+                "recommended_action": "Stage verified fundamentals.",
+                "focus_command": "",
+                "example_command": "",
+                "price_stage_status": "momentum_ready_short_history",
+            },
+        ]
+    )
+    holdings_summary = pd.DataFrame(
+        [
+            {
+                "group_type": "holdings",
+                "group_name": "Current Holdings",
+                "ticker_count": 1,
+                "holdings_count": 1,
+                "top_priority_stage": "fundamentals",
+                "next_unlock_goal": "Unlock DCF",
+                "representative_tickers": "NVDA",
+                "focus_command": "",
+                "example_command": "",
+            }
+        ]
+    )
+    theme_summary = pd.DataFrame(
+        [
+            {
+                "group_type": "theme",
+                "group_name": "AI Semiconductors",
+                "ticker_count": 3,
+                "holdings_count": 1,
+                "top_priority_stage": "peers",
+                "next_unlock_goal": "Unlock Peer Relative",
+                "recommended_action": "Build transparent peer context.",
+                "focus_command": "",
+                "example_command": "",
+            }
+        ]
+    )
+
+    holding_cards = dashboard.holdings_unlock_cards(holdings, ladder, holdings_summary, limit=2)
+    theme_cards = dashboard.theme_unlock_cards(theme_summary, limit=2)
+
+    assert holding_cards[0]["command"] == "make runbook-fundamentals-broader"
+    assert any(card.get("command") == "make focus-fundamentals TICKER=NVDA" for card in holding_cards)
+    assert theme_cards[0]["command"] == "make runbook-peers-broader"
+    assert any(card.get("command") == "make runbook-peers-broader" for card in theme_cards)
+
+
 def test_theme_deep_research_cards_surface_sec_and_peer_theme_blockers():
     sec_queue = pd.DataFrame(
         [

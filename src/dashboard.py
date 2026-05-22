@@ -3712,6 +3712,18 @@ def empty_state_command_rows() -> list[dict[str, str]]:
     ]
 
 
+def unlock_stage_command(stage: object, fallback: str = "") -> str:
+    stage_text = format_missing(stage, "").strip().lower()
+    command_map = {
+        "prices": "make runbook-prices-broader",
+        "fundamentals": "make runbook-fundamentals-broader",
+        "peers": "make runbook-peers-broader",
+        "optional_context": "make onboarding",
+        "ready": "make status-check TOP_N=5",
+    }
+    return command_map.get(stage_text, fallback)
+
+
 def action_queue_summary(queue: pd.DataFrame | None) -> dict[str, int]:
     if queue is None or queue.empty:
         return {"critical": 0, "high": 0, "medium": 0}
@@ -4083,7 +4095,13 @@ def holdings_unlock_cards(
                         f"Representative names: {format_missing(row.get('representative_tickers'), 'Not available')}."
                     ),
                     "badges": [format_missing(row.get("top_priority_stage"), "stage"), "portfolio"],
-                    "command": format_missing(row.get("example_command"), format_missing(row.get("focus_command"), "")),
+                    "command": (
+                        normalize_operator_command(format_missing(row.get("example_command"), ""))
+                        or preferred_row_command(
+                            row,
+                            unlock_stage_command(row.get("top_priority_stage"), "make onboarding"),
+                        )
+                    ),
                 }
             )
 
@@ -4109,7 +4127,14 @@ def holdings_unlock_cards(
                     f"Next action: {compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
                 ),
                 "badges": [stage, format_missing(row.get("price_stage_status"), "prices")],
-                "command": format_missing(row.get("focus_command"), format_missing(row.get("example_command"), "")),
+                "command": preferred_row_command(
+                    row,
+                    ticker_focus_command(
+                        stage,
+                        row.get("ticker"),
+                        unlock_stage_command(stage, "make onboarding"),
+                    ),
+                ),
             }
         )
     return cards
@@ -4262,9 +4287,12 @@ def theme_unlock_cards(
                 f"Start where the highest-priority stage is still {format_missing(theme_rows.iloc[0].get('top_priority_stage'), 'coverage')}."
             ),
             "badges": ["theme lens", "research only"],
-            "command": format_missing(
-                theme_rows.iloc[0].get("example_command"),
-                format_missing(theme_rows.iloc[0].get("focus_command"), ""),
+            "command": (
+                normalize_operator_command(format_missing(theme_rows.iloc[0].get("example_command"), ""))
+                or preferred_row_command(
+                    theme_rows.iloc[0],
+                    unlock_stage_command(theme_rows.iloc[0].get("top_priority_stage"), "make universe-preview"),
+                )
             ),
         }
     ]
@@ -4284,7 +4312,13 @@ def theme_unlock_cards(
                     format_missing(row.get("top_priority_stage"), "stage"),
                     format_missing(row.get("group_type"), "group"),
                 ],
-                "command": format_missing(row.get("example_command"), format_missing(row.get("focus_command"), "")),
+                "command": (
+                    normalize_operator_command(format_missing(row.get("example_command"), ""))
+                    or preferred_row_command(
+                        row,
+                        unlock_stage_command(row.get("top_priority_stage"), "make universe-preview"),
+                    )
+                ),
             }
         )
     return cards
