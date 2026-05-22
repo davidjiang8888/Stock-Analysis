@@ -5719,6 +5719,16 @@ def monthly_picks_next_step_cards(
     top_n: int,
     action_queue: pd.DataFrame | None,
 ) -> list[dict[str, object]]:
+    def _monthly_coverage_command() -> str:
+        fallback_command = overview_next_command_cards(None, action_queue, limit=1)[0] if action_queue is not None else {
+            "title": "make status",
+            "badges": ["data moat", "command"],
+        }
+        command_text = format_missing(fallback_command.get("title"), "make status")
+        if command_text in {"", "Not available", "make status"}:
+            return "make data-wizard TOP_N=10"
+        return command_text
+
     candidate_count = 0 if picks_frame is None else len(picks_frame)
     has_candidates = picks_frame is not None and not picks_frame.empty
     has_track_record = track_frame is not None and not track_frame.empty
@@ -5728,9 +5738,7 @@ def monthly_picks_next_step_cards(
         "badges": ["data moat", "command"],
     }
     command_text = format_missing(fallback_command.get("title"), "make status")
-    coverage_command = command_text
-    if coverage_command in {"", "Not available", "make status"}:
-        coverage_command = "make data-wizard TOP_N=10"
+    coverage_command = _monthly_coverage_command()
 
     if picks_frame is None:
         primary = {
@@ -6764,11 +6772,13 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
             ("Latest Price", latest_price, "From data/prices.csv"),
         ]
     )
-    fallback_command = overview_next_command_cards(None, action_queue_frame, limit=1)[0] if action_queue_frame is not None else {
-        "title": "make status",
-        "badges": ["data moat", "command"],
-    }
-    blocker_command = format_missing(fallback_command.get("title"), "make status")
+    blocker_command = monthly_picks_next_step_cards(
+        pd.DataFrame() if picks_frame is not None and picks_frame.empty else picks_frame,
+        track_frame,
+        equity_frame,
+        top_n,
+        action_queue_frame,
+    )[0]["command"]
 
     if picks_frame is None:
         render_notice_card(
