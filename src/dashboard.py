@@ -218,13 +218,18 @@ def load_data_source_status_tables(
     outputs_dir: Path = OUTPUTS_DIR,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     tables = {filename: load_output(outputs_dir / filename) for filename in DATA_SOURCE_FILES}
+    source_frame, _ = tables["data_source_status.csv"]
     gap_frame, _ = tables["data_gap_report.csv"]
-    if gap_frame is not None and not gap_frame.empty:
-        required_columns = {"focus_command", "example_command"}
-        if not required_columns.issubset(set(gap_frame.columns)):
-            payload = write_data_source_outputs(BASE_DIR, output_dir=outputs_dir)
-            tables["data_source_status.csv"] = (pd.DataFrame(payload["data_sources"]), None)
-            tables["data_gap_report.csv"] = (pd.DataFrame(payload["data_gaps"]), None)
+    required_columns = {"focus_command", "example_command"}
+    needs_refresh = False
+    if gap_frame is not None and not gap_frame.empty and not required_columns.issubset(set(gap_frame.columns)):
+        needs_refresh = True
+    if source_frame is not None and not source_frame.empty and not required_columns.issubset(set(source_frame.columns)):
+        needs_refresh = True
+    if needs_refresh:
+        payload = write_data_source_outputs(BASE_DIR, output_dir=outputs_dir)
+        tables["data_source_status.csv"] = (pd.DataFrame(payload["data_sources"]), None)
+        tables["data_gap_report.csv"] = (pd.DataFrame(payload["data_gaps"]), None)
     return tables
 
 
