@@ -51,6 +51,10 @@ def test_data_source_registry_contains_required_datasets():
         "local_outputs",
     }.issubset(datasets)
 
+    prices_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "prices")
+    assert "make status" in prices_entry.fallback_action
+    assert "validate/preview/apply" in prices_entry.fallback_action
+
 
 def test_data_source_check_handles_missing_optional_files_without_network(tmp_path: Path):
     _write_minimal_local_data(tmp_path)

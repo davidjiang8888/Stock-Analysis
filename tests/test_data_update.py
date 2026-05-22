@@ -6,6 +6,7 @@ from src.data_update import (
     apply_price_import_merge,
     load_update_tickers,
     preview_price_import_merge,
+    show_price_update_status,
     update_local_price_data,
     validate_price_imports,
 )
@@ -208,6 +209,18 @@ def test_update_local_price_data_skips_fresh_tickers_unless_refresh_requested(tm
 
     assert result.tickers_skipped_fresh == ["SPY"]
     assert source.calls == []
+
+
+def test_show_price_update_status_missing_file_uses_status_flow_guidance(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "outputs").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+
+    payload = show_price_update_status(tmp_path)
+
+    assert payload["status"] == "missing_file"
+    assert "make status" in payload["warnings"][0]
+    assert "make price-normalize" in payload["warnings"][0]
 
 
 class FlakyPriceSource(FakePriceSource):

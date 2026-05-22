@@ -96,7 +96,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_user_agent=False,
         requires_api_key=False,
         expected_local_file="data/prices.csv",
-        fallback_action="Run python3 -m src.data_update --universe-file data/universe.csv, or add verified local price rows manually.",
+        fallback_action="Start with make status, then follow the printed price focus or runbook path. For downloaded files, normalize verified local OHLCV rows before validate/preview/apply.",
         notes="The app never fabricates missing price history; short history reduces long-horizon metrics.",
     ),
     DataSourceRegistryEntry(

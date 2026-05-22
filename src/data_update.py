@@ -816,7 +816,9 @@ def show_price_update_status(base_dir: Path | None = None, *, output_dir: Path |
             "status": "missing_file",
             "path": str(path),
             "rows": [],
-            "warnings": ["Price update status has not been generated yet. Run python3 -m src.data_update --universe-file data/universe.csv."],
+            "warnings": [
+                "Price update status has not been generated yet. Start with make status, then follow the printed price focus or runbook path. For downloaded files, use make price-normalize before validate/preview/apply."
+            ],
         }
     frame = pd.read_csv(path)
     return {
