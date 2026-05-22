@@ -4859,6 +4859,23 @@ def overview_market_context_cards(
     return cards
 
 
+ONBOARDING_NOTICE_DEFAULTS: dict[str, str] = {
+    "coverage_wizard": "Run make onboarding to refresh the local data coverage wizard and see the next best coverage unlocks.",
+    "command_bundles": "Run make onboarding to refresh the onboarding outputs and generate holdings-first local command bundles.",
+    "command_bundle_details": "Run make onboarding to refresh the onboarding outputs and generate ticker-level bundle detail rows.",
+    "command_bundle_runbook": "Run make onboarding to refresh the onboarding outputs and generate ordered bundle runbook rows.",
+    "price_worklist": "Run make onboarding to refresh the onboarding outputs and see exact local price-history gaps plus the safe manual-import path.",
+    "fundamentals_peer_worklist": "Run make onboarding to refresh the onboarding outputs and see which tickers still need SEC fundamentals or manual peer mappings.",
+    "optional_context_worklist": "Run make onboarding to refresh the onboarding outputs and see which tickers still have optional earnings or analyst-estimate gaps.",
+    "ticker_unlock_ladder": "Run make onboarding to refresh the onboarding outputs and see the next per-ticker local data unlock stage.",
+    "unlock_priority_summary": "Run make onboarding to refresh the onboarding outputs and see grouped unlock priorities by holdings, theme, and sector ETF.",
+}
+
+
+def onboarding_notice_copy(kind: str, message: str | None = None) -> tuple[str, str]:
+    return (message or ONBOARDING_NOTICE_DEFAULTS[kind], "make onboarding")
+
+
 def overview_benchmark_pressure_cards(
     market_direction: pd.DataFrame | None,
     price_status_frame: pd.DataFrame | None,
@@ -7140,10 +7157,11 @@ def render_data_health(provider) -> None:
     render_section_header("Next Data Unlocks", "What to unlock next for Monthly Picks, track record, DCF, and peer-relative research.")
     render_signal_cards(data_coverage_wizard_cards(wizard_frame))
     if wizard_frame is None:
+        wizard_notice_body, wizard_notice_command = onboarding_notice_copy("coverage_wizard", wizard_message)
         render_notice_card(
             "Coverage wizard has not been generated",
-            wizard_message or "Run make status to refresh the local data coverage wizard and see the next best coverage unlocks.",
-            "make status",
+            wizard_notice_body,
+            wizard_notice_command,
         )
     render_section_header("Priority Fixes", "Highest-priority local data actions. Apply/merge steps remain CLI-only and reviewable.")
     render_action_cards(data_health_fix_first_cards(actions_frame))
@@ -7154,10 +7172,11 @@ def render_data_health(provider) -> None:
     render_section_header("Bundle Runbook", "Ordered command steps for each current bundle lane so the local follow-through stays explicit.")
     render_signal_cards(data_health_command_bundle_runbook_cards(command_bundle_runbook_frame))
     if command_bundles_frame is None:
+        bundle_notice_body, bundle_notice_command = onboarding_notice_copy("command_bundles", command_bundles_message)
         render_notice_card(
             "Command bundles have not been generated yet",
-            command_bundles_message or "Run make status to refresh the onboarding outputs and generate holdings-first local command bundles.",
-            "make status",
+            bundle_notice_body,
+            bundle_notice_command,
         )
     if command_bundle_details_frame is not None and not command_bundle_details_frame.empty:
         with st.expander("Command bundle detail rows", expanded=False):
@@ -7185,10 +7204,11 @@ def render_data_health(provider) -> None:
             ]
             st.dataframe(clean_display_frame(command_bundle_details_frame[detail_columns]), width="stretch", hide_index=True)
     elif command_bundle_details_frame is None:
+        detail_notice_body, detail_notice_command = onboarding_notice_copy("command_bundle_details", command_bundle_details_message)
         render_notice_card(
             "Command bundle detail rows are not available yet",
-            command_bundle_details_message or "Run make status to refresh the onboarding outputs and generate ticker-level bundle detail rows.",
-            "make status",
+            detail_notice_body,
+            detail_notice_command,
         )
     if command_bundle_runbook_frame is not None and not command_bundle_runbook_frame.empty:
         with st.expander("Command bundle runbook", expanded=False):
@@ -7212,10 +7232,11 @@ def render_data_health(provider) -> None:
             ]
             st.dataframe(clean_display_frame(command_bundle_runbook_frame[runbook_columns]), width="stretch", hide_index=True)
     elif command_bundle_runbook_frame is None:
+        runbook_notice_body, runbook_notice_command = onboarding_notice_copy("command_bundle_runbook", command_bundle_runbook_message)
         render_notice_card(
             "Command bundle runbook is not available yet",
-            command_bundle_runbook_message or "Run make status to refresh the onboarding outputs and generate ordered bundle runbook rows.",
-            "make status",
+            runbook_notice_body,
+            runbook_notice_command,
         )
 
     if not validation_rows.empty:
@@ -7707,11 +7728,11 @@ def render_data_health(provider) -> None:
             ]
             st.dataframe(clean_display_frame(price_worklist_frame[worklist_columns].head(15)), width="stretch", hide_index=True)
         else:
+            price_worklist_notice_body, price_worklist_notice_command = onboarding_notice_copy("price_worklist", price_worklist_message)
             render_notice_card(
                 "Price history worklist is not available yet",
-                price_worklist_message
-                or "Run make status to refresh the onboarding outputs and see exact local price-history gaps plus the safe manual-import path.",
-                "make status",
+                price_worklist_notice_body,
+                price_worklist_notice_command,
                 tone="warning",
             )
         if fundamentals_peer_worklist_frame is not None and not fundamentals_peer_worklist_frame.empty:
@@ -7736,11 +7757,13 @@ def render_data_health(provider) -> None:
             ]
             st.dataframe(clean_display_frame(fundamentals_peer_worklist_frame[fp_columns].head(15)), width="stretch", hide_index=True)
         else:
+            fundamentals_peer_notice_body, fundamentals_peer_notice_command = onboarding_notice_copy(
+                "fundamentals_peer_worklist", fundamentals_peer_worklist_message
+            )
             render_notice_card(
                 "Fundamentals and peer worklist is not available yet",
-                fundamentals_peer_worklist_message
-                or "Run make status to refresh the onboarding outputs and see which tickers still need SEC fundamentals or manual peer mappings.",
-                "make status",
+                fundamentals_peer_notice_body,
+                fundamentals_peer_notice_command,
                 tone="warning",
             )
         if optional_context_worklist_frame is not None and not optional_context_worklist_frame.empty:
@@ -7763,11 +7786,13 @@ def render_data_health(provider) -> None:
             ]
             st.dataframe(clean_display_frame(optional_context_worklist_frame[oc_columns].head(15)), width="stretch", hide_index=True)
         else:
+            optional_context_notice_body, optional_context_notice_command = onboarding_notice_copy(
+                "optional_context_worklist", optional_context_worklist_message
+            )
             render_notice_card(
                 "Optional context worklist is not available yet",
-                optional_context_worklist_message
-                or "Run make status to refresh the onboarding outputs and see which tickers still have optional earnings or analyst-estimate gaps.",
-                "make status",
+                optional_context_notice_body,
+                optional_context_notice_command,
                 tone="warning",
             )
         if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
@@ -7778,11 +7803,13 @@ def render_data_health(provider) -> None:
             ladder_columns = unlock_ladder_table_columns(ticker_unlock_ladder_frame, include_statuses=False)
             st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(15)), width="stretch", hide_index=True)
         else:
+            ticker_unlock_notice_body, ticker_unlock_notice_command = onboarding_notice_copy(
+                "ticker_unlock_ladder", ticker_unlock_ladder_message
+            )
             render_notice_card(
                 "Ticker unlock ladder is not available yet",
-                ticker_unlock_ladder_message
-                or "Run make status to refresh the onboarding outputs and see the next per-ticker local data unlock stage.",
-                "make status",
+                ticker_unlock_notice_body,
+                ticker_unlock_notice_command,
                 tone="warning",
             )
         if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
@@ -7793,11 +7820,13 @@ def render_data_health(provider) -> None:
             summary_columns = unlock_priority_summary_table_columns(unlock_priority_summary_frame)
             st.dataframe(clean_display_frame(unlock_priority_summary_frame[summary_columns].head(15)), width="stretch", hide_index=True)
         else:
+            unlock_priority_notice_body, unlock_priority_notice_command = onboarding_notice_copy(
+                "unlock_priority_summary", unlock_priority_summary_message
+            )
             render_notice_card(
                 "Unlock priority summary is not available yet",
-                unlock_priority_summary_message
-                or "Run make status to refresh the onboarding outputs and see grouped unlock priorities by holdings, theme, and sector ETF.",
-                "make status",
+                unlock_priority_notice_body,
+                unlock_priority_notice_command,
                 tone="warning",
             )
 

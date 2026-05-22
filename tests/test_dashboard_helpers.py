@@ -2721,6 +2721,19 @@ def test_overview_benchmark_pressure_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_onboarding_notice_copy_uses_onboarding_front_door_for_generated_artifacts():
+    bundle_body, bundle_command = dashboard.onboarding_notice_copy("command_bundles")
+    price_body, price_command = dashboard.onboarding_notice_copy("price_worklist")
+    unlock_body, unlock_command = dashboard.onboarding_notice_copy("unlock_priority_summary")
+
+    assert bundle_command == "make onboarding"
+    assert "generate holdings-first local command bundles" in bundle_body.lower()
+    assert price_command == "make onboarding"
+    assert "safe manual-import path" in price_body.lower()
+    assert unlock_command == "make onboarding"
+    assert "grouped unlock priorities by holdings, theme, and sector etf" in unlock_body.lower()
+
+
 def test_overview_next_command_cards_prioritize_project_status_commands():
     payload = {
         "recommended_next_commands": ["make onboarding", "make verify", "make dashboard"],
