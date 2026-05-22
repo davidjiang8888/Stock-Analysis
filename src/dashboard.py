@@ -276,6 +276,32 @@ def load_data_onboarding_tables(
     if optional_context_frame is not None and not optional_context_frame.empty:
         if "focus_command" not in optional_context_frame.columns:
             needs_refresh = True
+    coverage_wizard_frame, _ = tables.get("data_coverage_wizard.csv", (None, None))
+    if coverage_wizard_frame is not None and not coverage_wizard_frame.empty:
+        required_columns = {"target_file", "focus_command", "example_command"}
+        if not required_columns.issubset(set(coverage_wizard_frame.columns)):
+            needs_refresh = True
+        elif {"blocking_dataset", "recommended_action", "focus_command"}.issubset(set(coverage_wizard_frame.columns)):
+            core_rows = coverage_wizard_frame.loc[
+                coverage_wizard_frame["blocking_dataset"].astype(str).str.strip().isin(["prices", "fundamentals", "peers"])
+            ]
+            for _, row in core_rows.iterrows():
+                dataset = str(row.get("blocking_dataset", "")).strip()
+                ticker = str(row.get("ticker", "")).strip().upper()
+                recommended_action = str(row.get("recommended_action", "")).strip()
+                focus_command = normalize_operator_command(str(row.get("focus_command", "")).strip())
+                expected = ""
+                if focus_command == "make imports-validate":
+                    expected = "make imports-validate"
+                elif dataset == "prices" and ticker:
+                    expected = f"make focus-price TICKER={ticker}"
+                elif dataset == "fundamentals" and ticker:
+                    expected = f"make focus-fundamentals TICKER={ticker}"
+                elif dataset == "peers" and ticker:
+                    expected = f"make focus-peers TICKER={ticker}"
+                if expected and (focus_command != expected or expected not in recommended_action):
+                    needs_refresh = True
+                    break
     command_bundles_frame, _ = tables.get("command_bundles.csv", (None, None))
     if command_bundles_frame is not None and not command_bundles_frame.empty:
         primary_commands = command_bundles_frame.get("primary_command")

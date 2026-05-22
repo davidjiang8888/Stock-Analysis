@@ -1004,6 +1004,76 @@ def test_load_data_onboarding_tables_refreshes_stale_optional_context_artifact(t
     assert amd_row["focus_command"] == "make templates"
 
 
+def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp_path):
+    old_base = dashboard.BASE_DIR
+    try:
+        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
+        dashboard.write_onboarding_outputs(dashboard.BASE_DIR, output_dir=tmp_path)
+
+        pd.DataFrame(
+            [
+                {
+                    "priority": 1,
+                    "ticker": "AMD",
+                    "unlock_goal": "Unlock Monthly Picks",
+                    "blocking_dataset": "prices",
+                    "current_status": "0 local price rows",
+                    "why_it_matters": "old",
+                    "recommended_action": "Refresh AMD prices, or normalize verified downloaded OHLCV files into data/imports/prices.csv before validate/preview/apply.",
+                    "target_file": "data/imports/prices.csv",
+                    "focus_command": "make focus-price TICKER=AMD",
+                    "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                    "safe_next_step": "old",
+                },
+                {
+                    "priority": 2,
+                    "ticker": "NVDA",
+                    "unlock_goal": "Unlock DCF",
+                    "blocking_dataset": "fundamentals",
+                    "current_status": "DCF inputs incomplete",
+                    "why_it_matters": "old",
+                    "recommended_action": "Run SEC staging for candidate fundamentals, then validate and preview before applying.",
+                    "target_file": "data/imports/fundamentals.csv",
+                    "focus_command": "make focus-fundamentals TICKER=NVDA",
+                    "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                    "safe_next_step": "old",
+                },
+                {
+                    "priority": 3,
+                    "ticker": "META",
+                    "unlock_goal": "Unlock Peer Relative",
+                    "blocking_dataset": "peers",
+                    "current_status": "Peer-relative inputs incomplete",
+                    "why_it_matters": "old",
+                    "recommended_action": "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
+                    "target_file": "data/imports/peers.csv",
+                    "focus_command": "make focus-peers TICKER=META",
+                    "example_command": "make templates",
+                    "safe_next_step": "old",
+                },
+            ]
+        ).to_csv(tmp_path / "data_coverage_wizard.csv", index=False)
+
+        tables = dashboard.load_data_onboarding_tables(tmp_path)
+    finally:
+        dashboard.BASE_DIR = old_base
+
+    frame, message = tables["data_coverage_wizard.csv"]
+    assert message is None
+    assert frame is not None
+
+    amd_row = frame.loc[(frame["ticker"] == "AMD") & (frame["blocking_dataset"] == "prices")].iloc[0]
+    nvda_row = frame.loc[(frame["ticker"] == "NVDA") & (frame["blocking_dataset"] == "fundamentals")].iloc[0]
+    meta_row = frame.loc[(frame["ticker"] == "META") & (frame["blocking_dataset"] == "peers")].iloc[0]
+
+    assert "make focus-price TICKER=AMD" in str(amd_row["recommended_action"])
+    assert amd_row["focus_command"] == "make focus-price TICKER=AMD"
+    assert "make focus-fundamentals TICKER=NVDA" in str(nvda_row["recommended_action"])
+    assert nvda_row["focus_command"] == "make focus-fundamentals TICKER=NVDA"
+    assert "make focus-peers TICKER=META" in str(meta_row["recommended_action"])
+    assert meta_row["focus_command"] == "make focus-peers TICKER=META"
+
+
 def test_load_data_onboarding_tables_refreshes_stale_bundle_artifacts(tmp_path):
     old_base = dashboard.BASE_DIR
     try:
