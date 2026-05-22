@@ -5900,7 +5900,14 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
                     format_missing(row.get("action_type"), "action"),
                     format_missing(row.get("ticker"), "portfolio-wide"),
                 ],
-                "command": preferred_row_command(row, ""),
+                "command": preferred_row_command(
+                    row,
+                    ticker_focus_command(
+                        row.get("action_type"),
+                        row.get("ticker"),
+                        "make action-queue-check TOP_N=10",
+                    ),
+                ),
             }
         )
     return rows

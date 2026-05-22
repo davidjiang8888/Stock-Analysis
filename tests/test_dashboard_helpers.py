@@ -1603,6 +1603,40 @@ def test_top_priority_signals_are_compact_and_sorted():
     assert signals[1]["title"] == "Improve fundamentals"
 
 
+def test_top_priority_signals_use_lane_front_doors_when_commands_are_missing():
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "peers",
+                "ticker": "AMD",
+                "title": "Research peers",
+                "reason": "Peer mappings are missing.",
+                "recommended_action": "Add manually researched mappings through the staged imports flow.",
+                "focus_command": "",
+                "example_command": "",
+            },
+            {
+                "priority": 2,
+                "urgency": "high",
+                "action_type": "unknown",
+                "ticker": "",
+                "title": "Review queue",
+                "reason": "A portfolio-wide workflow step is still pending.",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+            },
+        ]
+    )
+
+    signals = dashboard.top_priority_signals(queue, limit=2)
+
+    assert signals[0]["command"] == "make focus-peers TICKER=AMD"
+    assert signals[1]["command"] == "make action-queue-check TOP_N=10"
+
+
 def test_workflow_health_score_reflects_action_pressure():
     strong_score, strong_label = dashboard.workflow_health_score(
         {"critical": 0, "high": 0, "medium": 1},
