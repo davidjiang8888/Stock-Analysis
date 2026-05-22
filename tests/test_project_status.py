@@ -48,6 +48,39 @@ def test_project_status_payload_is_read_only_and_summarizes_local_gaps(tmp_path:
     assert not (tmp_path / "outputs" / "project_status.json").exists()
 
 
+def test_project_status_payload_respects_ticker_slice_for_read_only_views(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "date": "2026-01-01", "open": 10, "high": 11, "low": 9, "close": 10, "volume": 1000},
+            {"ticker": "NVDA", "date": "2026-01-02", "open": 10, "high": 12, "low": 9, "close": 11, "volume": 1100},
+        ]
+    ).to_csv(data_dir / "prices.csv", index=False)
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "theme": "AI", "sectoretf": "SMH", "defaultpurpose": "Momentum Leader"},
+            {"ticker": "AMD", "theme": "AI", "sectoretf": "SMH", "defaultpurpose": "Momentum Leader"},
+        ]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    pd.DataFrame([{"ticker": "NVDA", "shares": 1, "primarypurpose": "Momentum Leader"}]).to_csv(
+        data_dir / "holdings.csv",
+        index=False,
+    )
+    pd.DataFrame([{"ticker": "NVDA", "theme": "AI"}]).to_csv(data_dir / "fundamentals.csv", index=False)
+
+    payload = build_project_status_payload(tmp_path, top_n=5, tickers=["nvda"])
+
+    assert payload["summary"]["tickers_total"] == 1
+    assert payload["summary"]["onboarding_actions"] >= 1
+    assert all(row["ticker"] == "NVDA" for row in payload["top_onboarding_actions"])
+    assert all(row["ticker"] == "NVDA" for row in payload["top_data_gaps"])
+    assert payload["recommended_next_command_rows"][0]["Command"] == "make focus-price TICKER=NVDA"
+
+
 def test_project_status_prefers_live_price_status_context_for_price_actions(tmp_path: Path):
     _write_minimal_local_data(tmp_path)
     pd.DataFrame(

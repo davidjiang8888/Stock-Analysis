@@ -288,6 +288,7 @@ def build_project_status_payload(
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
     top_n: int = 10,
+    tickers: list[str] | None = None,
 ) -> dict[str, Any]:
     root = resolve_project_root(project_root)
     data_path = resolve_data_dir(data_dir, root)
@@ -298,9 +299,16 @@ def build_project_status_payload(
     sources = source_payload["data_sources"]
     gaps = source_payload["data_gaps"]
     coverage = onboarding_payload["ticker_coverage"]
+    if tickers:
+        allowed = {str(ticker).upper().strip() for ticker in tickers if str(ticker).strip()}
+        coverage = [row for row in coverage if str(row.get("ticker", "")).upper().strip() in allowed]
+        gaps = [row for row in gaps if str(row.get("ticker", "")).upper().strip() in allowed]
     enriched_actions = _enrich_top_actions(onboarding_payload, price_status_lookup)
+    if tickers:
+        enriched_actions = [row for row in enriched_actions if str(row.get("ticker", "")).upper().strip() in allowed]
     actions = sorted(enriched_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
+    command_problem_sources = [] if tickers else problem_sources
     summary = {
         "data_sources_total": len(sources),
         "data_sources_available": sum(1 for row in sources if row.get("availability_status") == "available"),
@@ -317,7 +325,7 @@ def build_project_status_payload(
     command_rows = _recommended_next_command_rows(
         actions,
         onboarding_payload.get("command_bundles", []),
-        problem_sources,
+        command_problem_sources,
     )
     return {
         "project_root": str(root),
@@ -415,13 +423,17 @@ def main() -> None:
     parser.add_argument("--project-root", help="Project root for default data/output directories.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
+    parser.add_argument("--tickers", help="Optional comma-separated ticker filter for read-only project status views.")
     parser.add_argument("--top-n", type=int, default=10, help="Number of gaps/actions to show.")
     args = parser.parse_args()
+    explicit_tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()] if args.tickers else None
 
     root = resolve_project_root(args.project_root)
     data_path = resolve_data_dir(args.data_dir, root)
     output_path = resolve_outputs_dir(args.output_dir, root)
     should_write_output = args.write_output or args.refresh_artifacts
+    if should_write_output and explicit_tickers:
+        parser.error("--tickers is only supported for read-only project status views")
     payload = (
         write_project_status_output(
             root,
@@ -431,7 +443,7 @@ def main() -> None:
             refresh_supporting_outputs=args.refresh_artifacts,
         )
         if should_write_output
-        else build_project_status_payload(root, data_dir=data_path, output_dir=output_path, top_n=args.top_n)
+        else build_project_status_payload(root, data_dir=data_path, output_dir=output_path, top_n=args.top_n, tickers=explicit_tickers)
     )
 
     if args.json:

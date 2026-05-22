@@ -813,6 +813,8 @@ To keep either status view shorter in the terminal, add `TOP_N=...`, for example
 make status-check TOP_N=2
 ```
 
+If you want to inspect only a smaller local ticker slice in the read-only status view, use `make status-check TICKERS=NVDA,MSFT`.
+
 If price history is the main blocker, run:
 
 ```bash

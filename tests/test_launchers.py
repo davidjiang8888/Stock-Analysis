@@ -84,7 +84,7 @@ def test_makefile_help_documents_key_workflows():
     for phrase in (
         "Stock Research Screener convenience commands",
         "make status [TOP_N=5]",
-        "make status-check [TOP_N=5]",
+        "make status-check [TICKERS=NVDA,MSFT] [TOP_N=5]",
         "make verify",
         "make validate-all",
         "make daily",
@@ -230,6 +230,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "The local track-record module uses only local historical prices:\n\n```bash\nmake track-record" in readme
     assert "If you want the current project-status summary without first refreshing those supporting artifacts, use:\n\n```bash\nmake status-check" in readme
     assert "To keep either status view shorter in the terminal, add `TOP_N=...`, for example:\n\n```bash\nmake status-check TOP_N=2" in readme
+    assert "If you want to inspect only a smaller local ticker slice in the read-only status view, use `make status-check TICKERS=NVDA,MSFT`." in readme
     assert "Generate them through the normal workflow or directly:\n\n```bash\nmake status\nmake verify\nmake research-health-check\nmake research-health" in readme
     assert "If you want a shorter diagnostics view in the terminal, use `make research-health-check TOP_N=10`." in readme
     assert "If you want to inspect only a smaller local ticker slice of the read-only diagnostics, use `make research-health-check TICKERS=NVDA,MSFT`." in readme
@@ -305,7 +306,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
     assert "status:\n\tpython3 -m src.project_status --refresh-artifacts --top-n $(or $(TOP_N),5)" in makefile
-    assert "status-check:\n\tpython3 -m src.project_status --top-n $(or $(TOP_N),5)" in makefile
+    assert "status-check:\n\tpython3 -m src.project_status --top-n $(or $(TOP_N),5) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "coverage:\n\tpython3 -m src.data_onboarding --coverage $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "data-wizard:\n\tpython3 -m src.data_onboarding --wizard $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "unlock-ladder:\n\tpython3 -m src.data_onboarding --unlock-ladder $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
