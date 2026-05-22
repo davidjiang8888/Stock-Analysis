@@ -4546,6 +4546,43 @@ def test_data_health_price_target_cards_surface_exact_history_targets_safely():
     assert "sell" not in rendered
 
 
+def test_price_target_cards_use_price_front_doors_when_commands_are_missing():
+    worklist = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "META",
+                "price_history_days": 0,
+                "next_price_goal": "Unlock Monthly Picks",
+                "next_target_history_rows": 21,
+                "rows_needed_for_next_goal": 21,
+                "suggested_start_date": "2026-01-01",
+                "example_command": "",
+                "focus_command": "",
+            },
+            {
+                "priority": 2,
+                "ticker": "",
+                "price_history_days": 0,
+                "next_price_goal": "Reach Preferred 1Y History",
+                "next_target_history_rows": 252,
+                "rows_needed_for_next_goal": 189,
+                "suggested_start_date": "2025-01-01",
+                "example_command": "",
+                "focus_command": "",
+            },
+        ]
+    )
+
+    data_health_cards = dashboard.data_health_price_target_cards(worklist)
+    overview_cards = dashboard.overview_price_target_cards(worklist)
+
+    assert data_health_cards[0]["command"] == "make focus-price TICKER=META"
+    assert overview_cards[0]["command"] == "make focus-price TICKER=META"
+    assert data_health_cards[1]["command"] == "make runbook-prices-broader"
+    assert overview_cards[1]["command"] == "make runbook-prices-broader"
+
+
 def test_data_health_deep_research_target_cards_surface_dcf_and_peer_targets_safely():
     sec_queue = pd.DataFrame(
         [

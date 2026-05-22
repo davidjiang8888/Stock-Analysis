@@ -2777,7 +2777,10 @@ def data_health_price_target_cards(price_worklist_frame: pd.DataFrame | None, li
                     f"{format_value(row.get('price_history_days'), fallback='0')} local rows",
                     f"P{format_value(row.get('priority'), fallback='-')}",
                 ],
-                "command": format_missing(row.get("example_command"), ""),
+                "command": preferred_row_command(
+                    row,
+                    ticker_focus_command("prices", row.get("ticker"), "make runbook-prices-broader"),
+                ),
             }
         )
     return cards
@@ -2969,7 +2972,10 @@ def overview_price_target_cards(price_worklist_frame: pd.DataFrame | None, limit
                     f"{format_value(row.get('price_history_days'), fallback='0')} local rows",
                     f"P{format_value(row.get('priority'), fallback='-')}",
                 ],
-                "command": format_missing(row.get("example_command"), ""),
+                "command": preferred_row_command(
+                    row,
+                    ticker_focus_command("prices", row.get("ticker"), "make runbook-prices-broader"),
+                ),
             }
         )
     return cards
