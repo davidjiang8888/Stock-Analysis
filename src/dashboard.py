@@ -4373,7 +4373,7 @@ def theme_deep_research_cards(
             theme_frame = theme_frame.sort_values(["priority", "is_holding", "ticker"], ascending=[True, False, True])
             top_row = theme_frame.iloc[0]
             tickers = ", ".join(theme_frame["ticker"].head(4).tolist())
-            fallback_action = f"Review {dataset_badge.lower()} path."
+            fallback_action = "Review fundamentals path." if dataset_badge == "fundamentals" else "Review peer path."
             rows.append(
                 {
                     "kicker": str(theme_name),

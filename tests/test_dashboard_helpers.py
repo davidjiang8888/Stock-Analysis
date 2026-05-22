@@ -2364,6 +2364,26 @@ def test_theme_deep_research_cards_use_review_fallback_when_action_is_missing():
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_theme_deep_research_cards_use_peer_review_fallback_when_action_is_missing():
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "SMH",
+                "theme": "Semiconductor ETF",
+                "is_holding": False,
+                "recommended_action": "",
+            }
+        ]
+    )
+
+    cards = dashboard.theme_deep_research_cards(None, peer_queue, limit=1)
+
+    assert cards[0]["kicker"] == "Semiconductor ETF"
+    assert "review peer path." in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_overview_research_pressure_cards_compare_price_fundamentals_and_peers():
     price_worklist = pd.DataFrame(
         {
@@ -5044,6 +5064,28 @@ def test_data_health_deep_research_target_cards_use_review_fallback_when_action_
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_data_health_deep_research_target_cards_use_peer_review_fallback_when_action_is_missing():
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "is_holding": False,
+                "theme": "EV",
+                "dcf_ready": False,
+                "missing_required_for_peer_relative": "peer mapping",
+                "recommended_action": "",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_deep_research_target_cards(pd.DataFrame(), peer_queue)
+
+    assert "review peer path." in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_overview_price_target_cards_surface_exact_history_targets_safely():
     worklist = pd.DataFrame(
         [
@@ -5169,6 +5211,28 @@ def test_overview_deep_research_target_cards_use_review_fallback_when_action_is_
     cards = dashboard.overview_deep_research_target_cards(sec_queue, pd.DataFrame())
 
     assert "review fundamentals path." in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
+def test_overview_deep_research_target_cards_use_peer_review_fallback_when_action_is_missing():
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "is_holding": False,
+                "theme": "EV",
+                "dcf_ready": False,
+                "missing_required_for_peer_relative": "peer mapping",
+                "recommended_action": "",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_target_cards(pd.DataFrame(), peer_queue)
+
+    assert "review peer path." in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
