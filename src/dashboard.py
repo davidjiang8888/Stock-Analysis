@@ -1967,7 +1967,7 @@ def data_health_overview_cards(
         f"{coverage_summary['peer_ready_tickers']} peer-ready, "
         f"{coverage_summary['optional_only_missing_tickers']} missing only optional files."
     )
-    coverage_badges = ["make onboarding"]
+    coverage_badges = ["make status"]
 
     return [
         {"kicker": "DATASETS", "title": dataset_title, "body": dataset_body, "badges": dataset_badges},
@@ -2027,7 +2027,7 @@ def data_health_action_path_cards(
                         f"{_action_path_body(row)}"
                     ),
                     "badges": [f"P{format_missing(row.get('priority'), '-')}", dataset],
-                    "command": preferred_row_command(row, "make onboarding"),
+                    "command": preferred_row_command(row, "make status"),
                 }
             )
 
@@ -2042,7 +2042,7 @@ def data_health_action_path_cards(
                     "title": format_missing(signal.get("title"), "Priority action"),
                     "body": compact_reason(signal.get("body"), max_sentences=2, max_chars=220),
                     "badges": [str(item) for item in signal.get("badges", [])][:2] or ["priority"],
-                    "command": format_missing(signal.get("command"), "make onboarding"),
+                    "command": format_missing(signal.get("command"), "make status"),
                 },
             )
 
@@ -2497,8 +2497,8 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
         return [
             (
                 "Generate onboarding actions",
-                "Run the local onboarding workflow to identify price, fundamentals, peer, earnings, and estimate gaps.",
-                "make onboarding",
+                "Start with make status, then follow the printed focus or runbook path to identify price, fundamentals, peer, earnings, and estimate gaps.",
+                "make status",
                 "warning",
             )
         ]
@@ -2511,7 +2511,7 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
         title = f"P{priority} {dataset}" + (f" - {ticker}" if ticker else "")
         reason = compact_reason(row.get("reason"), max_sentences=1, max_chars=150)
         action = format_missing(row.get("recommended_action"), fallback="Review local data coverage.")
-        command = preferred_row_command(row, "make onboarding")
+        command = preferred_row_command(row, "make status")
         body = f"{reason} {action}".strip()
         tone = "danger" if priority <= 1 else "warning" if priority <= 2 else "neutral"
         cards.append((title, body, command, tone))
@@ -2552,7 +2552,7 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
         ticker = format_missing(first.get("ticker"), "portfolio")
         command = format_missing(first.get("focus_command"), "")
         if not command or command == "Not available":
-            command = preferred_row_command(first, "make onboarding")
+            command = preferred_row_command(first, "make status")
         current_status = format_missing(first.get("current_status"), "")
         why_it_matters = compact_reason(first.get("why_it_matters"), max_sentences=1, max_chars=140)
         recommended_action = compact_reason(first.get("recommended_action"), max_sentences=1, max_chars=150)
@@ -3015,10 +3015,10 @@ def workflow_command_rows() -> list[dict[str, str]]:
         {"Step": "Extended validation", "Command": "make validate-all"},
         {"Step": "Dashboard smoke check", "Command": "make dashboard-smoke"},
         {"Step": "Daily refresh", "Command": "make daily"},
-        {"Step": "Data coverage", "Command": "make onboarding"},
+        {"Step": "Data coverage", "Command": "make status"},
         {"Step": "Manual price normalization", "Command": "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"},
         {"Step": "Price import safety", "Command": "make price-validate && make price-preview && make price-apply"},
-        {"Step": "SEC fundamentals staging", "Command": "make sec-stage TICKERS=NVDA,MSFT"},
+        {"Step": "SEC fundamentals staging", "Command": "make focus-fundamentals TICKER=NVDA"},
         {"Step": "Universe preview", "Command": "make universe-preview"},
     ]
 
@@ -3135,7 +3135,7 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
         body = recommended_action
         if reason and reason != "Not available":
             body = f"{reason} {recommended_action}".strip() if recommended_action and recommended_action != reason else reason
-        command = preferred_row_command(row, "make onboarding")
+        command = preferred_row_command(row, "make status")
         title = f"P{priority} {dataset}" + (f" - {ticker}" if ticker else "")
         tone = "danger" if priority <= 1 else "warning" if priority <= 2 else "neutral"
         actions.append((title, compact_reason(body, max_sentences=2, max_chars=220), command, tone))
@@ -3173,7 +3173,13 @@ def project_status_command_rows(payload: dict[str, Any] | None) -> list[dict[str
             return rows
 
     commands = payload.get("recommended_next_commands", [])
-    return [{"Step": f"Next {index}", "Command": str(command)} for index, command in enumerate(commands, start=1)]
+    normalized: list[dict[str, str]] = []
+    for index, command in enumerate(commands, start=1):
+        command_text = str(command)
+        if command_text == "make onboarding":
+            command_text = "make status"
+        normalized.append({"Step": f"Next {index}", "Command": command_text})
+    return normalized
 
 
 def project_status_cockpit_html(payload: dict[str, Any] | None, health_score: int, health_label: str) -> str:
@@ -3259,7 +3265,7 @@ def overview_landing_cards(
             "kicker": "FIX FIRST",
             "title": f"{queue_summary.get('critical', 0)} critical",
             "body": f"{queue_summary.get('high', 0)} high-priority remediation items remain in the local action queue.",
-            "badges": ["make onboarding"],
+            "badges": ["make status"],
         },
     ]
 
@@ -3920,9 +3926,9 @@ def overview_deep_research_handoff_cards(
     lane = format_missing(top_priority.get("title"), "Deep research")
     command_text = format_missing(top_priority.get("command"), "")
     if not command_text or command_text == "Not available":
-        command_text = format_missing(fallback_command.get("title"), "make onboarding")
+        command_text = format_missing(fallback_command.get("title"), "make status")
     command_reason = compact_reason(top_priority.get("body"), max_sentences=3, max_chars=240)
-    if command_text == format_missing(fallback_command.get("title"), "make onboarding"):
+    if command_text == format_missing(fallback_command.get("title"), "make status"):
         fallback_reason = compact_reason(fallback_command.get("body"), max_sentences=2, max_chars=220)
         if fallback_reason and fallback_reason != "Not available":
             command_reason = fallback_reason
@@ -4395,7 +4401,7 @@ def overview_bundle_handoff_cards(
         hint_text = f" ({'; '.join(parts)})"
     lane = format_missing(top_bundle.get("lane"), "bundle").replace("_", " ")
     ticker_text = format_missing(top_bundle.get("tickers"), "No tickers")
-    refresh_command = "make onboarding"
+    refresh_command = "make status"
     refresh_step_label = "Refresh onboarding outputs"
 
     first_ticker = "Not available"
@@ -4526,7 +4532,7 @@ def overview_workflow_path_cards(
     action_queue: pd.DataFrame | None,
 ) -> list[dict[str, object]]:
     commands = [row.get("Command", "") for row in project_status_command_rows(project_status_payload)]
-    first_command = "make onboarding"
+    first_command = "make status"
     if action_queue is not None and not action_queue.empty:
         top_signal = top_priority_signals(action_queue, limit=1)
         if top_signal:
@@ -4645,7 +4651,7 @@ def overview_best_local_research_path_cards(
         next_tab = next((card for card in overview_handoff_cards() if card.get("title") == "Monthly Picks"), next_tab)
 
     first_name = format_missing(best_name.get("kicker"), "Not available")
-    command_text = format_missing(next_command.get("title"), "make onboarding")
+    command_text = format_missing(next_command.get("title"), "make status")
     tab_text = format_missing(next_tab.get("title"), "Data Health")
     command_reason = compact_reason(next_command.get("body"), max_sentences=2, max_chars=220)
     queue_signal = top_priority_signals(action_queue, limit=1) if action_queue is not None else []
@@ -4713,8 +4719,8 @@ def overview_ready_name_handoff_cards(
                 command_text = candidate
                 break
     elif surface == "Monthly Picks":
-        fallback = next_command[0] if next_command else {"title": "make onboarding", "badges": ["data moat", "command"]}
-        command_text = format_missing(fallback.get("title"), "make onboarding")
+        fallback = next_command[0] if next_command else {"title": "make status", "badges": ["data moat", "command"]}
+        command_text = format_missing(fallback.get("title"), "make status")
         badges = [str(item) for item in fallback.get("badges", [])][:2] or ["data moat", "command"]
         body = (
             f"Run {command_text} first if this name is still momentum-ready but lighter on deeper valuation or peer context, "
@@ -4923,7 +4929,7 @@ def monthly_picks_next_step_cards(
     has_track_record = track_frame is not None and not track_frame.empty
     has_equity = equity_frame is not None and not equity_frame.empty
     fallback_command = overview_next_command_cards(None, action_queue, limit=1)[0] if action_queue is not None else {
-        "title": "make onboarding",
+        "title": "make status",
         "badges": ["data moat", "command"],
     }
 
@@ -4936,7 +4942,7 @@ def monthly_picks_next_step_cards(
             "command": "python3 -m src.monthly_picks --generate --top-n 5",
         }
     elif candidate_count < top_n:
-        command_text = format_missing(fallback_command.get("title"), "make onboarding")
+        command_text = format_missing(fallback_command.get("title"), "make status")
         primary = {
             "kicker": "NEXT STEP",
             "title": "Improve candidate coverage",
@@ -5930,7 +5936,7 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         render_notice_card(
             "No monthly candidates passed the current filters",
             "The output exists, but the conservative scoring rules did not find supported local candidates. Improve price/fundamental coverage before broadening interpretation.",
-            "make onboarding",
+            "make status",
             tone="warning",
         )
     else:

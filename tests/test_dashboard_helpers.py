@@ -631,7 +631,7 @@ def test_project_status_helpers_turn_payload_into_cards_and_commands():
     assert "normalize verified downloaded ohlcv rows" in actions[0][1].lower()
     assert actions[0][2] == "make focus-price TICKER=NVDA"
     assert actions[0][3] == "danger"
-    assert commands[0]["Command"] == "make onboarding"
+    assert commands[0]["Command"] == "make status"
 
 
 def test_project_status_cockpit_is_readable_and_research_safe():
@@ -699,7 +699,7 @@ def test_overview_landing_cards_surface_workflow_and_gap_context():
     assert "4 current monthly candidates" in rendered
     assert "3/12" in rendered
     assert "0 dcf-ready" in rendered
-    assert "make onboarding" in rendered
+    assert "make status" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -1323,7 +1323,7 @@ def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_t
     assert len(cards) == 4
     assert cards[0]["title"] == "NVDA"
     assert cards[1]["title"] == "NVDA"
-    assert cards[2]["title"] == "make onboarding"
+    assert cards[2]["title"] == "make status"
     assert cards[3]["title"] == "Stock Report Beta"
     assert "normalize verified downloaded ohlcv rows" in rendered
     assert "best currently usable local name" in rendered
@@ -1440,7 +1440,7 @@ def test_overview_next_command_cards_prioritize_project_status_commands():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert len(cards) == 3
-    assert cards[0]["title"] == "make onboarding"
+    assert cards[0]["title"] == "make status"
     assert "make verify" in rendered
     assert "make dashboard" in rendered
     assert "buy" not in rendered
@@ -1536,7 +1536,7 @@ def test_overview_workflow_path_cards_fall_back_to_safe_defaults():
     cards = dashboard.overview_workflow_path_cards(None, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert cards[0]["title"] == "make onboarding"
+    assert cards[0]["title"] == "make status"
     assert cards[1]["title"] == "make verify"
     assert cards[2]["title"] == "make dashboard"
     assert "buy" not in rendered
@@ -1575,7 +1575,7 @@ def test_overview_workflow_reason_card_falls_back_to_status_snapshot():
     card = dashboard.overview_workflow_reason_card(payload, None)
     rendered = " ".join(str(value) for value in card.values()).lower()
 
-    assert card["title"] == "make onboarding"
+    assert card["title"] == "make status"
     assert "4 critical actions" in rendered
     assert "12 visible data gaps" in rendered
     assert "buy" not in rendered
@@ -1625,7 +1625,7 @@ def test_overview_best_local_research_path_cards_stitch_name_command_and_tab():
 
     assert len(cards) == 3
     assert cards[0]["title"] == "NVDA"
-    assert cards[1]["title"] == "make onboarding"
+    assert cards[1]["title"] == "make status"
     assert cards[2]["title"] == "Stock Report Beta"
     assert "best current name" in rendered
     assert "next command" in rendered
