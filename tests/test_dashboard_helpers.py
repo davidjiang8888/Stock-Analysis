@@ -3678,6 +3678,8 @@ def test_overview_current_top_surfaces_cards_handle_missing_inputs_gracefully():
     assert cards[2]["title"] == "make onboarding"
     assert cards[3]["title"] == "Data Health"
     assert "no locally ready name yet" in cards[0]["body"].lower()
+    assert "no deep-research shortlist yet" in cards[1]["body"].lower()
+    assert "refresh the sec stage and peer-mapping queues" in cards[1]["body"].lower()
     assert "highest-leverage blocker" in cards[0]["body"].lower()
     assert "next read matches the current local workflow state" in cards[3]["body"].lower()
     assert "for no current ready names yet" not in cards[3]["body"].lower()

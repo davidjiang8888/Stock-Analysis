@@ -6208,9 +6208,15 @@ def overview_current_top_surfaces_cards(
             "kicker": "BEST BLOCKED NAME",
             "title": blocked_name,
             "body": (
-                f"Top deeper-research blocker from the SEC and peer queues. {blocked_reason}".strip()
-                if blocked_reason
-                else "Top deeper-research blocker from the SEC and peer queues."
+                (
+                    "No deep-research shortlist yet. Refresh the SEC stage and peer-mapping queues before treating any blocker as current."
+                )
+                if blocked_name == "No deep-research shortlist yet"
+                else (
+                    f"Top deeper-research blocker from the SEC and peer queues. {blocked_reason}".strip()
+                    if blocked_reason
+                    else "Top deeper-research blocker from the SEC and peer queues."
+                )
             ),
             "badges": [str(item) for item in deep_cards[0].get("badges", [])][:2] or ["coverage", "read-only"],
         },
