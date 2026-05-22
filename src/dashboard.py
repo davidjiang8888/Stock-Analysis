@@ -5319,6 +5319,12 @@ def overview_next_command_cards(
             if "focus-" in lowered:
                 body = reason if has_reason else "Use the current single-name shortcut first to unblock the highest-leverage local data gap."
                 badges = ["single name", "command"]
+            elif "imports-" in lowered:
+                body = reason if has_reason else "Use the staged local workflow next so validation and preview safeguards stay in place."
+                badges = ["staged flow", "command"]
+            elif "bundle-" in lowered:
+                body = reason if has_reason else "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
+                badges = ["bundle first", "command"]
             elif "runbook-" in lowered:
                 body = reason if has_reason else "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
                 badges = ["runbook", "command"]

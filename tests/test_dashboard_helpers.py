@@ -3705,6 +3705,33 @@ def test_overview_next_command_cards_use_command_family_fallback_when_reason_is_
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_overview_next_command_cards_use_bundle_and_import_fallbacks_when_reasons_are_missing():
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Advance staged fundamentals import",
+                "Command": "make imports-validate",
+                "Reason": "",
+            },
+            {
+                "Step": "Run highest-leverage price bundle",
+                "Command": "make bundle-prices",
+                "Reason": "",
+            },
+        ]
+    }
+
+    cards = dashboard.overview_next_command_cards(payload, None, limit=2)
+
+    assert cards[0]["title"] == "make imports-validate"
+    assert "staged flow" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "use the staged local workflow next" in cards[0]["body"].lower()
+    assert cards[1]["title"] == "make bundle-prices"
+    assert "bundle first" in [badge.lower() for badge in cards[1]["badges"]]
+    assert "highest-leverage local bundle first" in cards[1]["body"].lower()
+    assert "not available" not in cards[1]["body"].lower()
+
+
 def test_overview_next_command_cards_fall_back_to_action_queue():
     queue = pd.DataFrame(
         [
