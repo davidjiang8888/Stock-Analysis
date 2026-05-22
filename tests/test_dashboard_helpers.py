@@ -2506,8 +2506,55 @@ def test_holdings_deep_research_cards_keep_staged_import_front_doors_when_comman
     assert fundamentals_card["command"] == "make imports-validate"
     assert "staged fundamentals" in fundamentals_card["body"].lower()
     assert peer_card["title"] == "Advance staged peer import"
+
+
+def test_holdings_deep_research_cards_upgrade_generic_staged_notes_to_explicit_follow_through():
+    holdings = pd.DataFrame(
+        [
+            {"Ticker": "NVDA", "PrimaryPurpose": "Momentum Leader"},
+            {"Ticker": "TSLA", "PrimaryPurpose": "Speculative Optionality"},
+        ]
+    )
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+                "price_history_days": 25,
+            }
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+            }
+        ]
+    )
+
+    cards = dashboard.holdings_deep_research_cards(holdings, sec_queue, peer_queue, limit=4)
+    fundamentals_card = next(card for card in cards if card["kicker"] == "NVDA")
+    peer_card = next(card for card in cards if card["kicker"] == "TSLA")
+
+    assert "make imports-preview" in fundamentals_card["body"].lower()
+    assert "make imports-apply" in fundamentals_card["body"].lower()
+    assert "use staged local imports if the free refresh fails" not in fundamentals_card["body"].lower()
+    assert "make imports-preview" in peer_card["body"].lower()
+    assert "make imports-apply" in peer_card["body"].lower()
+    assert "use staged local imports if the free refresh fails" not in peer_card["body"].lower()
     assert peer_card["command"] == "make imports-validate"
-    assert "staged peer mappings" in peer_card["body"].lower()
+    assert "staged peer import ready" in peer_card["body"].lower()
 
 
 def test_holdings_unlock_cards_handle_missing_inputs_gracefully():
@@ -2972,6 +3019,48 @@ def test_theme_deep_research_cards_keep_staged_import_front_doors_when_commands_
     assert "staged peers import" in peer_card["body"].lower()
     assert "make imports-preview" in peer_card["body"].lower()
     assert "make imports-apply" in peer_card["body"].lower()
+
+
+def test_theme_deep_research_cards_upgrade_generic_staged_notes_to_explicit_follow_through():
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI Semiconductors",
+                "is_holding": True,
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            }
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "SMH",
+                "theme": "Semiconductor ETF",
+                "is_holding": False,
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+            }
+        ]
+    )
+
+    cards = dashboard.theme_deep_research_cards(sec_queue, peer_queue, limit=4)
+    fundamentals_card = next(card for card in cards if card["kicker"] == "AI Semiconductors")
+    peer_card = next(card for card in cards if card["kicker"] == "Semiconductor ETF")
+
+    assert "make imports-preview" in fundamentals_card["body"].lower()
+    assert "make imports-apply" in fundamentals_card["body"].lower()
+    assert "use staged local imports if the free refresh fails" not in fundamentals_card["body"].lower()
+    assert "make imports-preview" in peer_card["body"].lower()
+    assert "make imports-apply" in peer_card["body"].lower()
+    assert "use staged local imports if the free refresh fails" not in peer_card["body"].lower()
 
 
 def test_overview_research_pressure_cards_compare_price_fundamentals_and_peers():

@@ -4526,11 +4526,18 @@ def holdings_deep_research_cards(
                     ),
                 )
                 fallback_action = (
-                    f"{ticker} already has staged fundamentals in {target_file}. "
+                    "Staged fundamentals import ready. "
                     "Run make imports-validate, then make imports-preview, then make imports-apply before trusting DCF coverage."
                     if staged_import
                     else command_family_fallback(command, "Review fundamentals path.")
                 )
+                next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
+                if staged_import and (
+                    "make imports-validate" not in next_action_summary
+                    or "make imports-preview" not in next_action_summary
+                    or "make imports-apply" not in next_action_summary
+                ):
+                    next_action_summary = fallback_action
                 cards.append(
                     {
                         "kicker": ticker,
@@ -4538,7 +4545,7 @@ def holdings_deep_research_cards(
                         "body": (
                             f"{format_missing(purpose_map.get(ticker), 'Portfolio holding')}. "
                             f"SEC/fundamentals queue priority P{format_missing(row.get('priority'), '-')}. "
-                            f"{compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)}"
+                            f"{next_action_summary}"
                         ),
                         "badges": ["fundamentals", format_missing(row.get("theme"), "theme")],
                         "command": command,
@@ -4564,11 +4571,18 @@ def holdings_deep_research_cards(
                     ),
                 )
                 fallback_action = (
-                    f"{ticker} already has staged peer mappings in {target_file}. "
+                    "Staged peer import ready. "
                     "Run make imports-validate, then make imports-preview, then make imports-apply before trusting peer-relative context."
                     if staged_import
                     else command_family_fallback(command, "Review peer path.")
                 )
+                next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
+                if staged_import and (
+                    "make imports-validate" not in next_action_summary
+                    or "make imports-preview" not in next_action_summary
+                    or "make imports-apply" not in next_action_summary
+                ):
+                    next_action_summary = fallback_action
                 cards.append(
                     {
                         "kicker": ticker,
@@ -4576,7 +4590,7 @@ def holdings_deep_research_cards(
                         "body": (
                             f"{format_missing(purpose_map.get(ticker), 'Portfolio holding')}. "
                             f"Peer queue priority P{format_missing(row.get('priority'), '-')}. "
-                            f"{compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)}"
+                            f"{next_action_summary}"
                         ),
                         "badges": ["peers", format_missing(row.get("theme"), "theme")],
                         "command": command,
@@ -4760,6 +4774,13 @@ def theme_deep_research_cards(
                     "Review fundamentals path." if dataset_badge == "fundamentals" else "Review peer path.",
                 )
             )
+            next_action_summary = compact_reason(top_row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
+            if staged_import and (
+                "make imports-validate" not in next_action_summary
+                or "make imports-preview" not in next_action_summary
+                or "make imports-apply" not in next_action_summary
+            ):
+                next_action_summary = fallback_action
             rows.append(
                 {
                     "kicker": str(theme_name),
@@ -4773,7 +4794,7 @@ def theme_deep_research_cards(
                     "body": (
                         f"{len(theme_frame)} ticker rows in this theme currently point to {dataset_badge.lower()} work. "
                         f"Representative names: {tickers}. "
-                        f"Next action: {compact_reason(top_row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)}"
+                        f"Next action: {next_action_summary}"
                     ),
                     "badges": [dataset_badge, f"P{format_missing(top_row.get('priority'), '-')}"],
                     "command": command,
