@@ -57,6 +57,7 @@ class DataSourceStatus:
     requires_api_key: bool
     expected_local_file: str
     fallback_action: str
+    target_file: str
     focus_command: str
     example_command: str
     notes: str
@@ -77,6 +78,7 @@ class DataGap:
     reason: str
     required_for: str
     recommended_action: str
+    target_file: str
     focus_command: str
     example_command: str
     local_file: str
@@ -130,6 +132,27 @@ def _gap_example_command(dataset: str, ticker: str) -> str:
     if dataset == "universe":
         return "make universe-preview"
     return "make status"
+
+
+def _gap_target_file(dataset: str, ticker: str) -> str:
+    ticker = str(ticker or "").strip().upper()
+    if dataset == "prices":
+        return "data/imports/prices.csv" if ticker else "data/prices.csv"
+    if dataset == "fundamentals":
+        return "data/imports/fundamentals.csv" if ticker else "data/fundamentals.csv"
+    if dataset == "peers":
+        return "data/imports/peers.csv" if ticker else "data/peers.csv"
+    if dataset == "earnings":
+        return "data/imports/earnings.csv"
+    if dataset == "analyst_estimates":
+        return "data/imports/analyst_estimates.csv"
+    if dataset == "smh_holdings":
+        return "data/custom_universe.csv"
+    if dataset in {"sp500_constituents", "nasdaq_symbols", "universe"}:
+        return "data/imports/universe.csv"
+    if dataset == "local_outputs":
+        return "outputs/"
+    return ""
 
 
 DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
@@ -418,6 +441,7 @@ def build_data_source_status(
                 requires_api_key=entry.requires_api_key,
                 expected_local_file=entry.expected_local_file,
                 fallback_action=entry.fallback_action,
+                target_file=_gap_target_file(entry.dataset, ""),
                 focus_command=_gap_focus_command(entry.dataset, ""),
                 example_command=_gap_example_command(entry.dataset, ""),
                 notes=notes,
@@ -466,6 +490,7 @@ def build_data_gap_report(
                 reason=row.validation_warnings or row.notes,
                 required_for=row.required_for,
                 recommended_action=row.fallback_action,
+                target_file=_gap_target_file(row.dataset, ""),
                 focus_command=_gap_focus_command(row.dataset, ""),
                 example_command=_gap_example_command(row.dataset, ""),
                 local_file=row.local_file,
@@ -488,6 +513,7 @@ def build_data_gap_report(
                     reason=f"No local price rows were found for {ticker}.",
                     required_for=price_status.required_for,
                     recommended_action=price_status.fallback_action,
+                    target_file=_gap_target_file("prices", ticker),
                     focus_command=_gap_focus_command("prices", ticker),
                     example_command=_gap_example_command("prices", ticker),
                     local_file=price_status.local_file,
@@ -503,6 +529,7 @@ def build_data_gap_report(
                     reason=f"No local fundamentals row was found for {ticker}.",
                     required_for=fundamentals_status.required_for,
                     recommended_action=fundamentals_status.fallback_action,
+                    target_file=_gap_target_file("fundamentals", ticker),
                     focus_command=_gap_focus_command("fundamentals", ticker),
                     example_command=_gap_example_command("fundamentals", ticker),
                     local_file=fundamentals_status.local_file,

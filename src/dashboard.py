@@ -220,7 +220,7 @@ def load_data_source_status_tables(
     tables = {filename: load_output(outputs_dir / filename) for filename in DATA_SOURCE_FILES}
     source_frame, _ = tables["data_source_status.csv"]
     gap_frame, _ = tables["data_gap_report.csv"]
-    required_columns = {"focus_command", "example_command"}
+    required_columns = {"focus_command", "example_command", "target_file"}
     needs_refresh = False
     if gap_frame is not None and not gap_frame.empty and not required_columns.issubset(set(gap_frame.columns)):
         needs_refresh = True
@@ -315,6 +315,7 @@ def data_source_status_table_columns(frame: pd.DataFrame | None) -> list[str]:
         "availability_status",
         "required_for",
         "fallback_action",
+        "target_file",
         "focus_command",
         "example_command",
         "local_file",
@@ -7037,6 +7038,7 @@ def render_data_health(provider) -> None:
                             "status",
                             "required_for",
                             "recommended_action",
+                            "target_file",
                             "focus_command",
                             "example_command",
                             "local_file",

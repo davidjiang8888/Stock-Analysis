@@ -459,6 +459,7 @@ def test_data_source_status_tables_refresh_stale_gap_report_columns(tmp_path):
 
     gap_frame, _ = tables["data_gap_report.csv"]
     assert gap_frame is not None
+    assert "target_file" in gap_frame.columns
     assert "focus_command" in gap_frame.columns
     assert "example_command" in gap_frame.columns
     assert gap_frame.loc[gap_frame["dataset"] == "fundamentals", "example_command"].iloc[0] == "make runbook-fundamentals-broader"
@@ -517,6 +518,7 @@ def test_data_source_status_tables_refresh_stale_source_status_columns(tmp_path)
 
     source_frame, _ = tables["data_source_status.csv"]
     assert source_frame is not None
+    assert "target_file" in source_frame.columns
     assert "focus_command" in source_frame.columns
     assert "example_command" in source_frame.columns
     assert source_frame.loc[source_frame["dataset"] == "fundamentals", "example_command"].iloc[0] == "make runbook-fundamentals-broader"
