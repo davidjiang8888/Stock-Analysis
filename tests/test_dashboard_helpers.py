@@ -727,6 +727,7 @@ def test_price_update_status_helpers_handle_missing_and_counts(tmp_path):
 
 
 def test_load_price_update_status_enriches_legacy_command_fields(tmp_path):
+    path = tmp_path / "price_update_status.csv"
     pd.DataFrame(
         [
             {
@@ -740,7 +741,7 @@ def test_load_price_update_status_enriches_legacy_command_fields(tmp_path):
                 "recommended_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV rows into data/imports/prices.csv.",
             }
         ]
-    ).to_csv(tmp_path / "price_update_status.csv", index=False)
+    ).to_csv(path, index=False)
 
     frame, message = dashboard.load_price_update_status(tmp_path)
 
@@ -750,6 +751,11 @@ def test_load_price_update_status_enriches_legacy_command_fields(tmp_path):
     assert frame.iloc[0]["focus_command"] == "make focus-price TICKER=AMD"
     assert frame.iloc[0]["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
     assert frame.iloc[0]["target_file"] == "data/imports/prices.csv"
+    rewritten = pd.read_csv(path)
+    assert rewritten.iloc[0]["recommended_action"].startswith("Run make focus-price TICKER=AMD")
+    assert rewritten.iloc[0]["focus_command"] == "make focus-price TICKER=AMD"
+    assert rewritten.iloc[0]["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+    assert rewritten.iloc[0]["target_file"] == "data/imports/prices.csv"
 
 
 def test_price_update_status_table_columns_surface_command_fields():

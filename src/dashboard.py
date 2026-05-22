@@ -584,7 +584,10 @@ def load_price_update_status(
     frame, message = load_output(path)
     if frame is None:
         return frame, message
-    return enrich_price_update_status_frame(frame), message
+    enriched = enrich_price_update_status_frame(frame)
+    if not enriched.equals(frame):
+        enriched.to_csv(path, index=False)
+    return enriched, message
 
 
 def friendly_data_source_status(value: object) -> str:
