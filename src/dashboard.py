@@ -2870,6 +2870,20 @@ def data_health_price_target_cards(price_worklist_frame: pd.DataFrame | None, li
 
     cards: list[dict[str, object]] = []
     for _, row in ordered.head(limit).iterrows():
+        target_file = format_missing(row.get("target_file"), "")
+        manual_command = normalize_operator_command(format_missing(row.get("example_command"), ""))
+        staged_summary = compact_reason(row.get("safe_next_step"), max_sentences=1, max_chars=140)
+        follow_through = ""
+        if target_file == "data/imports/prices.csv":
+            follow_through = (
+                f" Local fallback: {manual_command}. {staged_summary}"
+                if manual_command and staged_summary not in {"", "Not available"}
+                else f" Local fallback: {manual_command}."
+                if manual_command
+                else f" {staged_summary}"
+                if staged_summary not in {"", "Not available"}
+                else ""
+            )
         cards.append(
             {
                 "kicker": format_missing(row.get("next_price_goal"), "Price target").upper(),
@@ -2877,7 +2891,7 @@ def data_health_price_target_cards(price_worklist_frame: pd.DataFrame | None, li
                 "body": (
                     f"{format_value(row.get('rows_needed_for_next_goal'), fallback='0')} rows still needed to reach "
                     f"{format_value(row.get('next_target_history_rows'), fallback='0')} rows. "
-                    f"Suggested start: {format_missing(row.get('suggested_start_date'), 'Not available')}."
+                    f"Suggested start: {format_missing(row.get('suggested_start_date'), 'Not available')}.{follow_through}"
                 ),
                 "badges": [
                     f"{format_value(row.get('price_history_days'), fallback='0')} local rows",
@@ -3127,6 +3141,20 @@ def overview_price_target_cards(price_worklist_frame: pd.DataFrame | None, limit
 
     cards: list[dict[str, object]] = []
     for _, row in ordered.head(limit).iterrows():
+        target_file = format_missing(row.get("target_file"), "")
+        manual_command = normalize_operator_command(format_missing(row.get("example_command"), ""))
+        staged_summary = compact_reason(row.get("safe_next_step"), max_sentences=1, max_chars=140)
+        follow_through = ""
+        if target_file == "data/imports/prices.csv":
+            follow_through = (
+                f" Local fallback: {manual_command}. {staged_summary}"
+                if manual_command and staged_summary not in {"", "Not available"}
+                else f" Local fallback: {manual_command}."
+                if manual_command
+                else f" {staged_summary}"
+                if staged_summary not in {"", "Not available"}
+                else ""
+            )
         cards.append(
             {
                 "kicker": format_missing(row.get("next_price_goal"), "Price target").upper(),
@@ -3134,7 +3162,7 @@ def overview_price_target_cards(price_worklist_frame: pd.DataFrame | None, limit
                 "body": (
                     f"{format_value(row.get('rows_needed_for_next_goal'), fallback='0')} rows still needed. "
                     f"Target: {format_value(row.get('next_target_history_rows'), fallback='0')} rows. "
-                    f"Start from: {format_missing(row.get('suggested_start_date'), 'Not available')}."
+                    f"Start from: {format_missing(row.get('suggested_start_date'), 'Not available')}.{follow_through}"
                 ),
                 "badges": [
                     f"{format_value(row.get('price_history_days'), fallback='0')} local rows",
