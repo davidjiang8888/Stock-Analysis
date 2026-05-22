@@ -359,8 +359,15 @@ def test_ticker_coverage_display_frame_hides_noisy_paths():
 def test_data_source_status_tables_handle_missing_outputs(tmp_path):
     tables = dashboard.load_data_source_status_tables(tmp_path)
 
-    assert tables["data_source_status.csv"][0] is None
-    assert "has not been generated" in tables["data_source_status.csv"][1]
+    source_frame, source_message = tables["data_source_status.csv"]
+    gap_frame, gap_message = tables["data_gap_report.csv"]
+
+    assert source_frame is not None
+    assert gap_frame is not None
+    assert source_message is None
+    assert gap_message is None
+    assert "focus_command" in source_frame.columns
+    assert "focus_command" in gap_frame.columns
     assert dashboard.friendly_data_source_status("manual_only") == "Manual input needed"
     assert dashboard.friendly_data_source_status("optional_unofficial") == "Optional unofficial"
 
@@ -755,22 +762,19 @@ def test_load_data_onboarding_tables_refreshes_stale_optional_context_artifact(t
 def test_onboarding_tables_handle_missing_outputs_and_summary():
     tables = dashboard.load_data_onboarding_tables(Path("/tmp/nonexistent-dashboard-test-dir"))
 
-    assert tables["ticker_data_coverage.csv"][0] is None
-    assert "has not been generated" in tables["ticker_data_coverage.csv"][1]
-    assert tables["price_import_worklist.csv"][0] is None
-    assert "has not been generated" in tables["price_import_worklist.csv"][1]
-    assert tables["fundamentals_peer_worklist.csv"][0] is None
-    assert "has not been generated" in tables["fundamentals_peer_worklist.csv"][1]
-    assert tables["optional_context_worklist.csv"][0] is None
-    assert "has not been generated" in tables["optional_context_worklist.csv"][1]
-    assert tables["sec_stage_queue.csv"][0] is None
-    assert "has not been generated" in tables["sec_stage_queue.csv"][1]
-    assert tables["peer_mapping_queue.csv"][0] is None
-    assert "has not been generated" in tables["peer_mapping_queue.csv"][1]
-    assert tables["ticker_unlock_ladder.csv"][0] is None
-    assert "has not been generated" in tables["ticker_unlock_ladder.csv"][1]
-    assert tables["unlock_priority_summary.csv"][0] is None
-    assert "has not been generated" in tables["unlock_priority_summary.csv"][1]
+    for filename in (
+        "ticker_data_coverage.csv",
+        "price_import_worklist.csv",
+        "fundamentals_peer_worklist.csv",
+        "optional_context_worklist.csv",
+        "sec_stage_queue.csv",
+        "peer_mapping_queue.csv",
+        "ticker_unlock_ladder.csv",
+        "unlock_priority_summary.csv",
+    ):
+        frame, message = tables[filename]
+        assert frame is not None
+        assert message is None
     assert dashboard.summarize_ticker_coverage(None)["usable_price_tickers"] == 0
     assert dashboard.summarize_price_worklist(None)["priority_1"] == 0
     assert dashboard.summarize_fundamentals_peer_worklist(None)["fundamentals_priority_1"] == 0
@@ -907,8 +911,17 @@ def test_summarize_unlock_priority_summary_counts_group_types_and_stages():
 def test_research_health_tables_handle_missing_outputs_and_summary(tmp_path):
     tables = dashboard.load_research_health_tables(tmp_path)
 
-    assert tables["data_quality_wizard.csv"][0] is None
-    assert "has not been generated" in tables["data_quality_wizard.csv"][1]
+    wizard_frame, wizard_message = tables["data_quality_wizard.csv"]
+    liquidity_frame, liquidity_message = tables["liquidity_risk.csv"]
+    correlation_frame, correlation_message = tables["correlation_risk.csv"]
+
+    assert wizard_frame is not None
+    assert liquidity_frame is not None
+    assert correlation_frame is not None
+    assert wizard_message is None
+    assert liquidity_message is None
+    assert correlation_message is None
+    assert "FocusCommand" in wizard_frame.columns
 
     summary = dashboard.summarize_research_health_tables(
         pd.DataFrame({"ReadinessStatus": ["Research Ready", "Needs Price Data"]}),
@@ -926,8 +939,10 @@ def test_research_health_tables_handle_missing_outputs_and_summary(tmp_path):
 def test_action_queue_loader_and_summary_handle_missing_outputs(tmp_path):
     frame, message = dashboard.load_action_queue(tmp_path)
 
-    assert frame is None
-    assert "research_action_queue.csv" in message
+    assert frame is not None
+    assert message is None
+    assert "focus_command" in frame.columns
+    assert "example_command" in frame.columns
 
     summary = dashboard.action_queue_summary(
         pd.DataFrame({"urgency": ["critical", "high", "medium", "critical"]})

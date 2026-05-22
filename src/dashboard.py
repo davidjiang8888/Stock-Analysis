@@ -221,7 +221,7 @@ def load_data_source_status_tables(
     source_frame, _ = tables["data_source_status.csv"]
     gap_frame, _ = tables["data_gap_report.csv"]
     required_columns = {"focus_command", "example_command", "target_file"}
-    needs_refresh = False
+    needs_refresh = source_frame is None or gap_frame is None
     if gap_frame is not None and not gap_frame.empty and not required_columns.issubset(set(gap_frame.columns)):
         needs_refresh = True
     if source_frame is not None and not source_frame.empty and not required_columns.issubset(set(source_frame.columns)):
@@ -237,7 +237,7 @@ def load_data_onboarding_tables(
     outputs_dir: Path = OUTPUTS_DIR,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     tables = {filename: load_output(outputs_dir / filename) for filename in DATA_ONBOARDING_FILES}
-    needs_refresh = False
+    needs_refresh = any(frame is None for frame, _ in tables.values())
     coverage_frame, _ = tables.get("ticker_data_coverage.csv", (None, None))
     if coverage_frame is not None and not coverage_frame.empty:
         required_columns = {"target_file", "focus_command", "example_command"}
@@ -259,14 +259,17 @@ def load_research_health_tables(
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     tables = {filename: load_output(outputs_dir / filename) for filename in RESEARCH_HEALTH_FILES}
     wizard_frame, _ = tables.get("data_quality_wizard.csv", (None, None))
+    needs_refresh = any(frame is None for frame, _ in tables.values())
     if wizard_frame is not None and not wizard_frame.empty:
         required_columns = {"FocusCommand", "ExampleCommand"}
         if not required_columns.issubset(set(wizard_frame.columns)):
-            run_research_health(BASE_DIR, output_dir=outputs_dir)
-            tables["data_quality_wizard.csv"] = load_output(outputs_dir / "data_quality_wizard.csv")
-            for key in ("liquidity_risk", "correlation_risk"):
-                filename = f"{key}.csv"
-                tables[filename] = load_output(outputs_dir / filename)
+            needs_refresh = True
+    if needs_refresh:
+        run_research_health(BASE_DIR, output_dir=outputs_dir)
+        tables["data_quality_wizard.csv"] = load_output(outputs_dir / "data_quality_wizard.csv")
+        for key in ("liquidity_risk", "correlation_risk"):
+            filename = f"{key}.csv"
+            tables[filename] = load_output(outputs_dir / filename)
     return tables
 
 
@@ -275,7 +278,8 @@ def load_action_queue(
 ) -> tuple[pd.DataFrame | None, str | None]:
     path = outputs_dir / ACTION_QUEUE_FILE
     if not path.exists():
-        return None, "`research_action_queue.csv` has not been generated yet. Run `python3 -m src.action_queue --write-output` or `make action-queue`."
+        write_action_queue_output(BASE_DIR, output_dir=outputs_dir)
+        return load_output(path)
     frame, message = load_output(path)
     if frame is None:
         return frame, message
