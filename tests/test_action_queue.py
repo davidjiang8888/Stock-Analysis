@@ -98,6 +98,38 @@ def test_action_queue_cli_rejects_check_with_write_output(tmp_path: Path, capsys
     assert "--check cannot be combined with --write-output" in capsys.readouterr().err
 
 
+def test_action_queue_cli_check_uses_read_only_summary_wording(tmp_path: Path, capsys):
+    outputs_dir = tmp_path / "outputs"
+    data_dir = tmp_path / "data"
+    outputs_dir.mkdir()
+    data_dir.mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    pd.DataFrame(
+        [
+            {"ticker": "AMD", "theme": "AI", "sectoretf": "SMH", "defaultpurpose": "Momentum Leader"},
+        ]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    pd.DataFrame(columns=["ticker", "shares", "primarypurpose"]).to_csv(data_dir / "holdings.csv", index=False)
+    (outputs_dir / "data_onboarding_actions.csv").write_text(
+        "priority,ticker,dataset,status,reason,recommended_action,target_file,focus_command,example_command\n",
+        encoding="utf-8",
+    )
+    (outputs_dir / "data_gap_report.csv").write_text(
+        "dataset,ticker,status,reason,required_for,recommended_action,local_file,source_name\n",
+        encoding="utf-8",
+    )
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--check", "--top-n", "1"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = previous_argv
+
+    assert "action queue summary:" in output
+    assert "generated action queue output:" not in output
+
+
 def test_action_queue_uses_research_health_when_price_data_is_missing():
     rows = build_action_queue_rows(
         price_status=pd.DataFrame(),

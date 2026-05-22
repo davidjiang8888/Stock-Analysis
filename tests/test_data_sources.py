@@ -359,6 +359,34 @@ def test_data_sources_cli_rejects_check_with_write_output(tmp_path: Path, capsys
     assert "--check cannot be combined with --write-output" in capsys.readouterr().err
 
 
+def test_data_sources_cli_check_uses_read_only_summary_wording(tmp_path: Path, capsys):
+    _write_minimal_local_data(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--check", "--top-n", "1"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = previous_argv
+
+    assert "data source summary:" in output
+    assert "generated data source outputs:" not in output
+
+
+def test_data_sources_cli_write_output_reports_generated_files(tmp_path: Path, capsys):
+    _write_minimal_local_data(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--write-output", "--top-n", "1"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = previous_argv
+
+    assert "generated data source outputs:" in output
+    assert "wrote:" in output
+
+
 def test_filter_data_source_payload_respects_ticker_slice():
     payload = {
         "data_sources": [{"dataset": "prices", "availability_status": "available", "row_count": 10, "source_name": "Local prices"}],

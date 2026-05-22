@@ -942,6 +942,7 @@ def main() -> None:
         return
 
     print(format_path_context(root, data_path, output_path))
+    print("Generated action queue output:" if args.write_output else "Action queue summary:")
     _print_human(payload, top_n=max(args.top_n, 0))
     if args.write_output:
         print(f"Wrote: {payload['queue_path']}")
