@@ -3696,8 +3696,37 @@ def test_stock_report_local_context_cards_show_staged_peer_import_state():
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
+    peer_mapping_card = next(card for card in cards if card["kicker"] == "PEER MAPPING")
+    assert peer_mapping_card["command"] == "make imports-validate"
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_stock_report_local_context_cards_use_peer_front_door_when_commands_are_missing():
+    coverage = pd.DataFrame(
+        [
+            {
+                "dataset": "peers",
+                "ticker": "NVDA",
+                "ticker_present": False,
+                "validation_status": "valid_with_warnings",
+                "focus_command": "",
+                "example_command": "",
+            }
+        ]
+    )
+    peer_summary = {
+        "peer_dataset_present": False,
+        "peer_count": 0,
+        "peer_fundamentals_available": 0,
+        "peer_market_context_available": 0,
+    }
+
+    cards = dashboard.stock_report_local_context_cards(coverage, peer_summary)
+    peer_mapping_card = next(card for card in cards if card["kicker"] == "PEER MAPPING")
+
+    assert peer_mapping_card["title"] == "Missing"
+    assert peer_mapping_card["command"] == "make focus-peers TICKER=NVDA"
 
 
 def test_stock_report_next_step_cards_prioritize_missing_prices_first():
