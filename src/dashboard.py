@@ -322,6 +322,26 @@ def load_action_queue(
             normalized_actions = price_rows["recommended_action"].astype(str).str.strip().str.lower()
             if not normalized_actions.str.contains("make focus-price").all():
                 needs_refresh = True
+        if not needs_refresh and {"ticker", "status", "focus_command"}.issubset(frame.columns):
+            core_rows = frame.loc[
+                frame["action_type"].astype(str).str.strip().isin(["fundamentals", "peers"])
+            ]
+            for _, row in core_rows.iterrows():
+                action_type = str(row.get("action_type", "")).strip()
+                ticker = str(row.get("ticker", "")).strip().upper()
+                status = str(row.get("status", "")).strip()
+                recommended_action = str(row.get("recommended_action", "")).strip()
+                focus_command = str(row.get("focus_command", "")).strip()
+                if action_type == "fundamentals" and ticker:
+                    expected = f"make focus-fundamentals TICKER={ticker}"
+                    if expected not in recommended_action or focus_command != expected:
+                        needs_refresh = True
+                        break
+                if action_type == "peers" and ticker and status == "manual_input_needed":
+                    expected = f"make focus-peers TICKER={ticker}"
+                    if expected not in recommended_action or focus_command != expected:
+                        needs_refresh = True
+                        break
     if not needs_refresh and {"focus_command", "title", "reason"}.issubset(frame.columns):
         staged_import_rows = frame.loc[
             frame["focus_command"].astype(str).str.strip().str.lower().eq("make imports-validate")

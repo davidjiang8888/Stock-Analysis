@@ -803,6 +803,53 @@ def test_load_action_queue_refreshes_stale_staged_peer_queue_artifact(tmp_path):
     assert "staged import rows are present" in str(staged_rows.iloc[0]["reason"]).lower()
 
 
+def test_load_action_queue_refreshes_stale_manual_peer_queue_artifact(tmp_path):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+    pd.DataFrame(
+        [
+            {"ticker": "AMD", "theme": "AI", "sectoretf": "SMH", "defaultpurpose": "Momentum Leader"},
+        ]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    pd.DataFrame(columns=["ticker", "shares", "primarypurpose"]).to_csv(data_dir / "holdings.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "priority": 3,
+                "urgency": "high",
+                "action_type": "peers",
+                "ticker": "AMD",
+                "title": "Improve peers coverage for AMD",
+                "status": "manual_input_needed",
+                "recommended_action": "Add peer mappings manually to data/imports/peers.csv.",
+                "focus_command": "make templates",
+                "example_command": "make templates",
+                "target_file": "data/imports/peers.csv",
+                "source_file": "data/imports/peers.csv",
+                "source_artifact": "outputs/data_onboarding_actions.csv",
+                "reason": "No local peer mapping is configured for this ticker.",
+            }
+        ]
+    ).to_csv(outputs_dir / "research_action_queue.csv", index=False)
+
+    old_base = dashboard.BASE_DIR
+    try:
+        dashboard.BASE_DIR = tmp_path
+        frame, message = dashboard.load_action_queue(outputs_dir)
+    finally:
+        dashboard.BASE_DIR = old_base
+
+    assert message is None
+    assert frame is not None
+    peer_rows = frame.loc[frame["action_type"].astype(str).str.strip().eq("peers")]
+    assert not peer_rows.empty
+    assert peer_rows.iloc[0]["focus_command"] == "make focus-peers TICKER=AMD"
+    assert "make focus-peers TICKER=AMD" in str(peer_rows.iloc[0]["recommended_action"])
+
+
 def test_load_research_health_tables_refreshes_stale_wizard_artifact(tmp_path):
     pd.DataFrame(
         [

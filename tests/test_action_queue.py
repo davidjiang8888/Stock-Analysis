@@ -500,6 +500,38 @@ def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_row
     assert fundamentals_row.source_artifact == "outputs/data_onboarding_actions.csv"
 
 
+def test_action_queue_normalizes_stale_peer_onboarding_actions():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(
+            [
+                {
+                    "priority": 3,
+                    "ticker": "AMD",
+                    "dataset": "peers",
+                    "status": "manual_input_needed",
+                    "reason": "No local peer mapping is configured for this ticker.",
+                    "recommended_action": "Add peer mappings manually to data/imports/peers.csv.",
+                    "target_file": "data/imports/peers.csv",
+                    "focus_command": "make focus-peers TICKER=AMD",
+                    "example_command": "make templates",
+                }
+            ]
+        ),
+        data_gaps=pd.DataFrame(),
+        data_quality=pd.DataFrame(),
+    )
+
+    peer_row = next(row for row in rows if row.action_type == "peers" and row.ticker == "AMD")
+    assert peer_row.recommended_action == (
+        "Run make focus-peers TICKER=AMD, or write templates and fill data/imports/peers.csv manually "
+        "with transparent peer mappings."
+    )
+    assert peer_row.focus_command == "make focus-peers TICKER=AMD"
+    assert peer_row.example_command == "make templates"
+
+
 def test_action_queue_drops_redundant_coverage_rows_when_specific_action_matches():
     rows = build_action_queue_rows(
         price_status=pd.DataFrame(),
