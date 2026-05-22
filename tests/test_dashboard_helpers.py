@@ -393,6 +393,26 @@ def test_pipeline_outputs_loader_regenerates_missing_core_outputs(tmp_path):
     assert (tmp_path / "final_watchlist.csv").exists()
 
 
+def test_monthly_outputs_loader_regenerates_missing_monthly_outputs(tmp_path):
+    old_base = dashboard.BASE_DIR
+    old_outputs = dashboard.OUTPUTS_DIR
+    try:
+        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
+        dashboard.OUTPUTS_DIR = tmp_path
+        tables = dashboard.load_monthly_outputs(tmp_path)
+    finally:
+        dashboard.BASE_DIR = old_base
+        dashboard.OUTPUTS_DIR = old_outputs
+
+    for filename in dashboard.MONTHLY_FILES:
+        frame, _message = tables[filename]
+        assert frame is not None
+
+    assert (tmp_path / "monthly_research_picks.csv").exists()
+    assert (tmp_path / "monthly_picks_track_record.csv").exists()
+    assert (tmp_path / "monthly_picks_equity_curve.csv").exists()
+
+
 def test_data_source_status_table_columns_surface_command_fields():
     frame = pd.DataFrame(
         [

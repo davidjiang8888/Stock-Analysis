@@ -11,14 +11,16 @@ from src.action_queue import write_action_queue_output
 from src.data_onboarding import write_onboarding_outputs
 from src.data_update import enrich_price_update_status_frame
 from src.data_sources import write_data_source_outputs
+from src.monthly_picks import build_monthly_research_picks
+from src.monthly_picks import MonthlyPickConfig
 from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_importer import preview_import_merge, validate_imports
 from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
-from src.monthly_picks import MonthlyPickConfig
 from src.paths import path_context
 from src.project_status import build_project_status_payload
 from src.stock_report import build_provider, build_stock_report, export_stock_report_json
+from src.track_record import calculate_monthly_track_record
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
 
 
@@ -218,6 +220,26 @@ def load_pipeline_outputs(
     if any(frame is None for frame, _ in tables.values()):
         run_report_generator(BASE_DIR, output_dir=outputs_dir)
         tables = {filename: load_output(outputs_dir / filename) for filename in PIPELINE_FILES}
+    return tables
+
+
+def load_monthly_outputs(
+    outputs_dir: Path = OUTPUTS_DIR,
+) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
+    tables = {filename: load_output(outputs_dir / filename) for filename in MONTHLY_FILES}
+    picks_frame, _ = tables["monthly_research_picks.csv"]
+    track_frame, _ = tables["monthly_picks_track_record.csv"]
+    equity_frame, _ = tables["monthly_picks_equity_curve.csv"]
+
+    if picks_frame is None:
+        build_monthly_research_picks(BASE_DIR, output_dir=outputs_dir, top_n=_monthly_top_n())
+        tables["monthly_research_picks.csv"] = load_output(outputs_dir / "monthly_research_picks.csv")
+        picks_frame, _ = tables["monthly_research_picks.csv"]
+
+    if track_frame is None or equity_frame is None:
+        calculate_monthly_track_record(BASE_DIR, output_dir=outputs_dir, top_n=_monthly_top_n(), write_output=True)
+        tables["monthly_picks_track_record.csv"] = load_output(outputs_dir / "monthly_picks_track_record.csv")
+        tables["monthly_picks_equity_curve.csv"] = load_output(outputs_dir / "monthly_picks_equity_curve.csv")
     return tables
 
 
@@ -5797,7 +5819,8 @@ def render_overview(
     market_direction_frame, _ = output_frames.get("market_direction.csv", (None, None))
     final_watchlist_frame, _ = output_frames.get("final_watchlist.csv", (None, None))
     price_status_frame, _ = load_price_update_status()
-    monthly_file_count = sum(1 for filename in MONTHLY_FILES if (OUTPUTS_DIR / filename).exists())
+    monthly_tables = load_monthly_outputs()
+    monthly_file_count = sum(1 for frame, _message in monthly_tables.values() if frame is not None)
     health_tables = load_research_health_tables()
     health_file_count = sum(1 for frame, _message in health_tables.values() if frame is not None)
     output_file_count = sum(1 for frame, _message in output_frames.values() if frame is not None) + monthly_file_count + health_file_count
@@ -5823,7 +5846,7 @@ def render_overview(
     command_bundle_runbook_frame, _ = onboarding_tables["command_bundle_runbook.csv"]
     latest_price = _latest_local_price_date(catalog)
     watchlist_count = 0 if final_watchlist_frame is None else len(final_watchlist_frame)
-    monthly_frame, _ = load_output(OUTPUTS_DIR / "monthly_research_picks.csv")
+    monthly_frame, _ = monthly_tables["monthly_research_picks.csv"]
     monthly_count = 0 if monthly_frame is None else len(monthly_frame)
 
     render_section_header(
@@ -6044,8 +6067,9 @@ def render_overview(
                 "Message": message or "",
             }
         )
+    monthly_tables = load_monthly_outputs()
     for filename, label in MONTHLY_FILES.items():
-        frame, message = load_output(OUTPUTS_DIR / filename)
+        frame, message = monthly_tables[filename]
         output_rows.append(
             {
                 "Output": label,
@@ -6083,9 +6107,10 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
         "A compact, product-style view of the current local research candidates and whether the track record has enough data.",
     )
     top_n = _monthly_top_n()
-    picks_frame, picks_message = load_output(OUTPUTS_DIR / "monthly_research_picks.csv")
-    track_frame, _track_message = load_output(OUTPUTS_DIR / "monthly_picks_track_record.csv")
-    equity_frame, _equity_message = load_output(OUTPUTS_DIR / "monthly_picks_equity_curve.csv")
+    monthly_tables = load_monthly_outputs()
+    picks_frame, picks_message = monthly_tables["monthly_research_picks.csv"]
+    track_frame, _track_message = monthly_tables["monthly_picks_track_record.csv"]
+    equity_frame, _equity_message = monthly_tables["monthly_picks_equity_curve.csv"]
     latest_price = _latest_local_price_date(catalog)
     universe = catalog.load_dataframe("universe")
     universe_count = 0 if universe is None or universe.empty else len(universe)
