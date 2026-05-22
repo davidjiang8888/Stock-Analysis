@@ -610,6 +610,7 @@ def test_project_status_helpers_turn_payload_into_cards_and_commands():
                 "dataset": "prices",
                 "ticker": "NVDA",
                 "reason": "Short local price history.",
+                "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.",
                 "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "make price-refresh",
             }
@@ -625,6 +626,7 @@ def test_project_status_helpers_turn_payload_into_cards_and_commands():
     assert "4/10" in rendered
     assert "9/20" in rendered
     assert actions[0][0] == "P1 prices - NVDA"
+    assert "normalize verified downloaded ohlcv rows" in actions[0][1].lower()
     assert actions[0][2] == "make focus-price TICKER=NVDA"
     assert actions[0][3] == "danger"
     assert commands[0]["Command"] == "make onboarding"

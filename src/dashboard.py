@@ -3126,10 +3126,14 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
         dataset = format_missing(row.get("dataset"))
         ticker = format_missing(row.get("ticker"), fallback="")
         reason = format_missing(row.get("reason"), fallback="Local data coverage needs attention.")
+        recommended_action = format_missing(row.get("recommended_action"), "")
+        body = recommended_action
+        if reason and reason != "Not available":
+            body = f"{reason} {recommended_action}".strip() if recommended_action and recommended_action != reason else reason
         command = preferred_row_command(row, "make onboarding")
         title = f"P{priority} {dataset}" + (f" - {ticker}" if ticker else "")
         tone = "danger" if priority <= 1 else "warning" if priority <= 2 else "neutral"
-        actions.append((title, reason, command, tone))
+        actions.append((title, compact_reason(body, max_sentences=2, max_chars=220), command, tone))
     if not actions:
         actions.append(
             (
