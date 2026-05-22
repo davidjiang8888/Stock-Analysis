@@ -2921,8 +2921,8 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "lane": "prices",
                 "scope": "holdings_first",
                 "step_order": 7,
-                "step_label": "Refresh onboarding outputs",
-                "command": "make onboarding",
+                "step_label": "Refresh status outputs",
+                "command": "make status",
                 "target_file": "data/imports/prices.csv",
                 "tickers": "AMD,AVGO",
                 "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
@@ -2947,7 +2947,7 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
     assert "make price-validate" in rendered
     assert "make price-preview" in rendered
     assert "make price-apply" in rendered
-    assert "make onboarding" in rendered
+    assert "make status" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -2980,18 +2980,8 @@ def test_data_health_command_bundle_runbook_cards_surface_peer_manual_step():
                 "lane": "peers",
                 "scope": "holdings_first",
                 "step_order": 3,
-                "step_label": "Review follow-up output",
-                "command": "make onboarding",
-                "tickers": "META,NVDA,TSLA",
-                "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
-            },
-            {
-                "bundle_name": "Peer Mapping Bundle",
-                "lane": "peers",
-                "scope": "holdings_first",
-                "step_order": 4,
-                "step_label": "Refresh onboarding outputs",
-                "command": "make onboarding",
+                "step_label": "Refresh status outputs",
+                "command": "make status",
                 "tickers": "META,NVDA,TSLA",
                 "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
             },
@@ -3803,8 +3793,8 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
                 "lane": "fundamentals",
                 "scope": "holdings_first",
                 "step_order": 3,
-                "step_label": "Refresh onboarding outputs",
-                "command": "make onboarding",
+                "step_label": "Refresh status outputs",
+                "command": "make status",
                 "tickers": "META,NVDA,TSLA",
                 "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
                 "target_file": "data/imports/fundamentals.csv",
@@ -3821,7 +3811,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
     assert "dcf readiness" in rendered
     assert "make sec-stage" in rendered
     assert "make sec-preview" in rendered
-    assert "make onboarding" in rendered
+    assert "make status" in rendered
     assert "meta" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

@@ -957,15 +957,18 @@ def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path:
     assert price_steps[3]["command"] == "make price-preview"
     assert price_steps[4]["command"] == "make price-apply"
     assert price_steps[5]["command"] == "make price-status"
-    assert price_steps[-1]["command"] == "make onboarding"
+    assert price_steps[-1]["step_label"] == "Refresh status outputs"
+    assert price_steps[-1]["command"] == "make status"
     peer_steps = [
         row
         for row in runbook
         if row["lane"] == "peers" and row["scope"] == "holdings_first"
     ]
-    assert [row["step_order"] for row in peer_steps] == [1, 2, 3, 4]
+    assert [row["step_order"] for row in peer_steps] == [1, 2, 3]
     assert peer_steps[1]["step_label"] == "Fill peer mappings manually"
     assert peer_steps[1]["command"] == "data/imports/peers.csv"
+    assert peer_steps[2]["step_label"] == "Refresh status outputs"
+    assert peer_steps[2]["command"] == "make status"
 
 
 def test_build_data_coverage_wizard_accepts_empty_coverage():

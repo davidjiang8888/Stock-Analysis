@@ -1757,10 +1757,10 @@ def build_command_bundles(
                 detail_shortcut_command=bundle_shortcut_for_scope("peers", scope, "detail"),
                 runbook_shortcut_command=bundle_shortcut_for_scope("peers", scope, "runbook"),
                 primary_command="make templates",
-                follow_up_command="make onboarding",
+                follow_up_command="make status",
                 target_file="data/imports/peers.csv",
                 why_it_matters=why_it_matters,
-                safe_next_step="Fill only manually researched peers for the listed tickers, then rerun onboarding to refresh readiness and action outputs.",
+                safe_next_step="Fill only manually researched peers for the listed tickers, then run make status to refresh readiness and action outputs.",
             )
         )
 
@@ -1934,9 +1934,9 @@ def build_command_bundle_runbook(
                     ),
                     ("Review follow-up output", bundle.follow_up_command, bundle.safe_next_step),
                     (
-                        "Refresh onboarding outputs",
-                        "make onboarding",
-                        "After the bundle flow finishes, reopen Data Health or Overview to confirm the updated local coverage state.",
+                        "Refresh status outputs",
+                        "make status",
+                        "After the bundle flow finishes, refresh the operator outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
                     ),
                 ]
             )
@@ -1959,9 +1959,9 @@ def build_command_bundle_runbook(
                     "Apply the staged fundamentals merge only after validation and preview are clean.",
                 ),
                 (
-                    "Refresh onboarding outputs",
-                    "make onboarding",
-                    "After the bundle flow finishes, reopen Data Health or Overview to confirm the updated local coverage state.",
+                    "Refresh status outputs",
+                    "make status",
+                    "After the bundle flow finishes, refresh the operator outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
                 ),
             ]
         elif bundle.lane == "peers":
@@ -1972,11 +1972,10 @@ def build_command_bundle_runbook(
                     "data/imports/peers.csv",
                     "Fill only manually researched peer mappings for the listed tickers and keep missing peer context explicit when you do not have a trusted comparison set.",
                 ),
-                ("Review follow-up output", bundle.follow_up_command, bundle.safe_next_step),
                 (
-                    "Refresh onboarding outputs",
-                    "make onboarding",
-                    "After the bundle flow finishes, reopen Data Health or Overview to confirm the updated local coverage state.",
+                    "Refresh status outputs",
+                    "make status",
+                    "After the bundle flow finishes, refresh the operator outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
                 ),
             ]
         else:
@@ -1984,9 +1983,9 @@ def build_command_bundle_runbook(
                 ("Run bundle command", bundle.primary_command, bundle.safe_next_step),
                 ("Review follow-up output", bundle.follow_up_command, bundle.safe_next_step),
                 (
-                    "Refresh onboarding outputs",
-                    "make onboarding",
-                    "After the bundle flow finishes, reopen Data Health or Overview to confirm the updated local coverage state.",
+                    "Refresh status outputs",
+                    "make status",
+                    "After the bundle flow finishes, refresh the operator outputs and reopen Data Health or Overview to confirm the updated local coverage state.",
                 ),
             ]
         for step_order, (step_label, command, safe_next_step) in enumerate(step_specs, start=1):
