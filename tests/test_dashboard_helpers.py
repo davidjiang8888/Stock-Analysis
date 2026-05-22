@@ -5791,6 +5791,28 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
     assert "sell" not in rendered
 
 
+def test_overview_bundle_handoff_cards_normalize_explicit_follow_through_command():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "ticker_count": 3,
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; 57 verified rows still needed across this bundle",
+                "primary_command": "make bundle-prices",
+                "follow_up_command": "python3 -m src.data_update --tickers META,NVDA,TSLA",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_bundle_handoff_cards(bundles, None, None)
+
+    assert cards[1]["title"] == "make price-refresh TICKERS=META,NVDA,TSLA"
+    assert cards[1]["command"] == "make price-refresh TICKERS=META,NVDA,TSLA"
+
+
 def test_overview_bundle_handoff_cards_use_runbook_follow_through_when_bundle_field_is_missing():
     bundles = pd.DataFrame(
         [

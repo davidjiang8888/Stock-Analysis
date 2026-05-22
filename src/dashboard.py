@@ -5207,7 +5207,7 @@ def overview_bundle_handoff_cards(
     top_bundle = bundle_frame.iloc[0]
     bundle_name = format_missing(top_bundle.get("bundle_name"), "Local bundle")
     primary_command = preferred_bundle_command(top_bundle, "")
-    follow_up_command = format_missing(top_bundle.get("follow_up_command"), "")
+    follow_up_command = normalize_operator_command(format_missing(top_bundle.get("follow_up_command"), ""))
     goal_summary = compact_reason(top_bundle.get("goal_summary"), max_sentences=1, max_chars=120)
     target_history_rows = _target_rows_hint(top_bundle.get("target_history_rows"))
     suggested_start_date = format_missing(top_bundle.get("suggested_start_date"), "")
