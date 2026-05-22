@@ -1980,6 +1980,14 @@ def data_health_action_path_cards(
     actions_frame: pd.DataFrame | None,
     action_queue_frame: pd.DataFrame | None,
 ) -> list[dict[str, object]]:
+    def _action_path_body(row: pd.Series) -> str:
+        reason = format_missing(row.get("reason"), "")
+        recommended_action = format_missing(row.get("recommended_action"), "")
+        body_source = recommended_action
+        if reason and reason != "Not available":
+            body_source = f"{reason} {recommended_action}".strip() if recommended_action and recommended_action != reason else reason
+        return compact_reason(body_source, max_sentences=2, max_chars=220)
+
     def _fallback_card() -> list[dict[str, object]]:
         return [
             {
@@ -2015,7 +2023,7 @@ def data_health_action_path_cards(
                     "title": title,
                     "body": (
                         f"{format_missing(row.get('ticker'), 'Ticker')}: "
-                        f"{compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
+                        f"{_action_path_body(row)}"
                     ),
                     "badges": [f"P{format_missing(row.get('priority'), '-')}", dataset],
                     "command": preferred_row_command(row, "make onboarding"),

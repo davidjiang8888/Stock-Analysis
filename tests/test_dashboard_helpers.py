@@ -2286,7 +2286,8 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
                 "priority": 1,
                 "dataset": "prices",
                 "ticker": "NVDA",
-                "recommended_action": "Add verified local price history first.",
+                "reason": "No verified local price history is present yet.",
+                "recommended_action": "Normalize verified downloaded OHLCV rows and run validate/preview/apply.",
                 "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "make price-worklist",
             },
@@ -2294,7 +2295,8 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
                 "priority": 2,
                 "dataset": "fundamentals",
                 "ticker": "AMD",
-                "recommended_action": "Run SEC staging for fundamentals.",
+                "reason": "DCF inputs are still incomplete.",
+                "recommended_action": "Run SEC staging for fundamentals, then validate and preview before applying.",
                 "focus_command": "make focus-fundamentals TICKER=AMD",
                 "example_command": "make sec-stage TICKERS=AMD",
             },
@@ -2302,7 +2304,8 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
                 "priority": 2,
                 "dataset": "peers",
                 "ticker": "TSLA",
-                "recommended_action": "Add manually researched peers.",
+                "reason": "No local peer mapping is configured for this ticker.",
+                "recommended_action": "Add manually researched peers and keep peer-relative comparison transparent.",
                 "focus_command": "make focus-peers TICKER=TSLA",
                 "example_command": "make templates",
             },
@@ -2333,7 +2336,9 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
     assert "price path" in rendered
     assert "fundamentals path" in rendered
     assert "peer path" in rendered
+    assert "no verified local price history is present yet" in rendered
     assert "normalize verified downloaded ohlcv rows" in rendered
+    assert "dcf inputs are still incomplete" in rendered
     assert "make focus-fundamentals ticker=amd" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
