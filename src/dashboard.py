@@ -4242,19 +4242,31 @@ def holdings_deep_research_cards(
             sec_rows["priority"] = pd.to_numeric(sec_rows.get("priority"), errors="coerce").fillna(999)
             for _, row in sec_rows.sort_values(["priority", "price_history_days", "ticker"], ascending=[True, False, True]).head(limit).iterrows():
                 ticker = format_missing(row.get("ticker"), "Holding")
+                target_file = format_missing(row.get("target_file"), "")
+                staged_import = target_file == "data/imports/fundamentals.csv"
+                fallback_action = (
+                    f"{ticker} already has staged fundamentals in {target_file}. "
+                    "Run make imports-validate, then make imports-preview, then make imports-apply before trusting DCF coverage."
+                    if staged_import
+                    else "Review fundamentals path."
+                )
                 cards.append(
                     {
                         "kicker": ticker,
-                        "title": "Unlock DCF",
+                        "title": "Advance staged fundamentals import" if staged_import else "Unlock DCF",
                         "body": (
                             f"{format_missing(purpose_map.get(ticker), 'Portfolio holding')}. "
                             f"SEC/fundamentals queue priority P{format_missing(row.get('priority'), '-')}. "
-                            f"{compact_reason(row.get('recommended_action') or 'Review fundamentals path.', max_sentences=1, max_chars=150)}"
+                            f"{compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)}"
                         ),
                         "badges": ["fundamentals", format_missing(row.get("theme"), "theme")],
                         "command": preferred_row_command(
                             row,
-                            ticker_focus_command("fundamentals", row.get("ticker"), "make onboarding"),
+                            (
+                                "make imports-validate"
+                                if staged_import
+                                else ticker_focus_command("fundamentals", row.get("ticker"), "make onboarding")
+                            ),
                         ),
                     }
                 )
@@ -4267,19 +4279,31 @@ def holdings_deep_research_cards(
             peer_rows["priority"] = pd.to_numeric(peer_rows.get("priority"), errors="coerce").fillna(999)
             for _, row in peer_rows.sort_values(["priority", "ticker"], ascending=[True, True]).head(limit).iterrows():
                 ticker = format_missing(row.get("ticker"), "Holding")
+                target_file = format_missing(row.get("target_file"), "")
+                staged_import = target_file == "data/imports/peers.csv"
+                fallback_action = (
+                    f"{ticker} already has staged peer mappings in {target_file}. "
+                    "Run make imports-validate, then make imports-preview, then make imports-apply before trusting peer-relative context."
+                    if staged_import
+                    else "Review peer path."
+                )
                 cards.append(
                     {
                         "kicker": ticker,
-                        "title": "Unlock Peer Relative",
+                        "title": "Advance staged peer import" if staged_import else "Unlock Peer Relative",
                         "body": (
                             f"{format_missing(purpose_map.get(ticker), 'Portfolio holding')}. "
                             f"Peer queue priority P{format_missing(row.get('priority'), '-')}. "
-                            f"{compact_reason(row.get('recommended_action') or 'Review peer path.', max_sentences=1, max_chars=150)}"
+                            f"{compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)}"
                         ),
                         "badges": ["peers", format_missing(row.get("theme"), "theme")],
                         "command": preferred_row_command(
                             row,
-                            ticker_focus_command("peers", row.get("ticker"), "make onboarding"),
+                            (
+                                "make imports-validate"
+                                if staged_import
+                                else ticker_focus_command("peers", row.get("ticker"), "make onboarding")
+                            ),
                         ),
                     }
                 )
@@ -4406,11 +4430,27 @@ def theme_deep_research_cards(
             theme_frame = theme_frame.sort_values(["priority", "is_holding", "ticker"], ascending=[True, False, True])
             top_row = theme_frame.iloc[0]
             tickers = ", ".join(theme_frame["ticker"].head(4).tolist())
-            fallback_action = "Review fundamentals path." if dataset_badge == "fundamentals" else "Review peer path."
+            target_file = format_missing(top_row.get("target_file"), "")
+            staged_import = (
+                (dataset_badge == "fundamentals" and target_file == "data/imports/fundamentals.csv")
+                or (dataset_badge == "peers" and target_file == "data/imports/peers.csv")
+            )
+            fallback_action = (
+                f"Top staged {dataset_badge.lower()} import is waiting in {target_file}. "
+                "Run make imports-validate, then make imports-preview, then make imports-apply."
+                if staged_import
+                else ("Review fundamentals path." if dataset_badge == "fundamentals" else "Review peer path.")
+            )
             rows.append(
                 {
                     "kicker": str(theme_name),
-                    "title": goal,
+                    "title": (
+                        "Advance staged fundamentals import"
+                        if staged_import and dataset_badge == "fundamentals"
+                        else "Advance staged peer import"
+                        if staged_import and dataset_badge == "peers"
+                        else goal
+                    ),
                     "body": (
                         f"{len(theme_frame)} ticker rows in this theme currently point to {dataset_badge.lower()} work. "
                         f"Representative names: {tickers}. "
@@ -4419,7 +4459,11 @@ def theme_deep_research_cards(
                     "badges": [dataset_badge, f"P{format_missing(top_row.get('priority'), '-')}"],
                     "command": preferred_row_command(
                         top_row,
-                        ticker_focus_command(dataset_badge, top_row.get("ticker"), "make onboarding"),
+                        (
+                            "make imports-validate"
+                            if staged_import
+                            else ticker_focus_command(dataset_badge, top_row.get("ticker"), "make onboarding")
+                        ),
                     ),
                     "sort_priority": float(top_row.get("priority", 999)),
                     "holdings_count": int(theme_frame["is_holding"].sum()),

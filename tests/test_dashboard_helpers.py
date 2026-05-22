@@ -2165,6 +2165,53 @@ def test_holdings_deep_research_cards_use_peer_review_fallback_when_action_is_mi
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_holdings_deep_research_cards_keep_staged_import_front_doors_when_commands_are_missing():
+    holdings = pd.DataFrame(
+        [
+            {"Ticker": "NVDA", "PrimaryPurpose": "Momentum Leader"},
+            {"Ticker": "TSLA", "PrimaryPurpose": "Speculative Optionality"},
+        ]
+    )
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+                "price_history_days": 25,
+            }
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+            }
+        ]
+    )
+
+    cards = dashboard.holdings_deep_research_cards(holdings, sec_queue, peer_queue, limit=4)
+    fundamentals_card = next(card for card in cards if card["kicker"] == "NVDA")
+    peer_card = next(card for card in cards if card["kicker"] == "TSLA")
+
+    assert fundamentals_card["title"] == "Advance staged fundamentals import"
+    assert fundamentals_card["command"] == "make imports-validate"
+    assert "staged fundamentals" in fundamentals_card["body"].lower()
+    assert peer_card["title"] == "Advance staged peer import"
+    assert peer_card["command"] == "make imports-validate"
+    assert "staged peer mappings" in peer_card["body"].lower()
+
+
 def test_holdings_unlock_cards_handle_missing_inputs_gracefully():
     cards = dashboard.holdings_unlock_cards(None, None, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
@@ -2429,6 +2476,48 @@ def test_theme_deep_research_cards_use_peer_review_fallback_when_action_is_missi
     assert cards[0]["kicker"] == "Semiconductor ETF"
     assert "review peer path." in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
+
+
+def test_theme_deep_research_cards_keep_staged_import_front_doors_when_commands_are_missing():
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI Semiconductors",
+                "is_holding": True,
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            }
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "SMH",
+                "theme": "Semiconductor ETF",
+                "is_holding": False,
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+            }
+        ]
+    )
+
+    cards = dashboard.theme_deep_research_cards(sec_queue, peer_queue, limit=4)
+    fundamentals_card = next(card for card in cards if card["kicker"] == "AI Semiconductors")
+    peer_card = next(card for card in cards if card["kicker"] == "Semiconductor ETF")
+
+    assert fundamentals_card["title"] == "Advance staged fundamentals import"
+    assert fundamentals_card["command"] == "make imports-validate"
+    assert "staged fundamentals import" in fundamentals_card["body"].lower()
+    assert peer_card["title"] == "Advance staged peer import"
+    assert peer_card["command"] == "make imports-validate"
+    assert "staged peers import" in peer_card["body"].lower()
 
 
 def test_overview_research_pressure_cards_compare_price_fundamentals_and_peers():
