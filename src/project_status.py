@@ -165,7 +165,30 @@ def _select_top_bundle(actions: list[dict[str, Any]], bundles: list[dict[str, An
     return min(lane_matches, key=_bundle_rank)
 
 
-def _recommended_next_command_rows(actions: list[dict[str, Any]], bundles: list[dict[str, Any]]) -> list[dict[str, str]]:
+def _recommended_source_command_rows(problem_sources: list[dict[str, Any]]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for row in problem_sources:
+        command = _first_non_empty(row.get("focus_command"))
+        if not command or command == "make status":
+            continue
+        dataset = str(row.get("dataset") or "data").replace("_", " ")
+        status = str(row.get("availability_status") or "").strip().lower()
+        if command == "make imports-validate":
+            step = f"Advance staged {dataset} import"
+        elif status == "manual_only":
+            step = f"Prepare {dataset} input"
+        else:
+            step = f"Advance {dataset} source"
+        reason = _first_non_empty(row.get("fallback_action"), row.get("validation_warnings"), row.get("notes"))
+        rows.append({"Step": step, "Command": command, "Reason": reason})
+    return rows
+
+
+def _recommended_next_command_rows(
+    actions: list[dict[str, Any]],
+    bundles: list[dict[str, Any]],
+    problem_sources: list[dict[str, Any]],
+) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
 
     if actions:
@@ -190,6 +213,10 @@ def _recommended_next_command_rows(actions: list[dict[str, Any]], bundles: list[
             bundle_name = _first_non_empty(top_bundle.get("bundle_name"), "Top bundle")
             reason = _first_non_empty(top_bundle.get("goal_summary"), top_bundle.get("why_it_matters"))
             rows.append({"Step": f"Run {bundle_name}", "Command": command, "Reason": reason})
+
+    problem_source_rows = _recommended_source_command_rows(problem_sources)
+    if problem_source_rows:
+        rows.append(problem_source_rows[0])
 
     rows.extend(
         [
@@ -249,7 +276,11 @@ def build_project_status_payload(
         "onboarding_actions": len(actions),
         "critical_actions": sum(1 for row in actions if int(row.get("priority") or 999) <= 1),
     }
-    command_rows = _recommended_next_command_rows(actions, onboarding_payload.get("command_bundles", []))
+    command_rows = _recommended_next_command_rows(
+        actions,
+        onboarding_payload.get("command_bundles", []),
+        problem_sources,
+    )
     return {
         "project_root": str(root),
         "data_dir": str(data_path),

@@ -81,6 +81,58 @@ def test_project_status_prefers_live_price_status_context_for_price_actions(tmp_
     assert payload["recommended_next_command_rows"][0]["Reason"] == "NVDA: parse failed"
 
 
+def test_project_status_surfaces_staged_fundamentals_follow_through_in_next_steps(tmp_path: Path):
+    _write_minimal_local_data(tmp_path)
+    imports_dir = tmp_path / "data" / "imports"
+    imports_dir.mkdir()
+    pd.DataFrame(
+        [
+            {
+                "ticker": "AMD",
+                "theme": "AI",
+                "sector": "Semis",
+                "revenue": 100,
+                "revenue_growth": 0.2,
+                "eps": 1.0,
+                "free_cash_flow": 10,
+                "fcf": 10,
+                "fcf_margin": 0.1,
+                "profit_margin": 0.2,
+                "operating_margin": 0.15,
+                "gross_margin": 0.3,
+                "ebitda": 15,
+                "cash": 20,
+                "debt": 5,
+                "net_debt": -15,
+                "shares_outstanding": 100,
+                "pe_ratio": 25,
+                "trailing_pe": 24,
+                "forward_pe": 22,
+                "price_to_book": 3,
+                "market_cap": 1000,
+                "enterprise_value": 1020,
+                "debt_to_equity": 0.4,
+                "source": "sec_companyfacts",
+                "as_of_date": "2025-12-31",
+                "sec_cik": "1",
+                "sec_form": "10-K",
+                "sec_filed_date": "2026-02-01",
+                "sec_accession": "0001",
+                "sec_fact_warnings": "",
+                "sec_entity_name": "AMD INC",
+            }
+        ]
+    ).to_csv(imports_dir / "fundamentals.csv", index=False)
+
+    payload = build_project_status_payload(tmp_path, top_n=4)
+
+    commands = [row["Command"] for row in payload["recommended_next_command_rows"]]
+    assert "make imports-validate" in commands
+    staged_row = next(row for row in payload["recommended_next_command_rows"] if row["Command"] == "make imports-validate")
+    assert staged_row["Step"] == "Advance staged fundamentals import"
+    assert "make imports-apply" in staged_row["Reason"]
+
+
 def test_project_status_normalizes_legacy_parse_error_reason_from_price_status(tmp_path: Path):
     _write_minimal_local_data(tmp_path)
     pd.DataFrame(
