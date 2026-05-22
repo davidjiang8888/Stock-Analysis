@@ -695,9 +695,9 @@ def write_data_source_outputs(
     }
 
 
-def _print_human(payload: dict[str, Any]) -> None:
+def _print_human(payload: dict[str, Any], *, top_n: int = 20) -> None:
     print("Data source status:")
-    for row in payload["data_sources"]:
+    for row in payload["data_sources"][:top_n]:
         print(
             f"- {row['dataset']}: {row['availability_status']} "
             f"rows={row['row_count']} source={row['source_name']}"
@@ -724,6 +724,7 @@ def main() -> None:
     parser.add_argument("--project-root", help="Project root for default data/output directories.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
+    parser.add_argument("--top-n", type=int, default=20, help="Number of source and gap rows to print in human-readable mode.")
     args = parser.parse_args()
 
     root = resolve_project_root(args.project_root)
@@ -740,7 +741,7 @@ def main() -> None:
         return
 
     print(format_path_context(root, data_path, output_path))
-    _print_human(payload)
+    _print_human(payload, top_n=max(args.top_n, 0))
     if args.write_output:
         print(f"Wrote: {payload['status_path']}")
         print(f"Wrote: {payload['gap_report_path']}")

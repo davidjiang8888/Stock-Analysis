@@ -89,7 +89,7 @@ def test_makefile_help_documents_key_workflows():
         "make validate-all",
         "make daily",
         "make dashboard-smoke",
-        "make data-sources-check",
+        "make data-sources-check [TOP_N=10]",
         "make data-sources",
         "make research-health-check [TOP_N=10]",
         "make action-queue-check [TOP_N=10]",
@@ -172,6 +172,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
 
     assert "Run a local-only source check:\n\n```bash\nmake data-sources-check" in readme
     assert "make data-sources" in readme
+    assert "If you want a shorter source and gap summary in the terminal, use `make data-sources-check TOP_N=10`." in readme
     assert "If you intentionally want lower-level CLI control against a fixture or alternate local dataset, the raw module commands remain available:\n\n```bash\npython3 -m src.stock_report --project-root \"/Users/yjian070/Documents/New project\" --validate-local-data" in readme
     assert "```bash\nmake validate-data\nmake pipeline\nmake monthly" in readme
     assert "## Run the dashboard\n\n```bash\nmake dashboard" in readme
@@ -310,6 +311,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),)" in makefile
     assert "local-tickers:\n\tpython3 -m src.stock_report --list-local-tickers" in makefile
     assert "import-staging:\n\tpython3 -m src.stock_report --write-import-staging" in makefile
+    assert "data-sources-check:\n\tpython3 -m src.data_sources --check --top-n $(or $(TOP_N),20)" in makefile
     assert "data-sources:\n\tpython3 -m src.data_sources --write-output" in makefile
     assert "research-health-check:\n\tpython3 -m src.research_health --top-n $(or $(TOP_N),20)" in makefile
     assert "action-queue-check:\n\tpython3 -m src.action_queue --check --top-n $(or $(TOP_N),20)" in makefile

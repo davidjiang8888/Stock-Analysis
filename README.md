@@ -235,7 +235,7 @@ python3 -m src.data_sources --check --json
 make data-sources
 ```
 
-Use `make data-sources-check` for the standard read-only operator path and `make data-sources` when you explicitly want to refresh just the source diagnostics without running the broader onboarding workflow. Keep the raw `--json` / `--write-output` CLI forms for machine-readable inspection or lower-level scripting control.
+Use `make data-sources-check` for the standard read-only operator path and `make data-sources` when you explicitly want to refresh just the source diagnostics without running the broader onboarding workflow. If you want a shorter source and gap summary in the terminal, use `make data-sources-check TOP_N=10`. Keep the raw `--json` / `--write-output` CLI forms for machine-readable inspection or lower-level scripting control.
 
 `--write-output` creates:
 
