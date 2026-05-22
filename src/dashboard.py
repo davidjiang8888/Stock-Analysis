@@ -5721,6 +5721,9 @@ def overview_workflow_path_cards(
             elif "focus-" in lowered:
                 badges = ["today", "single name"] if index == 1 else ["single name", "workflow"]
                 body = reason if has_reason else "Use the current single-name shortcut first to unblock the highest-leverage local data gap."
+            elif "bundle-" in lowered:
+                badges = ["today", "bundle first"] if index == 1 else ["bundle first", "workflow"]
+                body = reason if has_reason else "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
             elif "runbook-" in lowered or "imports-" in lowered:
                 badges = ["today", "staged flow"] if index == 1 else ["staged flow", "workflow"]
                 body = reason if has_reason else "Use the staged local workflow next so validation and preview safeguards stay in place."

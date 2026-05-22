@@ -3860,6 +3860,25 @@ def test_overview_workflow_path_cards_use_command_family_fallback_when_reason_is
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_overview_workflow_path_cards_use_bundle_fallback_when_reason_is_missing():
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Run highest-leverage price bundle",
+                "Command": "make bundle-prices",
+                "Reason": "",
+            }
+        ]
+    }
+
+    cards = dashboard.overview_workflow_path_cards(payload, None)
+
+    assert cards[0]["title"] == "make bundle-prices"
+    assert "bundle first" in [badge.lower() for badge in cards[0]["badges"]]
+    assert "highest-leverage local bundle first" in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_overview_workflow_path_cards_use_status_check_when_structured_command_is_missing():
     payload = {
         "recommended_next_command_rows": [
