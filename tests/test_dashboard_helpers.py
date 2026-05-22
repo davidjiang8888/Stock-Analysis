@@ -5508,7 +5508,9 @@ def test_data_health_command_bundle_runbook_cards_use_staged_command_when_steps_
     cards = dashboard.data_health_command_bundle_runbook_cards(runbook)
 
     assert cards[0]["command"] == "make imports-validate"
+    assert "review staged import: make imports-validate" in cards[0]["body"].lower()
     assert "make imports-preview" in cards[0]["body"].lower()
+    assert "no runbook steps available" not in cards[0]["body"].lower()
 
 
 def test_data_health_price_target_cards_surface_exact_history_targets_safely():
@@ -6976,6 +6978,7 @@ def test_overview_bundle_runbook_cards_use_staged_command_when_steps_are_blank()
     cards = dashboard.overview_bundle_runbook_cards(runbook)
 
     assert cards[0]["command"] == "make imports-validate"
+    assert "review staged import: make imports-validate" in cards[0]["body"].lower()
     assert "make imports-preview" in cards[0]["body"].lower()
 
 

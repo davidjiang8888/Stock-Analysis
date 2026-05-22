@@ -2789,9 +2789,12 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             step_label = format_missing(row.get("step_label"), "Step")
             command = format_missing(row.get("command"), "")
             normalized_command = normalize_operator_command(command)
-            if command:
-                first_command = first_command or normalized_command or command
-                steps.append(f"{step_label}: {normalized_command or command}")
+            step_command = normalized_command or command
+            if not step_command and fallback_first_command and not first_command:
+                step_command = fallback_first_command
+            if step_command:
+                first_command = first_command or step_command
+                steps.append(f"{step_label}: {step_command}")
         cards.append(
             {
                 "kicker": f"{lane.upper()} RUNBOOK",
@@ -5617,12 +5620,15 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
         elif target_file == "data/imports/prices.csv":
             fallback_first_command = "make price-validate"
         for _, row in lane_rows.head(2).iterrows():
+            step_label = format_missing(row.get("step_label"), "Step")
             command = format_missing(row.get("command"), "")
             normalized_command = normalize_operator_command(command)
-            first_command = first_command or normalized_command or command
-            steps.append(
-                f"{format_missing(row.get('step_label'), 'Step')}: {normalized_command or command}"
-            )
+            step_command = normalized_command or command
+            if not step_command and fallback_first_command and not first_command:
+                step_command = fallback_first_command
+            if step_command:
+                first_command = first_command or step_command
+                steps.append(f"{step_label}: {step_command}")
         cards.append(
             {
                 "kicker": f"{lane.upper()} LANE",
