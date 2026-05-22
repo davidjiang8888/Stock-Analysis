@@ -5530,6 +5530,39 @@ def test_overview_onboarding_fallback_cards_use_status_refresh():
     assert "sell" not in rendered
 
 
+def test_bundle_runbook_cards_use_first_usable_step_command_when_lead_row_is_blank():
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Explain lane",
+                "command": "",
+                "tickers": "NVDA",
+                "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
+            },
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "step_order": 2,
+                "step_label": "Run bundle command",
+                "command": "make templates",
+                "tickers": "NVDA",
+                "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
+            },
+        ]
+    )
+
+    data_health_cards = dashboard.data_health_command_bundle_runbook_cards(runbook)
+    overview_cards = dashboard.overview_bundle_runbook_cards(runbook)
+
+    assert data_health_cards[0]["command"] == "make templates"
+    assert overview_cards[0]["command"] == "make templates"
+
+
 def test_overview_bundle_runbook_cards_surface_lane_steps_safely():
     runbook = pd.DataFrame(
         [

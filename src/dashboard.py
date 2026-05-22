@@ -2704,11 +2704,13 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
                 parts.append(f"start by {suggested_start_date}")
             hint_text = f" ({'; '.join(parts)})"
         steps = []
+        first_command = ""
         max_steps = 7 if lane == "prices" else 5
         for _, row in lane_rows.head(max_steps).iterrows():
             step_label = format_missing(row.get("step_label"), "Step")
             command = format_missing(row.get("command"), "")
             if command:
+                first_command = first_command or command
                 steps.append(f"{step_label}: {command}")
         cards.append(
             {
@@ -2721,7 +2723,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
                     format_missing(lane_rows.iloc[0].get("scope"), "scope").replace("_", " "),
                     format_missing(lane_rows.iloc[0].get("tickers"), "No tickers"),
                 ],
-                "command": format_missing(lane_rows.iloc[0].get("command"), ""),
+                "command": first_command,
             }
         )
         if len(cards) >= limit:
@@ -5315,9 +5317,12 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
                 parts.append(f"start by {suggested_start_date}")
             hint_text = f" ({'; '.join(parts)})"
         steps: list[str] = []
+        first_command = ""
         for _, row in lane_rows.head(2).iterrows():
+            command = format_missing(row.get("command"), "")
+            first_command = first_command or command
             steps.append(
-                f"{format_missing(row.get('step_label'), 'Step')}: {format_missing(row.get('command'), '')}"
+                f"{format_missing(row.get('step_label'), 'Step')}: {command}"
             )
         cards.append(
             {
@@ -5328,7 +5333,7 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
                     format_missing(lane_rows.iloc[0].get("scope"), "scope").replace("_", " "),
                     "runbook",
                 ],
-                "command": format_missing(lane_rows.iloc[0].get("command"), ""),
+                "command": first_command,
             }
         )
         if len(cards) >= limit:
