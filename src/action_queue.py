@@ -141,7 +141,11 @@ def _data_quality_needs_refresh(frame: pd.DataFrame) -> bool:
 
     stale_price_rows = frame.loc[frame["ReadinessStatus"].astype(str).str.strip() == "Needs Price Data"]
     if not stale_price_rows.empty:
-        if not stale_price_rows["NextBestAction"].astype(str).str.contains(r"make focus-price\s+TICKER=", regex=True).all():
+        normalized_actions = stale_price_rows["NextBestAction"].astype(str).str.strip().str.lower()
+        if not (
+            normalized_actions.str.contains(r"make focus-price\s+ticker=", regex=True).all()
+            and normalized_actions.str.contains("make price-refresh tickers=").all()
+        ):
             return True
         if {"Ticker", "ExampleCommand"}.issubset(set(stale_price_rows.columns)):
             for _, row in stale_price_rows.iterrows():

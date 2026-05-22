@@ -1181,6 +1181,22 @@ def test_data_quality_needs_refresh_rejects_stale_example_commands():
     assert _data_quality_needs_refresh(frame) is True
 
 
+def test_data_quality_needs_refresh_rejects_stale_price_action_text_even_with_current_example_command():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "AMD",
+                "ReadinessStatus": "Needs Price Data",
+                "NextBestAction": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "FocusCommand": "make focus-price TICKER=AMD",
+                "ExampleCommand": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+            }
+        ]
+    )
+
+    assert _data_quality_needs_refresh(frame) is True
+
+
 def test_data_quality_needs_refresh_accepts_staged_fundamentals_example_command():
     frame = pd.DataFrame(
         [
