@@ -1151,10 +1151,11 @@ Generate them through the normal workflow or directly:
 ```bash
 make status
 make verify
+make research-health-check
 make research-health
 ```
 
-These files are diagnostic. They do not change ticker classifications, do not execute trades, and do not turn missing data into synthetic values. Liquidity and correlation rows are research context only; they are not buy/sell/hold instructions.
+Use `make research-health-check` for the current read-only summary view and `make research-health` when you explicitly want to refresh the research health CSV artifacts. These files are diagnostic. They do not change ticker classifications, do not execute trades, and do not turn missing data into synthetic values. Liquidity and correlation rows are research context only; they are not buy/sell/hold instructions.
 
 ## Research action queue
 
