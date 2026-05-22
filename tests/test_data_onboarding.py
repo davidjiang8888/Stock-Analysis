@@ -579,6 +579,8 @@ def test_data_onboarding_cli_unlock_summary_json(tmp_path: Path, capsys):
     assert "unlock_priority_summary" in payload
     assert payload["unlock_priority_summary"][0]["group_type"] == "holdings"
     assert "top_priority_stage" in payload["unlock_priority_summary"][0]
+    assert "focus_command" in payload["unlock_priority_summary"][0]
+    assert "example_command" in payload["unlock_priority_summary"][0]
 
 
 def test_unlock_priority_summary_groups_holdings_themes_and_sector_etfs(tmp_path: Path):
@@ -593,9 +595,30 @@ def test_unlock_priority_summary_groups_holdings_themes_and_sector_etfs(tmp_path
 
     assert holdings_row["holdings_count"] == 1
     assert holdings_row["top_priority_stage"] == "peers"
+    assert holdings_row["focus_command"] == "make status"
+    assert holdings_row["example_command"] == "make runbook-peers"
+    assert "make status" in holdings_row["recommended_action"]
     assert theme_row["ticker_count"] == 2
     assert theme_row["top_priority_stage"] == "prices"
+    assert theme_row["focus_command"] == "make status"
+    assert theme_row["example_command"] == "make runbook-prices"
     assert sector_row["ticker_count"] == 2
+    assert sector_row["example_command"] == "make runbook-prices"
+
+
+def test_data_onboarding_cli_unlock_summary_text_surfaces_commands(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--unlock-summary"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = previous_argv
+
+    assert "unlock priority summary" in output
+    assert "focus: make status" in output
+    assert "command: make runbook" in output
 
 
 def test_data_onboarding_cli_command_bundles_json(tmp_path: Path, capsys):

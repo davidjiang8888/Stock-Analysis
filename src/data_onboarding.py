@@ -164,6 +164,8 @@ UNLOCK_PRIORITY_SUMMARY_COLUMNS = [
     "next_unlock_goal",
     "representative_tickers",
     "recommended_action",
+    "focus_command",
+    "example_command",
 ]
 
 COMMAND_BUNDLE_COLUMNS = [
@@ -522,6 +524,8 @@ class UnlockPrioritySummaryRow:
     next_unlock_goal: str
     representative_tickers: str
     recommended_action: str
+    focus_command: str
+    example_command: str
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -1502,14 +1506,33 @@ def build_unlock_priority_summary(
         "optional_context": "Add Optional Context",
         "ready": "Maintain Coverage",
     }
-    stage_action = {
-        "prices": "Fill verified local price history first; it unlocks the broadest research workflow.",
-        "fundamentals": "Stage or add verified fundamentals for the blocked names in this group.",
-        "peers": "Add manually researched peer mappings and peer context for this group.",
-        "optional_context": "Add earnings or analyst estimates only if you have trusted local sources.",
-        "ready": "Coverage in this group is already broadly usable; maintain it with normal refreshes.",
-    }
     stage_order = ["prices", "fundamentals", "peers", "optional_context", "ready"]
+
+    def _group_scope(frame: pd.DataFrame) -> str:
+        return "holdings_first" if bool(frame["is_holding"].sum()) else "broader_queue"
+
+    def _stage_focus_and_example(stage: str, frame: pd.DataFrame) -> tuple[str, str]:
+        scope = _group_scope(frame)
+        if stage == "prices":
+            return "make status", bundle_shortcut_for_scope("prices", scope, "runbook")
+        if stage == "fundamentals":
+            return "make status", bundle_shortcut_for_scope("fundamentals", scope, "runbook")
+        if stage == "peers":
+            return "make status", bundle_shortcut_for_scope("peers", scope, "runbook")
+        if stage == "optional_context":
+            return "make templates", "make templates"
+        return "make daily", "make dashboard"
+
+    def _stage_action(stage: str, frame: pd.DataFrame) -> str:
+        if stage == "prices":
+            return "Run make status, then follow the printed price focus or runbook path for this group."
+        if stage == "fundamentals":
+            return "Run make status, then follow the printed fundamentals focus or runbook path for this group."
+        if stage == "peers":
+            return "Run make status, then follow the printed peer focus or runbook path for this group."
+        if stage == "optional_context":
+            return "Run make templates, then fill only trusted optional local context files for this group."
+        return "Coverage in this group is already broadly usable; maintain it with normal refreshes."
 
     summaries: list[UnlockPrioritySummaryRow] = []
 
@@ -1519,6 +1542,7 @@ def build_unlock_priority_summary(
         stage_counts = {stage: int(frame["stage"].eq(stage).sum()) for stage in stage_order}
         top_stage = next((stage for stage in stage_order if stage_counts[stage] > 0), "ready")
         representative = ", ".join(frame.sort_values(["is_holding", "ticker"], ascending=[False, True])["ticker"].head(5).tolist())
+        focus_command, example_command = _stage_focus_and_example(top_stage, frame)
         summaries.append(
             UnlockPrioritySummaryRow(
                 group_type=group_type,
@@ -1533,7 +1557,9 @@ def build_unlock_priority_summary(
                 top_priority_stage=top_stage,
                 next_unlock_goal=stage_goal[top_stage],
                 representative_tickers=representative,
-                recommended_action=stage_action[top_stage],
+                recommended_action=_stage_action(top_stage, frame),
+                focus_command=focus_command,
+                example_command=example_command,
             )
         )
 
@@ -2213,6 +2239,8 @@ def _print_ticker_unlock_ladder(payload: dict[str, Any]) -> None:
             f"dcf={row['dcf_stage_status']} peer={row['peer_stage_status']} optional={row['optional_context_status']}"
         )
         print(f"  next: {row['recommended_action']}")
+        print(f"  focus: {row.get('focus_command') or '-'}")
+        print(f"  command: {row.get('example_command') or '-'}")
     print(f"Ticker unlock ladder rows: {len(payload['ticker_unlock_ladder'])}")
 
 
@@ -2224,6 +2252,8 @@ def _print_unlock_priority_summary(payload: dict[str, Any]) -> None:
             f"goal={row['next_unlock_goal']} tickers={row['ticker_count']} holdings={row['holdings_count']}"
         )
         print(f"  next: {row['recommended_action']}")
+        print(f"  focus: {row.get('focus_command') or '-'}")
+        print(f"  command: {row.get('example_command') or '-'}")
     print(f"Unlock priority summary rows: {len(payload['unlock_priority_summary'])}")
 
 
