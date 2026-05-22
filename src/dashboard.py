@@ -6596,7 +6596,7 @@ def render_overview(
     if status_cards:
         render_section_header(
             "Project Status",
-            "The same read-only snapshot shown by `make status`, surfaced here so the dashboard and terminal agree.",
+            "The same read-only snapshot shown by `make status-check TOP_N=5`, surfaced here so the dashboard and terminal agree.",
         )
         render_metric_cards(status_cards)
         command_rows = project_status_command_rows(project_status_payload)
@@ -6644,8 +6644,8 @@ def render_overview(
             actions.append(
                 (
                     "Workflow looks ready",
-                    "Core outputs are present. Run make status to refresh the operator snapshot, then make dashboard-smoke before deeper dashboard review.",
-                    "make status",
+                    "Core outputs are present. Run make status-check TOP_N=5 to review the operator snapshot, then make dashboard-smoke before deeper dashboard review.",
+                    "make status-check TOP_N=5",
                     "neutral",
                 )
             )

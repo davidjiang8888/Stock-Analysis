@@ -4853,15 +4853,15 @@ def test_priority_now_falls_back_to_status_first_ready_path():
         actions.append(
             (
                 "Workflow looks ready",
-                "Core outputs are present. Run make status to refresh the operator snapshot, then make dashboard-smoke before deeper dashboard review.",
-                "make status",
+                "Core outputs are present. Run make status-check TOP_N=5 to review the operator snapshot, then make dashboard-smoke before deeper dashboard review.",
+                "make status-check TOP_N=5",
                 "neutral",
             )
         )
 
     rendered = " ".join(str(item) for row in actions for item in row).lower()
     assert "workflow looks ready" in rendered
-    assert "make status" in rendered
+    assert "make status-check top_n=5" in rendered
     assert "dashboard-smoke" in rendered
     assert "place_order" not in rendered
     assert "submit_order" not in rendered
