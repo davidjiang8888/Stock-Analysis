@@ -413,6 +413,30 @@ def test_sec_stage_queue_prioritizes_holdings_and_price_ready_names(tmp_path: Pa
     assert "Run SEC staging for fundamentals" in queue["AMD"]["recommended_action"]
 
 
+def test_fundamentals_peer_worklist_uses_richer_operator_wording(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    worklist = {row["ticker"]: row for row in payload["fundamentals_peer_worklist"]}
+
+    assert "explicit local inputs" in worklist["AMD"]["recommended_action"]
+    assert "peer fundamentals or price context are still missing" in worklist["NVDA"]["recommended_action"].lower()
+
+
+def test_onboarding_actions_use_peer_templates_and_transparent_wording(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    payload = build_onboarding_payload(tmp_path)
+    peer_actions = {
+        row["ticker"]: row
+        for row in payload["onboarding_actions"]
+        if row["dataset"] == "peers"
+    }
+
+    assert peer_actions["AMD"]["example_command"] == "python3 -m src.data_onboarding --write-templates"
+    assert "peer-relative comparison transparent" in peer_actions["AMD"]["recommended_action"].lower()
+
+
 def test_data_onboarding_cli_peer_mapping_queue_json(tmp_path: Path, capsys):
     _write_fixture(tmp_path)
     previous_argv = sys.argv[:]

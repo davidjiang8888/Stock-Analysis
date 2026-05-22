@@ -855,7 +855,11 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     dataset="fundamentals",
                     status="missing_or_incomplete",
                     reason=_fundamentals_onboarding_reason(row),
-                    recommended_action="Run SEC staging for fundamentals, then validate and preview before applying.",
+                    recommended_action=(
+                        "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs."
+                        if not row.has_fundamentals
+                        else "Stage or add richer verified fundamentals to close the remaining DCF input gaps."
+                    ),
                     target_file="data/imports/fundamentals.csv",
                     focus_command=focus_command_for_ticker("fundamentals", row.ticker),
                     example_command=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {row.ticker}",
@@ -869,10 +873,10 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     dataset="peers",
                     status="manual_input_needed",
                     reason="No local peer mapping is configured for this ticker.",
-                    recommended_action="Add peer mappings manually to data/imports/peers.csv.",
+                    recommended_action="Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
                     target_file="data/imports/peers.csv",
                     focus_command=focus_command_for_ticker("peers", row.ticker),
-                    example_command="python3 -m src.stock_report --write-import-staging",
+                    example_command="python3 -m src.data_onboarding --write-templates",
                 )
             )
         elif not row.peer_ready:
@@ -1157,10 +1161,18 @@ def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> lis
             recommended_action = "Coverage is already sufficient for DCF and peer-relative local research."
         elif not coverage.dcf_ready:
             priority = 1
-            recommended_action = "Run SEC staging for fundamentals, then validate and preview before applying."
+            recommended_action = (
+                "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs."
+                if not coverage.has_fundamentals
+                else "Stage or add richer verified fundamentals to close the remaining DCF input gaps."
+            )
         elif not coverage.has_peer_mapping or not coverage.peer_ready:
             priority = 2
-            recommended_action = "Add manually researched peer mappings and fill peer fundamentals/prices through local CSV imports."
+            recommended_action = (
+                "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent."
+                if not coverage.has_peer_mapping
+                else "Peer mappings exist, but local peer fundamentals or price context are still missing."
+            )
         else:
             priority = 3
             recommended_action = "Review local fundamentals and peer inputs for completeness."
