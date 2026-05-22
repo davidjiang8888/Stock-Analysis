@@ -1164,6 +1164,8 @@ make status
 - `outputs/project_status_top_actions.csv`
 - `outputs/project_status_next_steps.csv`
 
+The `project_status` files are generated local operator artifacts. They stay ignored in git so `make status`, `make onboarding`, and `make daily` can refresh them without dirtying the repo.
+
 The wizard is read-only. It does not fetch, stage, merge, or fabricate data. Use the existing safe workflows for actual data changes:
 
 - prices: `data/raw/prices/` -> `make price-normalize` -> `make price-validate` -> `make price-preview` -> `make price-apply`

@@ -7276,6 +7276,7 @@ def render_data_health(provider) -> None:
         st.write("- `data/backups/` is ignored for safe import/apply backups.")
         st.write("- `data/imports/*.csv` is ignored so staged imports stay local until reviewed.")
         st.write("- `outputs/*stock_report.json` is ignored so exported reports do not dirty the repo.")
+        st.write("- `outputs/project_status*.{json,csv}` stays local and ignored so status refreshes do not dirty the repo.")
 
 
 def render_universe_manager(universe_summary: dict[str, Any]) -> None:

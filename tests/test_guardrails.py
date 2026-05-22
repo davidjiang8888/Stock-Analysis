@@ -55,6 +55,10 @@ def test_gitignore_covers_local_runtime_artifacts():
         "data/imports/*.csv",
         "!data/imports/.gitkeep",
         "outputs/*stock_report.json",
+        "outputs/project_status.json",
+        "outputs/project_status_summary.csv",
+        "outputs/project_status_top_actions.csv",
+        "outputs/project_status_next_steps.csv",
         "local_artifacts_backup/",
     )
     for entry in expected_entries:

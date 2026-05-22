@@ -29,4 +29,8 @@ outputs/unlock_priority_summary.csv
 outputs/command_bundles.csv
 outputs/command_bundle_details.csv
 outputs/command_bundle_runbook.csv
+outputs/project_status.json
+outputs/project_status_summary.csv
+outputs/project_status_top_actions.csv
+outputs/project_status_next_steps.csv
 local_artifacts_backup/
