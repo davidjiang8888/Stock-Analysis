@@ -187,6 +187,7 @@ COLUMN_LABELS = {
     "TargetHistoryRows": "Target History Rows",
     "SuggestedStartDate": "Suggested Start Date",
     "FallbackManualCommand": "Fallback Manual Command",
+    "ExactNextCommand": "Exact Next Command",
 }
 
 
@@ -6282,6 +6283,7 @@ def render_data_health(provider) -> None:
                     "rows_needed",
                     "target_history_rows",
                     "suggested_start_date",
+                    "exact_next_command",
                     "fallback_manual_command",
                     "recommended_action",
                     "primary_command",

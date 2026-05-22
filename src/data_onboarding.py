@@ -189,6 +189,7 @@ COMMAND_BUNDLE_DETAIL_COLUMNS = [
     "target_history_rows",
     "suggested_start_date",
     "fallback_manual_command",
+    "exact_next_command",
     "recommended_action",
     "primary_command",
     "follow_up_command",
@@ -288,6 +289,7 @@ class CommandBundleDetailRow:
     target_history_rows: int
     suggested_start_date: str
     fallback_manual_command: str
+    exact_next_command: str
     recommended_action: str
     primary_command: str
     follow_up_command: str
@@ -1539,9 +1541,11 @@ def build_command_bundle_details(
             target_goal = ""
             rows_needed = 0
             fallback_manual_command = ""
+            exact_next_command = ""
             if coverage is not None:
                 if bundle.lane == "prices":
                     recommended_action = coverage.next_best_action
+                    exact_next_command = f"python3 -m src.data_update --tickers {ticker}"
                     price_target = price_worklist_map.get(ticker)
                     if price_target is not None:
                         target_goal = price_target.next_price_goal
@@ -1562,6 +1566,7 @@ def build_command_bundle_details(
                     target_history_rows = 0
                     suggested_start_date = ""
                     fallback_manual_command = ""
+                    exact_next_command = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
                 elif bundle.lane == "peers":
                     recommended_action = (
                         "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent."
@@ -1572,14 +1577,17 @@ def build_command_bundle_details(
                     target_history_rows = 0
                     suggested_start_date = ""
                     fallback_manual_command = ""
+                    exact_next_command = "python3 -m src.data_onboarding --write-templates"
                 else:
                     target_history_rows = 0
                     suggested_start_date = ""
                     fallback_manual_command = ""
+                    exact_next_command = ""
             else:
                 target_history_rows = 0
                 suggested_start_date = ""
                 fallback_manual_command = ""
+                exact_next_command = ""
             details.append(
                 CommandBundleDetailRow(
                     bundle_name=bundle.bundle_name,
@@ -1594,6 +1602,7 @@ def build_command_bundle_details(
                     target_history_rows=target_history_rows,
                     suggested_start_date=suggested_start_date,
                     fallback_manual_command=fallback_manual_command,
+                    exact_next_command=exact_next_command,
                     recommended_action=recommended_action or bundle.why_it_matters,
                     primary_command=bundle.primary_command,
                     follow_up_command=bundle.follow_up_command,
@@ -2025,6 +2034,8 @@ def _print_command_bundle_details(payload: dict[str, Any]) -> None:
             f"target_rows={row.get('target_history_rows', 0)} start={row.get('suggested_start_date') or '-'}"
         )
         print(f"  next: {row['recommended_action']}")
+        if row.get("exact_next_command"):
+            print(f"  exact: {row['exact_next_command']}")
         if row.get("fallback_manual_command"):
             print(f"  fallback: {row['fallback_manual_command']}")
     print(f"Command bundle detail rows: {len(payload['command_bundle_details'])}")

@@ -635,11 +635,13 @@ def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_pat
     assert price_detail["rows_needed"] >= 1
     assert price_detail["target_history_rows"] >= 21
     assert price_detail["suggested_start_date"]
+    assert price_detail["exact_next_command"] == "python3 -m src.data_update --tickers AMD"
     assert "make price-normalize" in price_detail["fallback_manual_command"]
     assert "src.data_update --tickers AMD" in price_detail["primary_command"]
     assert peer_detail["is_holding"] is True
     assert peer_detail["current_unlock_stage"] == "peers"
     assert peer_detail["target_goal"] == "Unlock Peer Relative"
+    assert peer_detail["exact_next_command"] == "python3 -m src.data_onboarding --write-templates"
 
 
 def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path: Path):
