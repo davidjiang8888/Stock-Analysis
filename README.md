@@ -1182,7 +1182,7 @@ make research-health-check
 make research-health
 ```
 
-Use `make research-health-check` for the current read-only summary view and `make research-health` when you explicitly want to refresh the research health CSV artifacts. If you want a shorter diagnostics view in the terminal, use `make research-health-check TOP_N=10`. These files are diagnostic. They do not change ticker classifications, do not execute trades, and do not turn missing data into synthetic values. Liquidity and correlation rows are research context only; they are not buy/sell/hold instructions.
+Use `make research-health-check` for the current read-only summary view and `make research-health` when you explicitly want to refresh the research health CSV artifacts. If you want a shorter diagnostics view in the terminal, use `make research-health-check TOP_N=10`. If you want to inspect only a smaller local ticker slice of the read-only diagnostics, use `make research-health-check TICKERS=NVDA,MSFT`. These files are diagnostic. They do not change ticker classifications, do not execute trades, and do not turn missing data into synthetic values. Liquidity and correlation rows are research context only; they are not buy/sell/hold instructions.
 
 ## Research action queue
 

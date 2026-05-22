@@ -91,7 +91,7 @@ def test_makefile_help_documents_key_workflows():
         "make dashboard-smoke",
         "make data-sources-check [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make data-sources",
-        "make research-health-check [TOP_N=10]",
+        "make research-health-check [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make action-queue-check [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json]",
         "make local-tickers",
@@ -232,6 +232,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "To keep either status view shorter in the terminal, add `TOP_N=...`, for example:\n\n```bash\nmake status-check TOP_N=2" in readme
     assert "Generate them through the normal workflow or directly:\n\n```bash\nmake status\nmake verify\nmake research-health-check\nmake research-health" in readme
     assert "If you want a shorter diagnostics view in the terminal, use `make research-health-check TOP_N=10`." in readme
+    assert "If you want to inspect only a smaller local ticker slice of the read-only diagnostics, use `make research-health-check TICKERS=NVDA,MSFT`." in readme
     assert "Generate it with:\n\n```bash\nmake status\nmake action-queue-check\nmake action-queue" in readme
     assert "If you want a shorter triage view in the terminal, use `make action-queue-check TOP_N=10`." in readme
     assert "If you want to inspect only a smaller local ticker slice, use `make action-queue-check TICKERS=NVDA,MSFT`." in readme
@@ -326,7 +327,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "import-staging:\n\tpython3 -m src.stock_report --write-import-staging" in makefile
     assert "data-sources-check:\n\tpython3 -m src.data_sources --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "data-sources:\n\tpython3 -m src.data_sources --write-output" in makefile
-    assert "research-health-check:\n\tpython3 -m src.research_health --top-n $(or $(TOP_N),20)" in makefile
+    assert "research-health-check:\n\tpython3 -m src.research_health --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "action-queue-check:\n\tpython3 -m src.action_queue --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "price-status:\n\tpython3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "verify:\n\t$(MAKE) test\n\t$(MAKE) pipeline\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile

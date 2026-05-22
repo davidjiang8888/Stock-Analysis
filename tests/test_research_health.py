@@ -5,6 +5,8 @@ from pathlib import Path
 import pandas as pd
 
 from src.research_health import (
+    _filter_research_health_outputs,
+    _filter_research_health_warnings,
     build_correlation_risk,
     build_data_quality_wizard,
     build_liquidity_risk,
@@ -417,3 +419,44 @@ def test_research_health_run_writes_csv_outputs(tmp_path: Path):
         frame = pd.read_csv(path)
         assert "Reason" in frame.columns
         assert frame["Reason"].fillna("").str.len().gt(0).all()
+
+
+def test_filter_research_health_outputs_respects_ticker_slice():
+    outputs = {
+        "data_quality_wizard": pd.DataFrame(
+            [
+                {"Ticker": "AMD", "DataQualityScore": 10},
+                {"Ticker": "NVDA", "DataQualityScore": 90},
+            ]
+        ),
+        "liquidity_risk": pd.DataFrame(
+            [
+                {"Ticker": "AMD", "LiquidityStatus": "Thin / Needs Review"},
+                {"Ticker": "NVDA", "LiquidityStatus": "Liquid"},
+            ]
+        ),
+        "correlation_risk": pd.DataFrame(
+            [
+                {"Ticker": "AMD", "CorrelationStatus": "Insufficient Data"},
+                {"Ticker": "NVDA", "CorrelationStatus": "Moderate"},
+            ]
+        ),
+    }
+
+    filtered = _filter_research_health_outputs(outputs, ["nvda"])
+
+    assert list(filtered["data_quality_wizard"]["Ticker"]) == ["NVDA"]
+    assert list(filtered["liquidity_risk"]["Ticker"]) == ["NVDA"]
+    assert list(filtered["correlation_risk"]["Ticker"]) == ["NVDA"]
+
+
+def test_filter_research_health_warnings_respects_ticker_slice():
+    warnings = [
+        "Missing OHLCV data for AMD",
+        "Missing OHLCV data for NVDA",
+        "General loader warning",
+    ]
+
+    filtered = _filter_research_health_warnings(warnings, ["nvda"])
+
+    assert filtered == ["Missing OHLCV data for NVDA", "General loader warning"]

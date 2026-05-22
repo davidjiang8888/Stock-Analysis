@@ -527,11 +527,42 @@ def build_research_health_outputs(
     }
 
 
+def _filter_research_health_outputs(
+    outputs: dict[str, pd.DataFrame],
+    tickers: list[str] | None,
+) -> dict[str, pd.DataFrame]:
+    if not tickers:
+        return outputs
+    allowed = {str(ticker).upper().strip() for ticker in tickers if str(ticker).strip()}
+    filtered: dict[str, pd.DataFrame] = {}
+    for name, frame in outputs.items():
+        if "Ticker" in frame.columns:
+            filtered[name] = frame.loc[frame["Ticker"].astype(str).str.upper().isin(allowed)].copy()
+        else:
+            filtered[name] = frame
+    return filtered
+
+
+def _filter_research_health_warnings(warnings: list[str], tickers: list[str] | None) -> list[str]:
+    if not tickers:
+        return warnings
+    allowed = {str(ticker).upper().strip() for ticker in tickers if str(ticker).strip()}
+    filtered: list[str] = []
+    for warning in warnings:
+        warning_upper = str(warning).upper()
+        mentioned = [ticker for ticker in allowed if ticker and ticker in warning_upper]
+        if mentioned or not any(token in warning_upper for token in {"MISSING OHLCV DATA FOR ", "MISSING FUNDAMENTALS FOR ", "MISSING PEER MAPPING FOR "}):
+            filtered.append(warning)
+    return filtered
+
+
 def run(
     base_dir: Path | str | None = None,
     *,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
+    tickers: list[str] | None = None,
+    write_output: bool = True,
 ) -> dict[str, Any]:
     root = resolve_project_root(base_dir)
     data_path = resolve_data_dir(data_dir, root)
@@ -540,18 +571,20 @@ def run(
     loaded = load_inputs(root, fetcher, data_dir=data_path)
     coverage_rows = [row.to_dict() for row in build_ticker_coverage(root, data_dir=data_path, output_dir=output_path)]
     outputs = build_research_health_outputs(loaded.prices, loaded.universe, loaded.holdings, coverage_rows)
-    output_path.mkdir(parents=True, exist_ok=True)
     files = {
         "data_quality_wizard": output_path / "data_quality_wizard.csv",
         "liquidity_risk": output_path / "liquidity_risk.csv",
         "correlation_risk": output_path / "correlation_risk.csv",
     }
-    for name, frame in outputs.items():
-        frame.to_csv(files[name], index=False)
+    outputs = _filter_research_health_outputs(outputs, tickers)
+    if write_output:
+        output_path.mkdir(parents=True, exist_ok=True)
+        for name, frame in outputs.items():
+            frame.to_csv(files[name], index=False)
     return {
         "files": files,
         "row_counts": {name: len(frame) for name, frame in outputs.items()},
-        "warnings": loaded.warnings,
+        "warnings": _filter_research_health_warnings(loaded.warnings, tickers),
     }
 
 
@@ -570,13 +603,19 @@ def main() -> None:
     parser.add_argument("--project-root", help="Project root for config.yaml and default data/output directories.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
+    parser.add_argument("--tickers", help="Optional comma-separated ticker filter for read-only diagnostics views.")
     parser.add_argument("--top-n", type=int, default=20, help="Number of warnings to print in human-readable mode.")
     args = parser.parse_args()
+    explicit_tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()] if args.tickers else None
+    if args.write_output and explicit_tickers:
+        parser.error("--tickers is only supported for read-only research health views")
 
     result = run(
         Path(args.project_root) if args.project_root else None,
         data_dir=Path(args.data_dir) if args.data_dir else None,
         output_dir=Path(args.output_dir) if args.output_dir else None,
+        tickers=explicit_tickers,
+        write_output=args.write_output,
     )
     if args.json:
         print(json.dumps(_json_ready(result), indent=2))

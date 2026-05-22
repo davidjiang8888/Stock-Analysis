@@ -23,7 +23,7 @@ help:
 	@echo "Research outputs:"
 	@echo "  make monthly          Generate monthly research candidates"
 	@echo "  make track-record     Generate local monthly picks track record"
-	@echo "  make research-health-check [TOP_N=10] Print the current read-only research health summary"
+	@echo "  make research-health-check [TICKERS=NVDA,MSFT] [TOP_N=10] Print the current read-only research health summary"
 	@echo "  make research-health  Generate data quality, liquidity, and correlation outputs"
 	@echo "  make action-queue-check [TICKERS=NVDA,MSFT] [TOP_N=10] Print the current read-only action queue summary"
 	@echo "  make action-queue     Generate prioritized data/research actions"
@@ -122,7 +122,7 @@ research-health:
 	python3 -m src.research_health --write-output
 
 research-health-check:
-	python3 -m src.research_health --top-n $(or $(TOP_N),20)
+	python3 -m src.research_health --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)
 
 action-queue:
 	python3 -m src.action_queue --write-output
