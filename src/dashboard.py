@@ -5419,6 +5419,7 @@ def overview_bundle_handoff_cards(
         hint_text = f" ({'; '.join(parts)})"
     lane = format_missing(top_bundle.get("lane"), "bundle").replace("_", " ")
     ticker_text = format_missing(top_bundle.get("tickers"), "No tickers")
+    target_file = format_missing(top_bundle.get("target_file"), "")
     refresh_command = "make onboarding"
     refresh_step_label = "Refresh onboarding outputs"
 
@@ -5459,6 +5460,12 @@ def overview_bundle_handoff_cards(
                 refresh_command = "make status-check TOP_N=5"
             refresh_step_label = format_missing(target_row.get("step_label"), refresh_step_label)
 
+    if not follow_up_command:
+        if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv"}:
+            follow_up_command = "make imports-validate"
+        elif target_file == "data/imports/prices.csv":
+            follow_up_command = "make price-validate"
+
     if (
         str(top_bundle.get("lane", "")).strip().lower() == "prices"
         and "unlock monthly picks" in goal_summary.lower()
@@ -5481,7 +5488,12 @@ def overview_bundle_handoff_cards(
             "kicker": "FOLLOW-THROUGH",
             "title": follow_up_command or "Data Health",
             "body": (
-                f"After the primary command, use {follow_up_command or 'Data Health'} and check {first_ticker} first "
+                (
+                    f"After the primary command, use {follow_up_command} and check {first_ticker} first. "
+                    f"{compact_reason(top_bundle.get('safe_next_step'), max_sentences=2, max_chars=220)}"
+                )
+                if follow_up_command and compact_reason(top_bundle.get("safe_next_step"), max_sentences=2, max_chars=220) not in {"", "Not available"}
+                else f"After the primary command, use {follow_up_command or 'Data Health'} and check {first_ticker} first "
                 "to confirm the bundle moved the expected local blocker."
             ),
             "badges": ["next step", "read-only"],
