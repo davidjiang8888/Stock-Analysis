@@ -758,6 +758,42 @@ def test_load_action_queue_refreshes_stale_queue_artifact(tmp_path):
     assert price_rows["target_file"].astype(str).str.strip().eq("data/imports/prices.csv").all()
 
 
+def test_load_action_queue_refreshes_stale_price_action_text_even_with_current_command_fields(tmp_path):
+    pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "AMD",
+                "title": "Fix price coverage",
+                "status": "parse_error",
+                "recommended_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "focus_command": "make focus-price TICKER=AMD",
+                "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                "target_file": "data/imports/prices.csv",
+                "source_file": "data/imports/prices.csv",
+                "source_artifact": "outputs/data_quality_wizard.csv",
+                "reason": "AMD has 0 local price rows.",
+            }
+        ]
+    ).to_csv(tmp_path / "research_action_queue.csv", index=False)
+
+    old_base = dashboard.BASE_DIR
+    try:
+        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
+        frame, message = dashboard.load_action_queue(tmp_path)
+    finally:
+        dashboard.BASE_DIR = old_base
+
+    assert message is None
+    assert frame is not None
+    amd_row = frame.loc[(frame["action_type"].astype(str).str.strip() == "prices") & (frame["ticker"].astype(str).str.strip() == "AMD")].iloc[0]
+    assert "make price-refresh TICKERS=AMD" in str(amd_row["recommended_action"])
+    assert amd_row["focus_command"] == "make focus-price TICKER=AMD"
+    assert amd_row["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+
+
 def test_load_action_queue_refreshes_stale_staged_fundamentals_queue_artifact(tmp_path):
     pd.DataFrame(
         [
@@ -1082,10 +1118,10 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp
                     "blocking_dataset": "prices",
                     "current_status": "0 local price rows",
                     "why_it_matters": "old",
-                    "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                    "recommended_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
                     "target_file": "data/imports/prices.csv",
                     "focus_command": "make focus-price TICKER=AMD",
-                    "example_command": "make status",
+                    "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                     "safe_next_step": "old",
                 },
                 {
@@ -1130,6 +1166,7 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp
     meta_row = frame.loc[(frame["ticker"] == "META") & (frame["blocking_dataset"] == "peers")].iloc[0]
 
     assert "make focus-price TICKER=AMD" in str(amd_row["recommended_action"])
+    assert "make price-refresh TICKERS=AMD" in str(amd_row["recommended_action"])
     assert amd_row["focus_command"] == "make focus-price TICKER=AMD"
     assert "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual" == amd_row["example_command"]
     assert "make focus-fundamentals TICKER=NVDA" in str(nvda_row["recommended_action"])

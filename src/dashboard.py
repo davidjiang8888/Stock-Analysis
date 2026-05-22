@@ -358,6 +358,7 @@ def load_data_onboarding_tables(
                     focus_command != expected
                     or expected not in recommended_action
                     or (expected_example and example_command != expected_example)
+                    or (dataset == "prices" and "make price-refresh TICKERS=" not in recommended_action)
                 ):
                     needs_refresh = True
                     break
@@ -416,7 +417,10 @@ def load_research_health_tables(
             ]
             if not stale_price_rows.empty:
                 normalized_actions = stale_price_rows["NextBestAction"].astype(str).str.strip().str.lower()
-                if not normalized_actions.str.contains("make focus-price").all():
+                if not (
+                    normalized_actions.str.contains("make focus-price").all()
+                    and normalized_actions.str.contains("make price-refresh tickers=").all()
+                ):
                     needs_refresh = True
                 elif "ExampleCommand" in stale_price_rows.columns:
                     for _, row in stale_price_rows.iterrows():
@@ -480,7 +484,10 @@ def load_action_queue(
         price_rows = frame.loc[frame["action_type"].astype(str).str.strip().eq("prices")]
         if not price_rows.empty:
             normalized_actions = price_rows["recommended_action"].astype(str).str.strip().str.lower()
-            if not normalized_actions.str.contains("make focus-price").all():
+            if not (
+                normalized_actions.str.contains("make focus-price").all()
+                and normalized_actions.str.contains("make price-refresh tickers=").all()
+            ):
                 needs_refresh = True
         if not needs_refresh and {"ticker", "status", "focus_command"}.issubset(frame.columns):
             core_rows = frame.loc[
