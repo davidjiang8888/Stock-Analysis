@@ -1173,8 +1173,8 @@ The `project_status` files are generated local operator artifacts. They stay ign
 The wizard is read-only. It does not fetch, stage, merge, or fabricate data. Use the existing safe workflows for actual data changes:
 
 - prices: `data/raw/prices/` -> `make price-normalize` -> `make price-validate` -> `make price-preview` -> `make price-apply`
-- fundamentals: SEC staging -> validate -> preview -> apply
-- peers/earnings/estimates: fill trusted local CSVs under `data/imports/`, then validate and preview before applying
+- fundamentals: `export SEC_USER_AGENT=...` -> `make sec-stage ...` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`
+- peers/earnings/estimates: fill trusted local CSVs under `data/imports/`, then `make imports-validate` -> `make imports-preview` -> `make imports-apply`
 
 If you want one row per ticker instead of several queue outputs, use:
 

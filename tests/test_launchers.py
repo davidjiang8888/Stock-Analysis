@@ -146,6 +146,15 @@ def test_readme_distinguishes_verify_from_broader_daily_workflow():
     assert "run deterministic local verification for core outputs, diagnostics, monthly layers, and read-only status artifacts" not in readme
 
 
+def test_readme_safe_data_change_ladders_use_explicit_repo_native_commands():
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    assert "- prices: `data/raw/prices/` -> `make price-normalize` -> `make price-validate` -> `make price-preview` -> `make price-apply`" in readme
+    assert "- fundamentals: `export SEC_USER_AGENT=...` -> `make sec-stage ...` -> `make imports-validate` -> `make imports-preview` -> `make imports-apply`" in readme
+    assert "- peers/earnings/estimates: fill trusted local CSVs under `data/imports/`, then `make imports-validate` -> `make imports-preview` -> `make imports-apply`" in readme
+    assert "- fundamentals: SEC staging -> validate -> preview -> apply" not in readme
+
+
 def test_shell_launchers_anchor_to_repo_root():
     for script_name in ("daily.sh", "dashboard.sh", "validate_all.sh", "smoke_dashboard.sh"):
         script = (Path("scripts") / script_name).read_text(encoding="utf-8")
