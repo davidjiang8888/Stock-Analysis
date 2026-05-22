@@ -310,7 +310,10 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_user_agent=False,
         requires_api_key=False,
         expected_local_file="data/imports/universe.csv",
-        fallback_action="Run python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50 before applying.",
+        fallback_action=(
+            "Run make universe-preview first, then review the staged S&P 500 / SMH "
+            "preset universe before applying."
+        ),
         notes="Open-source/community source, not the official paid S&P feed; no live check is performed here.",
     ),
     DataSourceRegistryEntry(
@@ -326,7 +329,10 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_user_agent=False,
         requires_api_key=False,
         expected_local_file="data/imports/universe.csv",
-        fallback_action="Use universe_builder broad preview; all-Nasdaq mode can be large and should be reviewed before apply.",
+        fallback_action=(
+            "Run make universe-preview first, then review the broader staged universe "
+            "before applying; all-Nasdaq mode can be large."
+        ),
         notes="No live check is performed by data_sources; universe_builder handles parsing when explicitly invoked.",
     ),
     DataSourceRegistryEntry(

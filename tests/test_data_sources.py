@@ -74,6 +74,10 @@ def test_data_source_registry_contains_required_datasets():
     assert "data/custom_universe.csv" in smh_entry.fallback_action
     universe_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "universe")
     assert "make universe-preview" in universe_entry.fallback_action
+    sp500_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "sp500_constituents")
+    assert "make universe-preview" in sp500_entry.fallback_action
+    nasdaq_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "nasdaq_symbols")
+    assert "make universe-preview" in nasdaq_entry.fallback_action
     local_outputs_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "local_outputs")
     assert "make verify" in local_outputs_entry.fallback_action
 
@@ -96,6 +100,8 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     assert source_lookup["smh_holdings"]["target_file"] == "data/custom_universe.csv"
     assert source_lookup["sp500_constituents"]["focus_command"] == "make universe-preview"
     assert source_lookup["sp500_constituents"]["target_file"] == "data/imports/universe.csv"
+    assert "make universe-preview" in source_lookup["sp500_constituents"]["fallback_action"]
+    assert "make universe-preview" in source_lookup["nasdaq_symbols"]["fallback_action"]
     assert any(gap["dataset"] == "prices" and gap["ticker"] == "MSFT" for gap in payload["data_gaps"])
     gap_lookup = {gap["dataset"]: gap for gap in payload["data_gaps"] if not gap["ticker"]}
     assert "make verify" in gap_lookup["local_outputs"]["recommended_action"]
