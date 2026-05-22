@@ -123,7 +123,7 @@ def test_makefile_help_documents_key_workflows():
         "make focus-price TICKER=AMD",
         "make focus-fundamentals TICKER=NVDA",
         "make focus-peers TICKER=NVDA",
-        "make price-status [TOP_N=10]",
+        "make price-status [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make price-worklist [TICKERS=NVDA,MSFT]",
         "make fundamentals-peer-worklist [TICKERS=NVDA,MSFT]",
         "make optional-context-worklist [TICKERS=NVDA,MSFT]",
@@ -212,7 +212,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "If you want to refresh `data/prices.csv` from a free daily source before running the screener, you can use:\n\n```bash\nmake price-refresh" in readme
     assert "Useful flags:\n\n```bash\nmake price-refresh\nmake price-refresh TICKERS=NVDA,MSFT,AVGO" in readme
     assert "If you want to narrow that pass to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake price-worklist TICKERS=NVDA,MSFT" in readme
-    assert "Use `make price-status` for the current read-only diagnostics view, or `make price-status TOP_N=10` when you want a shorter terminal summary of the latest fallback rows." in readme
+    assert "Use `make price-status` for the current read-only diagnostics view, `make price-status TOP_N=10` when you want a shorter terminal summary of the latest fallback rows, or `make price-status TICKERS=AMD,AVGO` when you want to inspect only a smaller local ticker slice." in readme
     assert "To keep that price gap list shorter in the terminal, add `TOP_N=...`, for example `make price-worklist TOP_N=5`." in readme
     assert "If you want to narrow those blocker queues to a specific local ticker slice, use:\n\n```bash\nmake fundamentals-peer-worklist TICKERS=NVDA,MSFT\nmake sec-stage-queue TICKERS=NVDA,MSFT\nmake peer-mapping-queue TICKERS=NVDA,MSFT" in readme
     assert "Those read-only blocker views also accept `TOP_N=...`, for example `make fundamentals-peer-worklist TOP_N=5` or `make sec-stage-queue TICKERS=NVDA,MSFT TOP_N=5`." in readme
@@ -326,7 +326,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "data-sources:\n\tpython3 -m src.data_sources --write-output" in makefile
     assert "research-health-check:\n\tpython3 -m src.research_health --top-n $(or $(TOP_N),20)" in makefile
     assert "action-queue-check:\n\tpython3 -m src.action_queue --check --top-n $(or $(TOP_N),20)" in makefile
-    assert "price-status:\n\tpython3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),)" in makefile
+    assert "price-status:\n\tpython3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "verify:\n\t$(MAKE) test\n\t$(MAKE) pipeline\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
     assert "daily:\n\t$(MAKE) price-refresh\n\t$(MAKE) pipeline\n\t$(MAKE) monthly\n\t$(MAKE) track-record\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
     assert "verify:\n\tpython3 -m pytest tests -q" not in makefile

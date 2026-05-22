@@ -305,6 +305,50 @@ def test_show_price_update_status_respects_top_n(tmp_path: Path):
     assert payload["rows"][0]["ticker"] == "AMD"
 
 
+def test_show_price_update_status_respects_ticker_filter(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "outputs").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    pd.DataFrame(
+        [
+            {
+                "run_timestamp": "2026-05-21T00:00:00+00:00",
+                "ticker": "AMD",
+                "requested_start": "",
+                "requested_end": "2026-05-21",
+                "provider": "FakePriceSource",
+                "status": "parse_error",
+                "rows_fetched": 0,
+                "rows_merged": 0,
+                "error_category": "parse_error",
+                "error_message": "AMD: parse failed",
+                "fallback_used": True,
+                "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+            },
+            {
+                "run_timestamp": "2026-05-21T00:00:00+00:00",
+                "ticker": "NVDA",
+                "requested_start": "",
+                "requested_end": "2026-05-21",
+                "provider": "FakePriceSource",
+                "status": "source_unavailable",
+                "rows_fetched": 0,
+                "rows_merged": 0,
+                "error_category": "source_unavailable",
+                "error_message": "NVDA: unavailable",
+                "fallback_used": True,
+                "recommended_action": "Run make focus-price TICKER=NVDA, or run make price-refresh TICKERS=NVDA; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+            },
+        ]
+    ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)
+
+    payload = show_price_update_status(tmp_path, tickers=["nvda"])
+
+    assert payload["status"] == "available"
+    assert len(payload["rows"]) == 1
+    assert payload["rows"][0]["ticker"] == "NVDA"
+
+
 def test_enrich_price_update_status_frame_refreshes_stale_price_actions():
     frame = pd.DataFrame(
         [

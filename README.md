@@ -623,7 +623,7 @@ Price update diagnostics are written to:
 
 The dashboard `Data Health` tab surfaces this status file and gives the manual fallback commands. Price imports are still research-only local data management; no broker, order routing, or trade-execution integration is added.
 
-Use `make price-status` for the current read-only diagnostics view, or `make price-status TOP_N=10` when you want a shorter terminal summary of the latest fallback rows.
+Use `make price-status` for the current read-only diagnostics view, `make price-status TOP_N=10` when you want a shorter terminal summary of the latest fallback rows, or `make price-status TICKERS=AMD,AVGO` when you want to inspect only a smaller local ticker slice.
 
 ### Normalize manually downloaded price CSVs
 

@@ -968,6 +968,7 @@ def show_price_update_status(
     base_dir: Path | None = None,
     *,
     output_dir: Path | None = None,
+    tickers: list[str] | None = None,
     top_n: int | None = None,
 ) -> dict[str, Any]:
     base_dir = resolve_project_root(base_dir)
@@ -984,6 +985,9 @@ def show_price_update_status(
         }
     frame = pd.read_csv(path)
     frame = enrich_price_update_status_frame(frame)
+    if tickers and "ticker" in frame.columns:
+        allowed = {str(ticker).upper().strip() for ticker in tickers if str(ticker).strip()}
+        frame = frame[frame["ticker"].astype(str).str.upper().isin(allowed)]
     if top_n is not None:
         frame = frame.head(max(top_n, 0))
     return {
@@ -1050,7 +1054,7 @@ def main() -> None:
         return
 
     if args.price_status:
-        summary = show_price_update_status(project_root, output_dir=output_dir, top_n=args.top_n)
+        summary = show_price_update_status(project_root, output_dir=output_dir, tickers=explicit_tickers, top_n=args.top_n)
         if args.json:
             print(json.dumps(summary, indent=2))
         else:

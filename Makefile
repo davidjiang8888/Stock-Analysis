@@ -70,7 +70,7 @@ help:
 	@echo ""
 	@echo "Price fallback:"
 	@echo "  make price-refresh    Attempt free remote price refresh with local fallback"
-	@echo "  make price-status [TOP_N=10] Show latest price update status"
+	@echo "  make price-status [TICKERS=NVDA,MSFT] [TOP_N=10] Show latest price update status"
 	@echo "  Start with make status, then the printed price focus or runbook path"
 	@echo "  make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"
 	@echo "  make price-validate && make price-preview && make price-apply"
@@ -249,7 +249,7 @@ import-staging:
 	python3 -m src.stock_report --write-import-staging
 
 price-status:
-	python3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),)
+	python3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 price-worklist:
 	python3 -m src.data_onboarding --price-worklist $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
