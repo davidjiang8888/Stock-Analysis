@@ -94,6 +94,13 @@ def _onboarding_title(dataset: str, ticker: str, status: str) -> str:
     return f"Improve {dataset} coverage{ticker_suffix}".strip()
 
 
+def _worklist_lookup(frame: pd.DataFrame, ticker: str) -> dict[str, Any]:
+    if frame.empty or not ticker or "ticker" not in frame.columns:
+        return {}
+    rows = frame.loc[frame["ticker"].astype(str).str.upper().str.strip() == ticker]
+    return rows.iloc[0].to_dict() if not rows.empty else {}
+
+
 def _source_rank(item: ActionQueueItem) -> int:
     source_order = {
         "outputs/price_update_status.csv": 0,
@@ -130,6 +137,7 @@ def _dedupe(items: list[ActionQueueItem]) -> list[ActionQueueItem]:
 def build_action_queue_rows(
     *,
     price_status: pd.DataFrame,
+    price_worklist: pd.DataFrame,
     onboarding_actions: pd.DataFrame,
     data_gaps: pd.DataFrame,
     data_quality: pd.DataFrame,
@@ -142,6 +150,18 @@ def build_action_queue_rows(
             if status not in PROBLEM_PRICE_STATUSES:
                 continue
             ticker = _normalized_ticker(row.get("ticker"))
+            worklist_row = _worklist_lookup(price_worklist, ticker)
+            fallback_recommended_action = "Use staged manual prices in data/imports/prices.csv."
+            recommended_action = (
+                str(worklist_row.get("recommended_action", "")).strip()
+                or str(row.get("recommended_action", "")).strip()
+                or fallback_recommended_action
+            )
+            fallback_command = f"python3 -m src.data_update --tickers {ticker}" if ticker else "make price-refresh"
+            example_command = str(worklist_row.get("example_command", "")).strip() or fallback_command
+            safe_next_step = str(worklist_row.get("safe_next_step", "")).strip()
+            error_message = str(row.get("error_message", "")).strip() or "Remote price refresh failed for this ticker."
+            reason = f"{error_message} {safe_next_step}".strip() if safe_next_step else error_message
             items.append(
                 ActionQueueItem(
                     priority=1,
@@ -150,12 +170,12 @@ def build_action_queue_rows(
                     ticker=ticker,
                     title=f"Repair price history for {ticker}" if ticker else "Repair price history",
                     status=status,
-                    recommended_action=str(row.get("recommended_action", "")).strip() or "Use staged manual prices in data/imports/prices.csv.",
+                    recommended_action=recommended_action,
                     focus_command=focus_command_for_ticker("prices", ticker),
-                    example_command=f"python3 -m src.data_update --tickers {ticker}" if ticker else "make price-refresh",
+                    example_command=example_command,
                     source_file="data/imports/prices.csv",
                     source_artifact="outputs/price_update_status.csv",
-                    reason=str(row.get("error_message", "")).strip() or "Remote price refresh failed for this ticker.",
+                    reason=reason,
                 )
             )
 
@@ -276,12 +296,16 @@ def build_action_queue_payload(
     output_path = resolve_outputs_dir(output_dir, root)
 
     price_status = _load_csv(output_path / "price_update_status.csv")
+    price_worklist = _load_csv(output_path / "price_import_worklist.csv")
     onboarding_actions = _load_csv(output_path / "data_onboarding_actions.csv")
     data_gaps = _load_csv(output_path / "data_gap_report.csv")
     data_quality = _load_csv(output_path / "data_quality_wizard.csv")
 
-    if _onboarding_actions_need_refresh(onboarding_actions):
-        onboarding_actions = pd.DataFrame(build_onboarding_payload(root, data_dir=data_path, output_dir=output_path)["onboarding_actions"])
+    onboarding_payload: dict[str, Any] | None = None
+    if _onboarding_actions_need_refresh(onboarding_actions) or price_worklist.empty:
+        onboarding_payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path)
+        onboarding_actions = pd.DataFrame(onboarding_payload["onboarding_actions"])
+        price_worklist = pd.DataFrame(onboarding_payload["price_import_worklist"])
     if data_gaps.empty:
         data_gaps = pd.DataFrame(build_data_source_payload(root, data_dir=data_path, output_dir=output_path)["data_gaps"])
     if data_quality.empty:
@@ -290,6 +314,7 @@ def build_action_queue_payload(
 
     items = build_action_queue_rows(
         price_status=price_status,
+        price_worklist=price_worklist,
         onboarding_actions=onboarding_actions,
         data_gaps=data_gaps,
         data_quality=data_quality,

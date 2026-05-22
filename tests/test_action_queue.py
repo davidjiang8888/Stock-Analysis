@@ -19,6 +19,7 @@ def test_action_queue_prioritizes_price_failures_before_optional_gaps():
                 }
             ]
         ),
+        price_worklist=pd.DataFrame(),
         onboarding_actions=pd.DataFrame(
             [
                 {
@@ -46,6 +47,7 @@ def test_action_queue_prioritizes_price_failures_before_optional_gaps():
 def test_action_queue_uses_research_health_when_price_data_is_missing():
     rows = build_action_queue_rows(
         price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
         onboarding_actions=pd.DataFrame(),
         data_gaps=pd.DataFrame(),
         data_quality=pd.DataFrame(
@@ -69,6 +71,7 @@ def test_action_queue_uses_research_health_when_price_data_is_missing():
 def test_action_queue_uses_operator_friendly_onboarding_titles():
     rows = build_action_queue_rows(
         price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
         onboarding_actions=pd.DataFrame(
             [
                 {
@@ -160,6 +163,7 @@ def test_action_queue_payload_refreshes_stale_onboarding_actions(tmp_path: Path)
 def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_rows():
     rows = build_action_queue_rows(
         price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
         onboarding_actions=pd.DataFrame(
             [
                 {
@@ -194,6 +198,40 @@ def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_row
     assert fundamentals_row.title == "Stage fundamentals for AMD"
     assert fundamentals_row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers AMD"
     assert fundamentals_row.source_artifact == "outputs/data_onboarding_actions.csv"
+
+
+def test_action_queue_merges_price_status_with_price_worklist_guidance():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(
+            [
+                {
+                    "ticker": "AMD",
+                    "status": "parse_error",
+                    "recommended_action": "Retry later or use staged manual prices in data/imports/prices.csv.",
+                    "error_message": "AMD: update failed (parse error).",
+                }
+            ]
+        ),
+        price_worklist=pd.DataFrame(
+            [
+                {
+                    "ticker": "AMD",
+                    "recommended_action": "Run python3 -m src.data_update --tickers AMD, or normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                    "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                    "safe_next_step": "Run make price-validate and make price-preview before make price-apply; do not fabricate missing history.",
+                }
+            ]
+        ),
+        onboarding_actions=pd.DataFrame(),
+        data_gaps=pd.DataFrame(),
+        data_quality=pd.DataFrame(),
+    )
+
+    row = rows[0]
+    assert row.action_type == "prices"
+    assert "normalize verified downloaded ohlcv files" in row.recommended_action.lower()
+    assert row.example_command == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+    assert "price-validate" in row.reason.lower()
 
 
 def test_action_queue_write_output_creates_csv_from_existing_outputs(tmp_path: Path):
