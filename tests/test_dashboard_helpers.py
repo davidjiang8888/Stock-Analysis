@@ -2463,7 +2463,7 @@ def test_overview_ready_name_handoff_cards_route_partial_names_to_monthly_picks(
 
     assert len(cards) == 3
     assert cards[0]["title"] == "TSLA"
-    assert cards[1]["title"] == "make status"
+    assert cards[1]["title"] == "make monthly"
     assert cards[2]["title"] == "Monthly Picks"
     assert "monthly picks" in rendered
     assert "buy" not in rendered

@@ -5483,6 +5483,8 @@ def overview_ready_name_handoff_cards(
     elif surface == "Monthly Picks":
         fallback = next_command[0] if next_command else {"title": "make status", "badges": ["data moat", "command"]}
         command_text = format_missing(fallback.get("title"), "make status")
+        if command_text in {"make status", "make onboarding"}:
+            command_text = "make monthly"
         badges = [str(item) for item in fallback.get("badges", [])][:2] or ["data moat", "command"]
         body = (
             f"Run {command_text} first if this name is still momentum-ready but lighter on deeper valuation or peer context, "
