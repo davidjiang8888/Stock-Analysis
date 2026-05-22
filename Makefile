@@ -34,24 +34,24 @@ help:
 	@echo "  make command-bundles [TICKERS=NVDA,MSFT] Show holdings-first local command bundles for prices, SEC, and peers"
 	@echo "  make command-bundle-details [TICKERS=NVDA,MSFT] Show ticker-level rows for the current local command bundles"
 	@echo "  make command-bundle-runbook [TICKERS=NVDA,MSFT] Show ordered runbook rows for the current local command bundles"
-	@echo "  make bundle-prices    Show only the price bundle and its holdings-first scope when available"
-	@echo "  make bundle-fundamentals Show only the SEC fundamentals bundle"
-	@echo "  make bundle-peers     Show only the peer-mapping bundle"
-	@echo "  make bundle-prices-broader Show only the broader-queue price bundle"
-	@echo "  make bundle-fundamentals-broader Show only the broader-queue SEC fundamentals bundle"
-	@echo "  make bundle-peers-broader Show only the broader-queue peer-mapping bundle"
-	@echo "  make detail-prices    Show only the price bundle detail rows"
-	@echo "  make detail-fundamentals Show only the SEC fundamentals detail rows"
-	@echo "  make detail-peers     Show only the peer-mapping detail rows"
-	@echo "  make detail-prices-broader Show only the broader-queue price detail rows"
-	@echo "  make detail-fundamentals-broader Show only the broader-queue SEC detail rows"
-	@echo "  make detail-peers-broader Show only the broader-queue peer detail rows"
-	@echo "  make runbook-prices   Show only the price bundle runbook"
-	@echo "  make runbook-fundamentals Show only the SEC fundamentals runbook"
-	@echo "  make runbook-peers    Show only the peer-mapping runbook"
-	@echo "  make runbook-prices-broader Show only the broader-queue price runbook"
-	@echo "  make runbook-fundamentals-broader Show only the broader-queue SEC runbook"
-	@echo "  make runbook-peers-broader Show only the broader-queue peer runbook"
+	@echo "  make bundle-prices [TICKERS=NVDA,MSFT] Show only the price bundle and its holdings-first scope when available"
+	@echo "  make bundle-fundamentals [TICKERS=NVDA,MSFT] Show only the SEC fundamentals bundle"
+	@echo "  make bundle-peers [TICKERS=NVDA,MSFT] Show only the peer-mapping bundle"
+	@echo "  make bundle-prices-broader [TICKERS=NVDA,MSFT] Show only the broader-queue price bundle"
+	@echo "  make bundle-fundamentals-broader [TICKERS=NVDA,MSFT] Show only the broader-queue SEC fundamentals bundle"
+	@echo "  make bundle-peers-broader [TICKERS=NVDA,MSFT] Show only the broader-queue peer-mapping bundle"
+	@echo "  make detail-prices [TICKERS=NVDA,MSFT] Show only the price bundle detail rows"
+	@echo "  make detail-fundamentals [TICKERS=NVDA,MSFT] Show only the SEC fundamentals detail rows"
+	@echo "  make detail-peers [TICKERS=NVDA,MSFT] Show only the peer-mapping detail rows"
+	@echo "  make detail-prices-broader [TICKERS=NVDA,MSFT] Show only the broader-queue price detail rows"
+	@echo "  make detail-fundamentals-broader [TICKERS=NVDA,MSFT] Show only the broader-queue SEC detail rows"
+	@echo "  make detail-peers-broader [TICKERS=NVDA,MSFT] Show only the broader-queue peer detail rows"
+	@echo "  make runbook-prices [TICKERS=NVDA,MSFT] Show only the price bundle runbook"
+	@echo "  make runbook-fundamentals [TICKERS=NVDA,MSFT] Show only the SEC fundamentals runbook"
+	@echo "  make runbook-peers [TICKERS=NVDA,MSFT] Show only the peer-mapping runbook"
+	@echo "  make runbook-prices-broader [TICKERS=NVDA,MSFT] Show only the broader-queue price runbook"
+	@echo "  make runbook-fundamentals-broader [TICKERS=NVDA,MSFT] Show only the broader-queue SEC runbook"
+	@echo "  make runbook-peers-broader [TICKERS=NVDA,MSFT] Show only the broader-queue peer runbook"
 	@echo "  make focus-price TICKER=AMD Show one ticker's price detail row and runbook"
 	@echo "  make focus-fundamentals TICKER=NVDA Show one ticker's SEC detail row and runbook"
 	@echo "  make focus-peers TICKER=NVDA Show one ticker's peer detail row and runbook"
@@ -148,58 +148,58 @@ command-bundle-runbook:
 	python3 -m src.data_onboarding --command-bundle-runbook $(if $(TICKERS),--tickers $(TICKERS),)
 
 bundle-prices:
-	python3 -m src.data_onboarding --command-bundles --lane prices --holdings-only
+	python3 -m src.data_onboarding --command-bundles --lane prices --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
 
 bundle-fundamentals:
-	python3 -m src.data_onboarding --command-bundles --lane fundamentals --holdings-only
+	python3 -m src.data_onboarding --command-bundles --lane fundamentals --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
 
 bundle-peers:
-	python3 -m src.data_onboarding --command-bundles --lane peers --holdings-only
+	python3 -m src.data_onboarding --command-bundles --lane peers --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
 
 bundle-prices-broader:
-	python3 -m src.data_onboarding --command-bundles --lane prices --scope broader_queue
+	python3 -m src.data_onboarding --command-bundles --lane prices --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
 
 bundle-fundamentals-broader:
-	python3 -m src.data_onboarding --command-bundles --lane fundamentals --scope broader_queue
+	python3 -m src.data_onboarding --command-bundles --lane fundamentals --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
 
 bundle-peers-broader:
-	python3 -m src.data_onboarding --command-bundles --lane peers --scope broader_queue
+	python3 -m src.data_onboarding --command-bundles --lane peers --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
 
 detail-prices:
-	python3 -m src.data_onboarding --command-bundle-details --lane prices --holdings-only
+	python3 -m src.data_onboarding --command-bundle-details --lane prices --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
 
 detail-fundamentals:
-	python3 -m src.data_onboarding --command-bundle-details --lane fundamentals --holdings-only
+	python3 -m src.data_onboarding --command-bundle-details --lane fundamentals --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
 
 detail-peers:
-	python3 -m src.data_onboarding --command-bundle-details --lane peers --holdings-only
+	python3 -m src.data_onboarding --command-bundle-details --lane peers --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
 
 detail-prices-broader:
-	python3 -m src.data_onboarding --command-bundle-details --lane prices --scope broader_queue
+	python3 -m src.data_onboarding --command-bundle-details --lane prices --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
 
 detail-fundamentals-broader:
-	python3 -m src.data_onboarding --command-bundle-details --lane fundamentals --scope broader_queue
+	python3 -m src.data_onboarding --command-bundle-details --lane fundamentals --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
 
 detail-peers-broader:
-	python3 -m src.data_onboarding --command-bundle-details --lane peers --scope broader_queue
+	python3 -m src.data_onboarding --command-bundle-details --lane peers --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
 
 runbook-prices:
-	python3 -m src.data_onboarding --command-bundle-runbook --lane prices --holdings-only
+	python3 -m src.data_onboarding --command-bundle-runbook --lane prices --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
 
 runbook-fundamentals:
-	python3 -m src.data_onboarding --command-bundle-runbook --lane fundamentals --holdings-only
+	python3 -m src.data_onboarding --command-bundle-runbook --lane fundamentals --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
 
 runbook-peers:
-	python3 -m src.data_onboarding --command-bundle-runbook --lane peers --holdings-only
+	python3 -m src.data_onboarding --command-bundle-runbook --lane peers --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
 
 runbook-prices-broader:
-	python3 -m src.data_onboarding --command-bundle-runbook --lane prices --scope broader_queue
+	python3 -m src.data_onboarding --command-bundle-runbook --lane prices --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
 
 runbook-fundamentals-broader:
-	python3 -m src.data_onboarding --command-bundle-runbook --lane fundamentals --scope broader_queue
+	python3 -m src.data_onboarding --command-bundle-runbook --lane fundamentals --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
 
 runbook-peers-broader:
-	python3 -m src.data_onboarding --command-bundle-runbook --lane peers --scope broader_queue
+	python3 -m src.data_onboarding --command-bundle-runbook --lane peers --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
 
 focus-price:
 ifndef TICKER

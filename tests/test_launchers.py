@@ -96,24 +96,24 @@ def test_makefile_help_documents_key_workflows():
         "make command-bundles [TICKERS=NVDA,MSFT]",
         "make command-bundle-details [TICKERS=NVDA,MSFT]",
         "make command-bundle-runbook [TICKERS=NVDA,MSFT]",
-        "make bundle-prices",
-        "make bundle-fundamentals",
-        "make bundle-peers",
-        "make bundle-prices-broader",
-        "make bundle-fundamentals-broader",
-        "make bundle-peers-broader",
-        "make detail-prices",
-        "make detail-fundamentals",
-        "make detail-peers",
-        "make detail-prices-broader",
-        "make detail-fundamentals-broader",
-        "make detail-peers-broader",
-        "make runbook-prices",
-        "make runbook-fundamentals",
-        "make runbook-peers",
-        "make runbook-prices-broader",
-        "make runbook-fundamentals-broader",
-        "make runbook-peers-broader",
+        "make bundle-prices [TICKERS=NVDA,MSFT]",
+        "make bundle-fundamentals [TICKERS=NVDA,MSFT]",
+        "make bundle-peers [TICKERS=NVDA,MSFT]",
+        "make bundle-prices-broader [TICKERS=NVDA,MSFT]",
+        "make bundle-fundamentals-broader [TICKERS=NVDA,MSFT]",
+        "make bundle-peers-broader [TICKERS=NVDA,MSFT]",
+        "make detail-prices [TICKERS=NVDA,MSFT]",
+        "make detail-fundamentals [TICKERS=NVDA,MSFT]",
+        "make detail-peers [TICKERS=NVDA,MSFT]",
+        "make detail-prices-broader [TICKERS=NVDA,MSFT]",
+        "make detail-fundamentals-broader [TICKERS=NVDA,MSFT]",
+        "make detail-peers-broader [TICKERS=NVDA,MSFT]",
+        "make runbook-prices [TICKERS=NVDA,MSFT]",
+        "make runbook-fundamentals [TICKERS=NVDA,MSFT]",
+        "make runbook-peers [TICKERS=NVDA,MSFT]",
+        "make runbook-prices-broader [TICKERS=NVDA,MSFT]",
+        "make runbook-fundamentals-broader [TICKERS=NVDA,MSFT]",
+        "make runbook-peers-broader [TICKERS=NVDA,MSFT]",
         "make focus-price TICKER=AMD",
         "make focus-fundamentals TICKER=NVDA",
         "make focus-peers TICKER=NVDA",
@@ -178,8 +178,10 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "```bash\nmake command-bundles\nmake command-bundle-details\nmake command-bundle-runbook" in readme
     assert "If you want to narrow those bundle views to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake command-bundles TICKERS=NVDA,MSFT\nmake command-bundle-details TICKERS=NVDA,MSFT\nmake command-bundle-runbook TICKERS=NVDA,MSFT" in readme
     assert "If you only want one lane at a time, use:\n\n```bash\nmake bundle-prices\nmake bundle-fundamentals\nmake bundle-peers" in readme
+    assert "To narrow one of those lane-specific views to a smaller local ticker slice, use:\n\n```bash\nmake bundle-fundamentals TICKERS=NVDA,MSFT\nmake detail-peers TICKERS=NVDA,MSFT\nmake runbook-prices TICKERS=NVDA,MSFT" in readme
     assert "make runbook-prices\nmake runbook-fundamentals\nmake runbook-peers" in readme
     assert "If you want the broader queue explicitly instead of the holdings-first slice, use the same bundle views with `--scope broader_queue`, or the matching Make shortcuts:\n\n```bash\nmake bundle-prices-broader\nmake detail-prices-broader\nmake runbook-prices-broader" in readme
+    assert "The same `-broader` pattern is available for `fundamentals` and `peers`, and those broader queue lane views also accept `TICKERS=...`" in readme
     assert "To validate your local CSV datasets and see schema/freshness warnings:\n\n```bash\nmake validate-data" in readme
     assert "If you explicitly want machine-readable validation output:\n\n```bash\npython -m src.stock_report --validate-local-data --json" in readme
     assert "If you intentionally want lower-level CLI control for provider selection or direct JSON output, the raw module commands remain available:\n\n```bash\npython -m src.stock_report --ticker AAPL --provider mock" in readme
@@ -279,6 +281,9 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "command-bundles:\n\tpython3 -m src.data_onboarding --command-bundles $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "command-bundle-details:\n\tpython3 -m src.data_onboarding --command-bundle-details $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "command-bundle-runbook:\n\tpython3 -m src.data_onboarding --command-bundle-runbook $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "bundle-fundamentals:\n\tpython3 -m src.data_onboarding --command-bundles --lane fundamentals --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "detail-peers:\n\tpython3 -m src.data_onboarding --command-bundle-details --lane peers --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "runbook-prices-broader:\n\tpython3 -m src.data_onboarding --command-bundle-runbook --lane prices --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "price-worklist:\n\tpython3 -m src.data_onboarding --price-worklist $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "fundamentals-peer-worklist:\n\tpython3 -m src.data_onboarding --fundamentals-peer-worklist $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "optional-context-worklist:\n\tpython3 -m src.data_onboarding --optional-context-worklist $(if $(TICKERS),--tickers $(TICKERS),)" in makefile

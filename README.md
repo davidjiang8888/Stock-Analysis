@@ -1318,6 +1318,14 @@ make focus-fundamentals TICKER=NVDA
 make focus-peers TICKER=NVDA
 ```
 
+To narrow one of those lane-specific views to a smaller local ticker slice, use:
+
+```bash
+make bundle-fundamentals TICKERS=NVDA,MSFT
+make detail-peers TICKERS=NVDA,MSFT
+make runbook-prices TICKERS=NVDA,MSFT
+```
+
 These lane-specific views stay read-only and help you focus on one pass at a time without scanning the broader bundle output first. The raw `python3 -m src.data_onboarding --command-bundles --lane ...` / `--command-bundle-details --lane ...` / `--command-bundle-runbook --lane ...` forms remain available when you explicitly want lower-level scripting control.
 
 If you want the broader queue explicitly instead of the holdings-first slice, use the same bundle views with `--scope broader_queue`, or the matching Make shortcuts:
@@ -1328,7 +1336,7 @@ make detail-prices-broader
 make runbook-prices-broader
 ```
 
-The same `-broader` pattern is available for `fundamentals` and `peers`. The raw `--scope broader_queue` CLI forms remain available when you explicitly want the lower-level path.
+The same `-broader` pattern is available for `fundamentals` and `peers`, and those broader queue lane views also accept `TICKERS=...` when you want to stay on one lane and one small local ticker slice at the same time. The raw `--scope broader_queue` CLI forms remain available when you explicitly want the lower-level path.
 
 If you want a single-name follow-through instead of a holdings-first lane view, use the `focus-*` shortcuts. Each one prints both the ticker-level bundle detail row and the matching runbook for that ticker:
 
