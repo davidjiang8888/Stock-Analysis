@@ -176,7 +176,7 @@ def test_data_quality_wizard_normalizes_stale_enrichment_actions():
             "has_analyst_estimates": False,
             "usable_for_momentum": True,
             "usable_for_monthly_picks": True,
-            "next_best_action": "Run SEC staging for fundamentals: python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+            "next_best_action": "Run SEC staging for fundamentals: make sec-stage TICKERS=NVDA",
         },
         {
             "ticker": "AMD",
@@ -202,7 +202,7 @@ def test_data_quality_wizard_normalizes_stale_enrichment_actions():
     assert nvda["ReadinessStatus"] == "Partial Coverage"
     assert nvda["FocusCommand"] == "make focus-fundamentals TICKER=NVDA"
     assert "make focus-fundamentals TICKER=NVDA" in nvda["NextBestAction"]
-    assert "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA" in nvda["ExampleCommand"]
+    assert "make sec-stage TICKERS=NVDA" in nvda["ExampleCommand"]
 
     assert amd["ReadinessStatus"] == "Partial Coverage"
     assert amd["FocusCommand"] == "make focus-peers TICKER=AMD"

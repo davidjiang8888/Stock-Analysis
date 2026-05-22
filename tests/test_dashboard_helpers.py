@@ -968,7 +968,7 @@ def test_load_research_health_tables_refreshes_stale_enrichment_wizard_actions(t
                 "AnalystEstimatesAvailable": False,
                 "PriceHistoryDays": 80,
                 "MissingDataFields": "DCF inputs, peer mapping",
-                "NextBestAction": "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA.",
+                "NextBestAction": "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with make sec-stage TICKERS=NVDA.",
                 "FocusCommand": "make focus-fundamentals TICKER=NVDA",
                 "ExampleCommand": "make onboarding",
                 "Reason": "old",
@@ -988,7 +988,7 @@ def test_load_research_health_tables_refreshes_stale_enrichment_wizard_actions(t
     assert frame is not None
     nvda_row = frame.loc[frame["Ticker"] == "NVDA"].iloc[0]
     assert nvda_row["FocusCommand"] == "make focus-fundamentals TICKER=NVDA"
-    assert "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA" in nvda_row["ExampleCommand"]
+    assert "make sec-stage TICKERS=NVDA" in nvda_row["ExampleCommand"]
     assert "make focus-fundamentals TICKER=NVDA" in nvda_row["NextBestAction"]
 
 
@@ -1095,7 +1095,7 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp
                     "blocking_dataset": "fundamentals",
                     "current_status": "DCF inputs incomplete",
                     "why_it_matters": "old",
-                    "recommended_action": "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA.",
+                    "recommended_action": "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with make sec-stage TICKERS=NVDA.",
                     "target_file": "data/imports/fundamentals.csv",
                     "focus_command": "make focus-fundamentals TICKER=NVDA",
                     "example_command": "make onboarding",
@@ -1134,7 +1134,7 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp
     assert "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual" == amd_row["example_command"]
     assert "make focus-fundamentals TICKER=NVDA" in str(nvda_row["recommended_action"])
     assert nvda_row["focus_command"] == "make focus-fundamentals TICKER=NVDA"
-    assert "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA" == nvda_row["example_command"]
+    assert "make sec-stage TICKERS=NVDA" == nvda_row["example_command"]
     assert "make focus-peers TICKER=META" in str(meta_row["recommended_action"])
     assert meta_row["focus_command"] == "make focus-peers TICKER=META"
     assert meta_row["example_command"] == "make templates"
@@ -1657,7 +1657,7 @@ def test_holdings_deep_research_cards_surface_sec_and_peer_blockers():
                 "ticker": "NVDA",
                 "theme": "AI",
                 "recommended_action": "Stage or add richer verified fundamentals to close the remaining DCF input gaps.",
-                "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                "example_command": "make sec-stage TICKERS=NVDA",
                 "price_history_days": 25,
             }
         ]
@@ -2022,7 +2022,7 @@ def test_overview_deep_research_handoff_cards_stitch_name_command_and_tab():
                 "ticker": "NVDA",
                 "theme": "AI Semiconductors",
                 "recommended_action": "Stage or add richer verified fundamentals to close the remaining DCF input gaps.",
-                "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                "example_command": "make sec-stage TICKERS=NVDA",
             }
         ]
     )
@@ -2058,7 +2058,7 @@ def test_overview_deep_research_handoff_cards_stitch_name_command_and_tab():
 
     assert len(cards) == 3
     assert cards[0]["title"] == "NVDA"
-    assert "sec-stage-fundamentals --tickers nvda" in rendered
+    assert "make sec-stage tickers=nvda" in rendered
     assert "stage or add richer verified fundamentals" in rendered
     assert cards[2]["title"] == "Data Health"
     assert "stock report beta" in rendered
@@ -2276,7 +2276,7 @@ def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_t
                 "ticker": "NVDA",
                 "theme": "AI Semiconductors",
                 "recommended_action": "Stage or add richer verified fundamentals to close the remaining DCF input gaps.",
-                "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                "example_command": "make sec-stage TICKERS=NVDA",
             }
         ]
     )
@@ -3913,7 +3913,7 @@ def test_data_health_deep_research_target_cards_surface_dcf_and_peer_targets_saf
                 "price_history_days": 63,
                 "missing_required_for_dcf": "fundamentals row",
                 "recommended_action": "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs.",
-                "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                "example_command": "make sec-stage TICKERS=NVDA",
             }
         ]
     )
@@ -4018,7 +4018,7 @@ def test_overview_deep_research_target_cards_surface_dcf_and_peer_targets_safely
                 "price_history_days": 63,
                 "missing_required_for_dcf": "fundamentals row",
                 "recommended_action": "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs.",
-                "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                "example_command": "make sec-stage TICKERS=NVDA",
             }
         ]
     )
@@ -4097,7 +4097,7 @@ def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values
                 "why_it_matters": "DCF needs cash-flow inputs.",
                 "recommended_action": "Run SEC staging for candidate fundamentals, then validate and preview before applying.",
                 "focus_command": "make focus-fundamentals TICKER=NVDA",
-                "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                "example_command": "make sec-stage TICKERS=NVDA",
             },
         ]
     )

@@ -170,7 +170,7 @@ def _data_quality_needs_refresh(frame: pd.DataFrame) -> bool:
             if focus_command == "make imports-validate":
                 expected_example = "make imports-preview"
             elif focus_command.startswith("make focus-fundamentals") and ticker:
-                expected_example = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+                expected_example = f"make sec-stage TICKERS={ticker}"
             elif focus_command.startswith("make focus-peers"):
                 expected_example = "make templates"
             elif focus_command.startswith("make focus-price") and ticker:
@@ -271,7 +271,7 @@ def _fundamentals_focus_recommended_action(ticker: str) -> str:
         return "Run make status, then follow the printed fundamentals focus or runbook path."
     return (
         f"Run make focus-fundamentals TICKER={ticker}, or stage explicit local fundamentals with "
-        f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}."
+        f"make sec-stage TICKERS={ticker}."
     )
 
 
@@ -333,7 +333,7 @@ def _example_command_for_focus_command(focus_command: str, ticker: str) -> str:
     if normalized_focus.startswith("make focus-price") and ticker:
         return _price_normalize_command(ticker)
     if normalized_focus.startswith("make focus-fundamentals") and ticker:
-        return f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+        return f"make sec-stage TICKERS={ticker}"
     if normalized_focus.startswith("make focus-peers"):
         return "make templates"
     if normalized_focus == "make imports-validate":

@@ -165,7 +165,7 @@ def test_build_ticker_coverage_surfaces_operator_commands(tmp_path: Path):
     assert "make price-normalize" in amd["example_command"]
     assert nvda["focus_command"] == "make focus-fundamentals TICKER=AMD"
     assert nvda["target_file"] == "data/imports/fundamentals.csv"
-    assert nvda["example_command"] == "python3 -m src.stock_report --sec-stage-fundamentals --tickers AMD"
+    assert nvda["example_command"] == "make sec-stage TICKERS=AMD"
     assert "missing peer fundamentals needed for NVDA" in nvda["next_best_action"]
 
 
@@ -665,7 +665,7 @@ def test_data_onboarding_cli_sec_stage_queue_text_surfaces_command_and_target_fi
     assert "sec stage queue" in output
     assert "focus: make focus-fundamentals ticker=amd" in output
     assert "command:" in output
-    assert "sec-stage-fundamentals --tickers amd" in output
+    assert "make sec-stage tickers=amd" in output
     assert "target_file: data/imports/fundamentals.csv" in output
 
 
@@ -734,7 +734,7 @@ def test_data_onboarding_cli_peer_mapping_queue_text_surfaces_command_and_target
     assert "peer mapping queue" in output
     assert "focus: make focus-peers ticker=amd" in output
     assert "command:" in output
-    assert "sec-stage-fundamentals --tickers amd" in output
+    assert "make sec-stage tickers=amd" in output
     assert "target_file: data/imports/peers.csv" in output
 
 
@@ -799,7 +799,7 @@ def test_ticker_unlock_ladder_orders_price_then_peer_then_optional(tmp_path: Pat
     assert ladder["NVDA"]["next_unlock_goal"] == "Unlock Peer Relative"
     assert ladder["NVDA"]["focus_command"] == "make focus-fundamentals TICKER=AMD"
     assert "make focus-fundamentals TICKER=AMD" in ladder["NVDA"]["recommended_action"]
-    assert ladder["NVDA"]["example_command"] == "python3 -m src.stock_report --sec-stage-fundamentals --tickers AMD"
+    assert ladder["NVDA"]["example_command"] == "make sec-stage TICKERS=AMD"
 
 
 def test_data_onboarding_cli_unlock_summary_json(tmp_path: Path, capsys):

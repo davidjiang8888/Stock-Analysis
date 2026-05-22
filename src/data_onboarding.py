@@ -661,7 +661,7 @@ def _price_action_text(ticker: str) -> str:
 def _fundamentals_action_text(ticker: str) -> str:
     return (
         f"Run make focus-fundamentals TICKER={ticker}, or stage explicit local fundamentals with "
-        f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}."
+        f"make sec-stage TICKERS={ticker}."
     )
 
 
@@ -707,7 +707,7 @@ def _normalized_fundamentals_example_command(focus_command: str, example_command
     if focus == "make imports-validate":
         return "make imports-preview"
     if focus.startswith("make focus-fundamentals"):
-        return f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+        return f"make sec-stage TICKERS={ticker}"
     return example
 
 
@@ -741,7 +741,7 @@ def _peer_support_follow_through(
                 f"Run make focus-fundamentals TICKER={peer} to stage missing peer fundamentals needed for {ticker}'s peer-relative context.",
                 "data/imports/fundamentals.csv",
                 focus_command_for_ticker("fundamentals", peer),
-                f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {peer}",
+                f"make sec-stage TICKERS={peer}",
             )
         has_peer_market_context = peer in price_tickers or _has_number(peer_row, "market_cap")
         if not has_peer_market_context:
@@ -976,9 +976,7 @@ def build_ticker_coverage(
         elif not provisional.has_fundamentals or not provisional.dcf_ready:
             provisional.target_file = "data/imports/fundamentals.csv"
             provisional.focus_command = focus_command_for_ticker("fundamentals", provisional.ticker)
-            provisional.example_command = (
-                f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {provisional.ticker}"
-            )
+            provisional.example_command = f"make sec-stage TICKERS={provisional.ticker}"
         elif not provisional.has_peer_mapping or not provisional.peer_ready:
             if not provisional.has_peer_mapping:
                 provisional.target_file = "data/imports/peers.csv"
@@ -1030,7 +1028,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
             focus_command = row.focus_command if _has_staged_fundamentals_follow_through(row) else focus_command_for_ticker("fundamentals", row.ticker)
             example_command = _normalized_fundamentals_example_command(
                 focus_command,
-                row.example_command if _has_staged_fundamentals_follow_through(row) else f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {row.ticker}",
+                row.example_command if _has_staged_fundamentals_follow_through(row) else f"make sec-stage TICKERS={row.ticker}",
                 row.ticker,
             )
             actions.append(
@@ -1161,7 +1159,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
             focus_command = row.focus_command if _has_staged_fundamentals_follow_through(row) else focus_command_for_ticker("fundamentals", row.ticker)
             example_command = _normalized_fundamentals_example_command(
                 focus_command,
-                row.example_command if _has_staged_fundamentals_follow_through(row) else f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {row.ticker}",
+                row.example_command if _has_staged_fundamentals_follow_through(row) else f"make sec-stage TICKERS={row.ticker}",
                 row.ticker,
             )
             rows.append(
@@ -1374,7 +1372,7 @@ def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> lis
         example_command = (
             _normalized_fundamentals_example_command(coverage.focus_command, coverage.example_command, coverage.ticker)
             if _has_staged_fundamentals_follow_through(coverage)
-            else f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {coverage.ticker}"
+            else f"make sec-stage TICKERS={coverage.ticker}"
             if not coverage.dcf_ready
             else coverage.example_command
         )
@@ -1507,7 +1505,7 @@ def build_sec_stage_queue(
                 focus_command=coverage.focus_command if _has_staged_fundamentals_follow_through(coverage) else focus_command_for_ticker("fundamentals", coverage.ticker),
                 example_command=_normalized_fundamentals_example_command(
                     coverage.focus_command if _has_staged_fundamentals_follow_through(coverage) else focus_command_for_ticker("fundamentals", coverage.ticker),
-                    coverage.example_command if _has_staged_fundamentals_follow_through(coverage) else f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {coverage.ticker}",
+                    coverage.example_command if _has_staged_fundamentals_follow_through(coverage) else f"make sec-stage TICKERS={coverage.ticker}",
                     coverage.ticker,
                 ),
                 safe_next_step=(
@@ -1619,7 +1617,7 @@ def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[Tick
             focus_command = coverage.focus_command if _has_staged_fundamentals_follow_through(coverage) else focus_command_for_ticker("fundamentals", coverage.ticker)
             example_command = _normalized_fundamentals_example_command(
                 focus_command,
-                coverage.example_command if _has_staged_fundamentals_follow_through(coverage) else f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {coverage.ticker}",
+                coverage.example_command if _has_staged_fundamentals_follow_through(coverage) else f"make sec-stage TICKERS={coverage.ticker}",
                 coverage.ticker,
             )
             safe_next_step = (

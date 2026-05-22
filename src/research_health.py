@@ -42,7 +42,7 @@ def _price_next_best_action(ticker: str) -> str:
 def _fundamentals_next_best_action(ticker: str) -> str:
     return (
         f"Run make focus-fundamentals TICKER={ticker}, or stage explicit local fundamentals with "
-        f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}."
+        f"make sec-stage TICKERS={ticker}."
     )
 
 
@@ -88,7 +88,7 @@ def _normalized_fundamentals_example_command(focus_command: str, example_command
     if focus == "make imports-validate":
         return "make imports-preview"
     if focus.startswith("make focus-fundamentals"):
-        return f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+        return f"make sec-stage TICKERS={ticker}"
     return example
 
 LIQUIDITY_COLUMNS = [
@@ -226,7 +226,7 @@ def build_data_quality_wizard(coverage_rows: list[dict[str, Any]] | pd.DataFrame
             example_command = _normalized_fundamentals_example_command(
                 focus_command,
                 str(row.get("example_command", "") or "").strip()
-                or f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}",
+                or f"make sec-stage TICKERS={ticker}",
                 ticker,
             )
         elif not peer_ready:

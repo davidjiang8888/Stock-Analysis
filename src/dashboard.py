@@ -267,7 +267,7 @@ def load_data_source_status_tables(
             elif dataset == "prices" and ticker:
                 expected_example = f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
             elif dataset == "fundamentals" and ticker:
-                expected_example = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+                expected_example = f"make sec-stage TICKERS={ticker}"
             elif dataset == "peers" and ticker:
                 expected_example = "make templates"
             elif dataset == "fundamentals" and focus_command == "make status":
@@ -350,7 +350,7 @@ def load_data_onboarding_tables(
                     expected_example = f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
                 elif dataset == "fundamentals" and ticker:
                     expected = f"make focus-fundamentals TICKER={ticker}"
-                    expected_example = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+                    expected_example = f"make sec-stage TICKERS={ticker}"
                 elif dataset == "peers" and ticker:
                     expected = f"make focus-peers TICKER={ticker}"
                     expected_example = "make templates"
@@ -447,7 +447,7 @@ def load_research_health_tables(
                             if focus_command == "make imports-validate":
                                 expected_example = "make imports-preview"
                             elif focus_command.startswith("make focus-fundamentals") and ticker:
-                                expected_example = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+                                expected_example = f"make sec-stage TICKERS={ticker}"
                             elif focus_command.startswith("make focus-peers"):
                                 expected_example = "make templates"
                             if expected_example and example_command != expected_example:
@@ -2108,11 +2108,11 @@ def stock_report_next_step_cards(
 
     fundamentals_command = preferred_row_command(
         fundamentals_row,
-        ticker_focus_command("fundamentals", ticker, fallback=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"),
+        ticker_focus_command("fundamentals", ticker, fallback=f"make sec-stage TICKERS={ticker}"),
     ) if fundamentals_row is not None else ticker_focus_command(
         "fundamentals",
         ticker,
-        fallback=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}",
+        fallback=f"make sec-stage TICKERS={ticker}",
     )
     fundamentals_target_file = format_missing(fundamentals_row.get("target_file"), "") if fundamentals_row is not None else ""
     staged_fundamentals_import = (

@@ -122,10 +122,10 @@ def test_action_queue_uses_focus_commands_for_enrichment_rows():
                     "ReadinessStatus": "Needs Enrichment",
                     "NextBestAction": (
                         "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with "
-                        "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA."
+                        "make sec-stage TICKERS=NVDA."
                     ),
                     "FocusCommand": "make focus-fundamentals TICKER=NVDA",
-                    "ExampleCommand": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                    "ExampleCommand": "make sec-stage TICKERS=NVDA",
                     "MissingDataFields": "DCF inputs, peer mapping",
                     "Reason": "Missing DCF and peer coverage.",
                 },
@@ -147,7 +147,7 @@ def test_action_queue_uses_focus_commands_for_enrichment_rows():
 
     nvda_row = next(row for row in rows if row.ticker == "NVDA")
     assert nvda_row.focus_command == "make focus-fundamentals TICKER=NVDA"
-    assert nvda_row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
+    assert nvda_row.example_command == "make sec-stage TICKERS=NVDA"
     assert nvda_row.target_file == "data/imports/fundamentals.csv"
     assert nvda_row.source_file == "data/imports/fundamentals.csv"
 
@@ -184,7 +184,7 @@ def test_action_queue_uses_operator_friendly_onboarding_titles():
                     "recommended_action": "Run SEC staging.",
                     "target_file": "data/imports/fundamentals.csv",
                     "focus_command": "make focus-fundamentals TICKER=NVDA",
-                    "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                    "example_command": "make sec-stage TICKERS=NVDA",
                 },
                 {
                     "priority": 3,
@@ -290,7 +290,7 @@ def test_action_queue_payload_refreshes_stale_onboarding_actions(tmp_path: Path)
                 "MissingDataFields": "DCF inputs;peer mapping",
                 "NextBestAction": (
                     "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with "
-                    "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA."
+                    "make sec-stage TICKERS=NVDA."
                 ),
                 "Reason": "Missing DCF and peer coverage.",
             }
@@ -307,7 +307,7 @@ def test_action_queue_payload_refreshes_stale_onboarding_actions(tmp_path: Path)
     fundamentals_rows = [row for row in payload["action_queue"] if row["action_type"] == "fundamentals" and row["ticker"] == "NVDA"]
     assert fundamentals_rows
     assert fundamentals_rows[0]["focus_command"] == "make focus-fundamentals TICKER=NVDA"
-    assert fundamentals_rows[0]["example_command"] == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
+    assert fundamentals_rows[0]["example_command"] == "make sec-stage TICKERS=NVDA"
     assert "make focus-fundamentals TICKER=NVDA" in fundamentals_rows[0]["recommended_action"]
 
 
@@ -495,7 +495,7 @@ def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_row
                     "recommended_action": "Run SEC staging for fundamentals, then validate and preview before applying.",
                     "target_file": "data/imports/fundamentals.csv",
                     "focus_command": "make focus-fundamentals TICKER=AMD",
-                    "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers AMD",
+                    "example_command": "make sec-stage TICKERS=AMD",
                 }
             ]
         ),
@@ -518,10 +518,10 @@ def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_row
     assert fundamentals_row.title == "Stage fundamentals for AMD"
     assert fundamentals_row.recommended_action == (
         "Run make focus-fundamentals TICKER=AMD, or stage explicit local fundamentals with "
-        "python3 -m src.stock_report --sec-stage-fundamentals --tickers AMD."
+        "make sec-stage TICKERS=AMD."
     )
     assert fundamentals_row.focus_command == "make focus-fundamentals TICKER=AMD"
-    assert fundamentals_row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers AMD"
+    assert fundamentals_row.example_command == "make sec-stage TICKERS=AMD"
     assert fundamentals_row.source_artifact == "outputs/data_onboarding_actions.csv"
 
 
@@ -572,7 +572,7 @@ def test_action_queue_drops_redundant_coverage_rows_when_specific_action_matches
                     "recommended_action": "Stage or add richer verified fundamentals to close the remaining DCF input gaps.",
                     "target_file": "data/imports/fundamentals.csv",
                     "focus_command": "make focus-fundamentals TICKER=NVDA",
-                    "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                    "example_command": "make sec-stage TICKERS=NVDA",
                 }
             ]
         ),
@@ -584,7 +584,7 @@ def test_action_queue_drops_redundant_coverage_rows_when_specific_action_matches
                     "ReadinessStatus": "Needs Enrichment",
                     "NextBestAction": (
                         "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with "
-                        "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA."
+                        "make sec-stage TICKERS=NVDA."
                     ),
                     "MissingDataFields": "DCF inputs, peer mapping",
                     "Reason": "Missing DCF and peer coverage.",
@@ -721,7 +721,7 @@ def test_action_queue_prefers_explicit_data_gap_commands_when_present():
                     "required_for": "valuation",
                     "recommended_action": "Start with make status, then follow the printed fundamentals focus or runbook path.",
                     "focus_command": "make focus-fundamentals TICKER=NVDA",
-                    "example_command": "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                    "example_command": "make sec-stage TICKERS=NVDA",
                     "local_file": "data/fundamentals.csv",
                     "source_name": "Local fundamentals CSV / SEC Companyfacts staging",
                 }
@@ -733,7 +733,7 @@ def test_action_queue_prefers_explicit_data_gap_commands_when_present():
 
     row = rows[0]
     assert row.focus_command == "make focus-fundamentals TICKER=NVDA"
-    assert row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
+    assert row.example_command == "make sec-stage TICKERS=NVDA"
 
 
 def test_action_queue_derives_ticker_gap_example_command_from_focus_command():
@@ -759,7 +759,7 @@ def test_action_queue_derives_ticker_gap_example_command_from_focus_command():
 
     row = rows[0]
     assert row.focus_command == "make focus-fundamentals TICKER=NVDA"
-    assert row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
+    assert row.example_command == "make sec-stage TICKERS=NVDA"
 
 
 def test_action_queue_uses_status_for_unknown_global_gap_fallback():
@@ -875,7 +875,7 @@ def test_action_queue_payload_refreshes_stale_data_gap_actions(tmp_path: Path):
                 "MissingDataFields": "DCF inputs;peer mapping",
                 "NextBestAction": (
                     "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with "
-                    "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA."
+                    "make sec-stage TICKERS=NVDA."
                 ),
                 "Reason": "Missing DCF and peer coverage.",
             }
@@ -995,7 +995,7 @@ def test_action_queue_write_output_creates_csv_from_existing_outputs(tmp_path: P
                 "MissingDataFields": "DCF inputs;peer mapping",
                 "NextBestAction": (
                     "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with "
-                    "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA."
+                    "make sec-stage TICKERS=NVDA."
                 ),
                 "Reason": "Missing DCF and peer coverage.",
             }
@@ -1084,7 +1084,7 @@ def test_action_queue_rows_normalize_stale_data_quality_coverage_actions():
                     "Ticker": "NVDA",
                     "ReadinessStatus": "Needs Enrichment",
                     "MissingDataFields": "DCF inputs, peer mapping",
-                    "NextBestAction": "Run SEC staging for fundamentals: python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA",
+                    "NextBestAction": "Run SEC staging for fundamentals: make sec-stage TICKERS=NVDA",
                     "FocusCommand": "",
                     "ExampleCommand": "make onboarding",
                     "Reason": "DCF inputs, peer mapping",
@@ -1108,7 +1108,7 @@ def test_action_queue_rows_normalize_stale_data_quality_coverage_actions():
     assert nvda_row.action_type == "coverage"
     assert nvda_row.focus_command == "make focus-fundamentals TICKER=NVDA"
     assert "make focus-fundamentals TICKER=NVDA" in nvda_row.recommended_action
-    assert nvda_row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
+    assert nvda_row.example_command == "make sec-stage TICKERS=NVDA"
 
     assert amd_row.action_type == "coverage"
     assert amd_row.focus_command == "make focus-peers TICKER=AMD"
@@ -1157,7 +1157,7 @@ def test_data_quality_needs_refresh_rejects_stale_example_commands():
             {
                 "Ticker": "NVDA",
                 "ReadinessStatus": "Needs Enrichment",
-                "NextBestAction": "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA.",
+                "NextBestAction": "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with make sec-stage TICKERS=NVDA.",
                 "FocusCommand": "make focus-fundamentals TICKER=NVDA",
                 "ExampleCommand": "make onboarding",
             },
@@ -1220,7 +1220,7 @@ def test_action_queue_rows_normalize_stale_onboarding_example_commands():
                     "dataset": "fundamentals",
                     "ticker": "NVDA",
                     "status": "missing_or_incomplete",
-                    "recommended_action": "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA.",
+                    "recommended_action": "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with make sec-stage TICKERS=NVDA.",
                     "focus_command": "make focus-fundamentals TICKER=NVDA",
                     "example_command": "make onboarding",
                     "target_file": "data/imports/fundamentals.csv",
@@ -1248,5 +1248,5 @@ def test_action_queue_rows_normalize_stale_onboarding_example_commands():
     meta_row = next(row for row in rows if row.ticker == "META")
 
     assert amd_row.example_command == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
-    assert nvda_row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
+    assert nvda_row.example_command == "make sec-stage TICKERS=NVDA"
     assert meta_row.example_command == "make templates"
