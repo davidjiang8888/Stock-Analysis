@@ -133,7 +133,7 @@ def test_action_queue_uses_focus_commands_for_enrichment_rows():
                     "Ticker": "TSLA",
                     "ReadinessStatus": "Partial Coverage",
                     "NextBestAction": (
-                        "Run make focus-peers TICKER=TSLA, or write templates and fill data/imports/peers.csv "
+                        "Run make focus-peers TICKER=TSLA, or run make templates, then fill data/imports/peers.csv "
                         "manually with transparent peer mappings."
                     ),
                     "FocusCommand": "make focus-peers TICKER=TSLA",
@@ -603,7 +603,7 @@ def test_action_queue_normalizes_stale_peer_onboarding_actions():
 
     peer_row = next(row for row in rows if row.action_type == "peers" and row.ticker == "AMD")
     assert peer_row.recommended_action == (
-        "Run make focus-peers TICKER=AMD, or write templates and fill data/imports/peers.csv manually "
+        "Run make focus-peers TICKER=AMD, or run make templates, then fill data/imports/peers.csv manually "
         "with transparent peer mappings."
     )
     assert peer_row.focus_command == "make focus-peers TICKER=AMD"
@@ -1217,7 +1217,7 @@ def test_data_quality_needs_refresh_rejects_stale_example_commands():
             {
                 "Ticker": "META",
                 "ReadinessStatus": "Partial Coverage",
-                "NextBestAction": "Run make focus-peers TICKER=META, or write templates and fill data/imports/peers.csv manually with transparent peer mappings.",
+                "NextBestAction": "Run make focus-peers TICKER=META, or run make templates, then fill data/imports/peers.csv manually with transparent peer mappings.",
                 "FocusCommand": "make focus-peers TICKER=META",
                 "ExampleCommand": "make onboarding",
             },
@@ -1300,7 +1300,7 @@ def test_action_queue_rows_normalize_stale_onboarding_example_commands():
                     "dataset": "peers",
                     "ticker": "META",
                     "status": "manual_input_needed",
-                    "recommended_action": "Run make focus-peers TICKER=META, or write templates and fill data/imports/peers.csv manually with transparent peer mappings.",
+                    "recommended_action": "Run make focus-peers TICKER=META, or run make templates, then fill data/imports/peers.csv manually with transparent peer mappings.",
                     "focus_command": "make focus-peers TICKER=META",
                     "example_command": "make onboarding",
                     "target_file": "data/imports/peers.csv",

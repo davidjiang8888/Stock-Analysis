@@ -499,7 +499,7 @@ def test_data_coverage_wizard_normalizes_stale_action_text():
     assert "make sec-stage TICKERS=NVDA" in nvda_row.recommended_action
     assert "make price-refresh TICKERS=AMD" in amd_row.recommended_action
     assert "python3 -m src.data_update --tickers AMD" not in amd_row.recommended_action
-    assert "write templates" in tsla_row.recommended_action
+    assert "run make templates" in tsla_row.recommended_action
 
 
 def test_optional_context_worklist_surfaces_template_focus_command(tmp_path: Path):

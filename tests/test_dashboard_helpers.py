@@ -1217,7 +1217,7 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp
                     "blocking_dataset": "peers",
                     "current_status": "Peer-relative inputs incomplete",
                     "why_it_matters": "old",
-                    "recommended_action": "Run make focus-peers TICKER=META, or write templates and fill data/imports/peers.csv manually with transparent peer mappings.",
+                    "recommended_action": "Run make focus-peers TICKER=META, or run make templates, then fill data/imports/peers.csv manually with transparent peer mappings.",
                     "target_file": "data/imports/peers.csv",
                     "focus_command": "make focus-peers TICKER=META",
                     "example_command": "make onboarding",

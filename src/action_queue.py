@@ -319,7 +319,7 @@ def _peer_focus_recommended_action(ticker: str, *, missing_mapping: bool) -> str
         return "Run make status, then follow the printed peer focus or runbook path."
     if missing_mapping:
         return (
-            f"Run make focus-peers TICKER={ticker}, or write templates and fill data/imports/peers.csv manually "
+            f"Run make focus-peers TICKER={ticker}, or run make templates, then fill data/imports/peers.csv manually "
             "with transparent peer mappings."
         )
     return (

@@ -676,7 +676,7 @@ def _staged_fundamentals_action_text() -> str:
 def _peer_action_text(ticker: str, *, missing_mapping: bool) -> str:
     if missing_mapping:
         return (
-            f"Run make focus-peers TICKER={ticker}, or write templates and fill data/imports/peers.csv manually "
+            f"Run make focus-peers TICKER={ticker}, or run make templates, then fill data/imports/peers.csv manually "
             "with transparent peer mappings."
         )
     return (

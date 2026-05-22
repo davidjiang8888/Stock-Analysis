@@ -279,7 +279,7 @@ def test_data_quality_wizard_normalizes_stale_action_text():
     assert "make sec-stage TICKERS=NVDA" in nvda["NextBestAction"]
     assert "make price-refresh TICKERS=AMD" in amd["NextBestAction"]
     assert "python3 -m src.data_update --tickers AMD" not in amd["NextBestAction"]
-    assert "write templates" in tsla["NextBestAction"]
+    assert "run make templates" in tsla["NextBestAction"]
 
 
 def test_data_quality_wizard_normalizes_stale_enrichment_actions():
