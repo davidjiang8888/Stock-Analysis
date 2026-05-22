@@ -215,6 +215,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "Useful flags:\n\n```bash\nmake price-refresh\nmake price-refresh TICKERS=NVDA,MSFT,AVGO" in readme
     assert "If you want to narrow that pass to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake price-worklist TICKERS=NVDA,MSFT" in readme
     assert "Use `make price-status` for the current read-only diagnostics view, `make price-status TOP_N=10` when you want a shorter terminal summary of the latest fallback rows, or `make price-status TICKERS=AMD,AVGO` when you want to inspect only a smaller local ticker slice." in readme
+    assert "The raw read-only CLI path is `python3 -m src.data_update --price-status`." in readme
     assert "To keep that price gap list shorter in the terminal, add `TOP_N=...`, for example `make price-worklist TOP_N=5`." in readme
     assert "If you want to narrow those blocker queues to a specific local ticker slice, use:\n\n```bash\nmake fundamentals-peer-worklist TICKERS=NVDA,MSFT\nmake sec-stage-queue TICKERS=NVDA,MSFT\nmake peer-mapping-queue TICKERS=NVDA,MSFT" in readme
     assert "Those read-only blocker views also accept `TOP_N=...`, for example `make fundamentals-peer-worklist TOP_N=5` or `make sec-stage-queue TICKERS=NVDA,MSFT TOP_N=5`." in readme

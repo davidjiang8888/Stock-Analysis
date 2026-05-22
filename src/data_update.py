@@ -1059,6 +1059,7 @@ def main() -> None:
             print(json.dumps(summary, indent=2))
         else:
             print(format_path_context(project_root, data_dir, output_dir))
+            print("Price status summary:")
             print(f"status: {summary['status']}")
             print(f"path: {summary['path']}")
             rows = summary.get("rows", [])

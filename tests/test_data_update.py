@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -6,6 +7,7 @@ from src.data_update import (
     apply_price_import_merge,
     enrich_price_update_status_frame,
     load_update_tickers,
+    main,
     preview_price_import_merge,
     refresh_price_update_status_output,
     show_price_update_status,
@@ -347,6 +349,41 @@ def test_show_price_update_status_respects_ticker_filter(tmp_path: Path):
     assert payload["status"] == "available"
     assert len(payload["rows"]) == 1
     assert payload["rows"][0]["ticker"] == "NVDA"
+
+
+def test_price_status_cli_uses_read_only_summary_wording(tmp_path: Path, capsys):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "outputs").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    pd.DataFrame(
+        [
+            {
+                "run_timestamp": "2026-05-21T00:00:00+00:00",
+                "ticker": "AMD",
+                "requested_start": "",
+                "requested_end": "2026-05-21",
+                "provider": "FakePriceSource",
+                "status": "parse_error",
+                "rows_fetched": 0,
+                "rows_merged": 0,
+                "error_category": "parse_error",
+                "error_message": "AMD: parse failed",
+                "fallback_used": True,
+                "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+            }
+        ]
+    ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)
+
+    argv_before = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--price-status", "--top-n", "1"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = argv_before
+
+    assert "price status summary:" in output
+    assert "status: available" in output
 
 
 def test_enrich_price_update_status_frame_refreshes_stale_price_actions():
