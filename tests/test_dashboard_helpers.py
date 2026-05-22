@@ -2397,6 +2397,44 @@ def test_data_health_price_target_cards_surface_exact_history_targets_safely():
     assert "sell" not in rendered
 
 
+def test_overview_price_target_cards_surface_exact_history_targets_safely():
+    worklist = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "META",
+                "price_history_days": 0,
+                "next_price_goal": "Unlock Monthly Picks",
+                "next_target_history_rows": 21,
+                "rows_needed_for_next_goal": 21,
+                "suggested_start_date": "2026-01-01",
+                "example_command": "make price-normalize INPUT=data/raw/prices/META.csv TICKER=META SOURCE=yahoo_manual",
+            },
+            {
+                "priority": 2,
+                "ticker": "NVDA",
+                "price_history_days": 22,
+                "next_price_goal": "Unlock Track Record",
+                "next_target_history_rows": 63,
+                "rows_needed_for_next_goal": 41,
+                "suggested_start_date": "2025-10-01",
+                "example_command": "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual",
+            },
+        ]
+    )
+
+    cards = dashboard.overview_price_target_cards(worklist)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["kicker"] == "UNLOCK MONTHLY PICKS"
+    assert "21 rows still needed" in rendered
+    assert "target: 21 rows" in rendered
+    assert "start from: 2026-01-01" in rendered
+    assert "price-normalize" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values():
     wizard = pd.DataFrame(
         [

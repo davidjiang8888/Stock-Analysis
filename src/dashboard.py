@@ -2128,6 +2128,52 @@ def data_health_price_target_cards(price_worklist_frame: pd.DataFrame | None, li
     return cards
 
 
+def overview_price_target_cards(price_worklist_frame: pd.DataFrame | None, limit: int = 3) -> list[dict[str, object]]:
+    if price_worklist_frame is None or price_worklist_frame.empty:
+        return [
+            {
+                "kicker": "PRICE TARGET",
+                "title": "Generate price targets",
+                "body": "Write the onboarding outputs to surface the next exact history targets for Monthly Picks, track record, and fuller local coverage.",
+                "badges": ["read-only", "data moat"],
+                "command": "python3 -m src.data_onboarding --write-output",
+            }
+        ]
+
+    ordered = price_worklist_frame.copy()
+    sort_columns: list[str] = []
+    if "priority" in ordered.columns:
+        ordered["priority"] = pd.to_numeric(ordered["priority"], errors="coerce")
+        sort_columns.append("priority")
+    if "rows_needed_for_next_goal" in ordered.columns:
+        ordered["rows_needed_for_next_goal"] = pd.to_numeric(ordered["rows_needed_for_next_goal"], errors="coerce")
+        sort_columns.append("rows_needed_for_next_goal")
+    if "ticker" in ordered.columns:
+        sort_columns.append("ticker")
+    if sort_columns:
+        ordered = ordered.sort_values(sort_columns, kind="stable")
+
+    cards: list[dict[str, object]] = []
+    for _, row in ordered.head(limit).iterrows():
+        cards.append(
+            {
+                "kicker": format_missing(row.get("next_price_goal"), "Price target").upper(),
+                "title": format_missing(row.get("ticker"), "Ticker"),
+                "body": (
+                    f"{format_value(row.get('rows_needed_for_next_goal'), fallback='0')} rows still needed. "
+                    f"Target: {format_value(row.get('next_target_history_rows'), fallback='0')} rows. "
+                    f"Start from: {format_missing(row.get('suggested_start_date'), 'Not available')}."
+                ),
+                "badges": [
+                    f"{format_value(row.get('price_history_days'), fallback='0')} local rows",
+                    f"P{format_value(row.get('priority'), fallback='-')}",
+                ],
+                "command": format_missing(row.get("example_command"), ""),
+            }
+        )
+    return cards
+
+
 def data_health_tab_summary_cards(
     tab_name: str,
     validation_rows: pd.DataFrame,
@@ -5276,6 +5322,8 @@ def render_overview(
             unlock_priority_summary_frame,
         )
     )
+    render_section_header("Price Targets", "The next exact local history targets for Monthly Picks, track record, or fuller 1Y research coverage.")
+    render_signal_cards(overview_price_target_cards(price_worklist_frame))
     render_section_header("Deep Research Priorities", "The specific holdings or universe names that best match the current deep-research lane before you drop into the fuller queue tables.")
     render_signal_cards(
         overview_deep_research_priority_bridge_cards(
