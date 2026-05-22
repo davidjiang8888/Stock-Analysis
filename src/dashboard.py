@@ -2497,7 +2497,10 @@ def data_health_overview_cards(
         price_badges = ["make status", "manual fallback"]
     elif price_problem_count:
         price_title = f"{price_problem_count} price issue{'s' if price_problem_count != 1 else ''}"
-        price_body = "Use raw downloaded CSVs only as user-provided inputs, then normalize, validate, preview, and apply."
+        price_body = (
+            "Use raw downloaded CSVs only as user-provided inputs, then run make price-normalize, "
+            "make price-validate, make price-preview, and make price-apply."
+        )
         price_badges = ["make price-normalize", "manual fallback"]
     else:
         price_title = f"{price_counts.get('fetched', 0)} fetched"
@@ -3028,8 +3031,12 @@ def data_health_tab_summary_cards(
             {
                 "kicker": "ISSUES",
                 "title": str(problem_total),
-                "body": "Parse, source, or network failures now surface here instead of hiding in logs.",
-                "badges": ["manual fallback"],
+                "body": (
+                    "Parse, source, or network failures now surface here instead of hiding in logs. "
+                    "For downloaded files, run make price-normalize, make price-validate, "
+                    "make price-preview, and make price-apply."
+                ),
+                "badges": ["manual fallback", "make price-normalize"],
             },
         ]
     if tab_name == "Staged Imports":
