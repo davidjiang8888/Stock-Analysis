@@ -3798,6 +3798,7 @@ def test_data_health_overview_cards_prioritize_price_and_actions():
     assert "1 price issue" in rendered
     assert "1 critical actions" in rendered
     assert "1 price-ready tickers" in rendered
+    assert "make price-status top_n=10" in rendered.lower()
     assert "make action-queue-check top_n=10" in rendered.lower()
     assert "make data-wizard top_n=10" in rendered.lower()
 

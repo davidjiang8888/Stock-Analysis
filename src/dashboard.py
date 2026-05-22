@@ -2501,11 +2501,11 @@ def data_health_overview_cards(
             "Use raw downloaded CSVs only as user-provided inputs, then run make price-normalize, "
             "make price-validate, make price-preview, and make price-apply."
         )
-        price_badges = ["make price-normalize", "manual fallback"]
+        price_badges = ["make price-status TOP_N=10", "manual fallback"]
     else:
         price_title = f"{price_counts.get('fetched', 0)} fetched"
         price_body = "Latest price refresh did not report blocking source errors."
-        price_badges = ["price status"]
+        price_badges = ["make price-status TOP_N=10"]
 
     queue_summary = action_queue_summary(action_queue_frame)
     action_title = f"{queue_summary['critical']} critical actions"
