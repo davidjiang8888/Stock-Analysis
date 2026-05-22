@@ -1848,6 +1848,25 @@ def test_holdings_deep_research_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_holdings_deep_research_cards_fall_back_to_onboarding_when_queues_are_missing():
+    holdings = pd.DataFrame(
+        [
+            {"Ticker": "NVDA", "PrimaryPurpose": "Momentum Leader"},
+            {"Ticker": "TSLA", "PrimaryPurpose": "Speculative Optionality"},
+        ]
+    )
+
+    cards = dashboard.holdings_deep_research_cards(holdings, None, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 1
+    assert cards[0]["title"] == "No holdings DCF / peer queue yet"
+    assert cards[0]["command"] == "make onboarding"
+    assert "make onboarding" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_holdings_unlock_cards_handle_missing_inputs_gracefully():
     cards = dashboard.holdings_unlock_cards(None, None, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()

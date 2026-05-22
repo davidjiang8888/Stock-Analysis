@@ -4169,8 +4169,9 @@ def holdings_deep_research_cards(
         {
             "kicker": "HOLDINGS DCF / PEERS",
             "title": "No holdings DCF / peer queue yet",
-            "body": "Generate the SEC stage queue and peer mapping queue to surface the next deep-research blockers for portfolio names.",
+            "body": "Run make onboarding to refresh the onboarding outputs and generate the SEC stage queue plus peer mapping queue for holdings-first deep-research blockers.",
             "badges": ["read-only"],
+            "command": "make onboarding",
         }
     ]
 
