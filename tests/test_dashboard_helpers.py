@@ -2596,6 +2596,88 @@ def test_theme_unlock_cards_use_runbook_fallback_when_action_is_missing():
     assert cards[1]["kicker"] == "AI Semiconductors"
     assert cards[1]["command"] == "make runbook-peers"
     assert "staged local workflow next" in cards[1]["body"].lower()
+
+
+def test_theme_unlock_cards_keep_staged_import_front_doors_when_target_files_are_present():
+    summary = pd.DataFrame(
+        [
+            {
+                "group_type": "theme",
+                "group_name": "AI Semiconductors",
+                "ticker_count": 3,
+                "holdings_count": 1,
+                "top_priority_stage": "prices",
+                "next_unlock_goal": "Unlock Monthly Picks",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/prices.csv",
+            },
+            {
+                "group_type": "sector_etf",
+                "group_name": "SMH",
+                "ticker_count": 8,
+                "holdings_count": 1,
+                "top_priority_stage": "fundamentals",
+                "next_unlock_goal": "Unlock DCF",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            },
+            {
+                "group_type": "theme",
+                "group_name": "EV Leaders",
+                "ticker_count": 4,
+                "holdings_count": 1,
+                "top_priority_stage": "peers",
+                "next_unlock_goal": "Unlock Peer Relative",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+            },
+        ]
+    )
+
+    cards = dashboard.theme_unlock_cards(summary, limit=3)
+    price_card = next(card for card in cards if card["kicker"] == "AI Semiconductors")
+    fundamentals_card = next(card for card in cards if card["kicker"] == "SMH")
+    peer_card = next(card for card in cards if card["kicker"] == "EV Leaders")
+
+    assert price_card["command"] == "make price-validate"
+    assert "make price-preview" in price_card["body"].lower()
+    assert "make price-apply" in price_card["body"].lower()
+    assert fundamentals_card["command"] == "make imports-validate"
+    assert "staged fundamentals import" in fundamentals_card["body"].lower()
+    assert peer_card["command"] == "make imports-validate"
+    assert "staged peer import" in peer_card["body"].lower()
+
+
+def test_theme_unlock_cards_upgrade_generic_staged_price_note_to_explicit_follow_through():
+    summary = pd.DataFrame(
+        [
+            {
+                "group_type": "theme",
+                "group_name": "AI Semiconductors",
+                "ticker_count": 3,
+                "holdings_count": 1,
+                "top_priority_stage": "prices",
+                "next_unlock_goal": "Unlock Monthly Picks",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/prices.csv",
+            }
+        ]
+    )
+
+    cards = dashboard.theme_unlock_cards(summary, limit=1)
+
+    assert cards[1]["command"] == "make price-validate"
+    assert "make price-preview" in cards[1]["body"].lower()
+    assert "make price-apply" in cards[1]["body"].lower()
+    assert "use staged local imports if the free refresh fails" not in cards[1]["body"].lower()
     assert "not available" not in cards[1]["body"].lower()
 
 

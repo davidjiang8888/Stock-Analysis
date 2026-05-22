@@ -4628,13 +4628,46 @@ def theme_unlock_cards(
     ]
 
     for _, row in theme_rows.sort_values(["stage_rank", "holdings_count", "ticker_count", "group_name"], ascending=[True, False, False, True]).head(limit).iterrows():
+        target_file = format_missing(row.get("target_file"), "")
+        staged_fundamentals_import = target_file == "data/imports/fundamentals.csv"
+        staged_peer_import = target_file == "data/imports/peers.csv"
+        staged_price_import = target_file == "data/imports/prices.csv"
         command = (
-            normalize_operator_command(format_missing(row.get("example_command"), ""))
-            or preferred_row_command(
-                row,
-                unlock_stage_command(row.get("top_priority_stage"), "make universe-preview"),
+            preferred_row_command(row, "make imports-validate")
+            if staged_fundamentals_import or staged_peer_import
+            else (
+                preferred_row_command(row, "make price-validate")
+                if staged_price_import
+                else (
+                    normalize_operator_command(format_missing(row.get("example_command"), ""))
+                    or preferred_row_command(
+                        row,
+                        unlock_stage_command(row.get("top_priority_stage"), "make universe-preview"),
+                    )
+                )
             )
         )
+        if staged_fundamentals_import:
+            fallback_action = (
+                f"Staged fundamentals import is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting grouped DCF coverage."
+            )
+        elif staged_peer_import:
+            fallback_action = (
+                f"Staged peer import is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting grouped peer-relative context."
+            )
+        elif staged_price_import:
+            fallback_action = (
+                f"Staged price import is waiting in {target_file}; run make price-validate, then make price-preview, then make price-apply before trusting grouped local price coverage."
+            )
+        else:
+            fallback_action = command_family_fallback(command, 'Review grouped unlock path.')
+        next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
+        if staged_price_import and (
+            "make price-validate" not in next_action_summary
+            or "make price-preview" not in next_action_summary
+            or "make price-apply" not in next_action_summary
+        ):
+            next_action_summary = compact_reason(fallback_action, max_sentences=1, max_chars=150)
         cards.append(
             {
                 "kicker": format_missing(row.get("group_name"), "Theme"),
@@ -4643,7 +4676,7 @@ def theme_unlock_cards(
                     f"{format_missing(row.get('group_type'), 'group')} group with "
                     f"{format_missing(row.get('ticker_count'), '0')} tickers and "
                     f"{format_missing(row.get('holdings_count'), '0')} holdings. "
-                    f"Next action: {compact_reason(row.get('recommended_action') or command_family_fallback(command, 'Review grouped unlock path.'), max_sentences=1, max_chars=150)}"
+                    f"Next action: {next_action_summary}"
                 ),
                 "badges": [
                     format_missing(row.get("top_priority_stage"), "stage"),
