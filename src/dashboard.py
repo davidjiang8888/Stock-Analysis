@@ -5616,6 +5616,7 @@ def overview_next_command_cards(
             title = command if command else "Recommended command"
             reason = compact_reason(row.get("Reason"), max_sentences=1, max_chars=160)
             has_reason = bool(reason and reason != "Not available")
+            lower_reason = reason.lower() if has_reason else ""
             body = (
                 "Repo-native next step from the current read-only project status snapshot."
                 if command
@@ -5627,7 +5628,16 @@ def overview_next_command_cards(
                 body = reason if has_reason else "Use the current single-name shortcut first to unblock the highest-leverage local data gap."
                 badges = ["single name", "command"]
             elif "imports-" in lowered:
-                body = reason if has_reason else "Use the staged local workflow next so validation and preview safeguards stay in place."
+                if has_reason and "make imports-preview" in lower_reason and "make imports-apply" in lower_reason:
+                    body = reason
+                else:
+                    body = "Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+                badges = ["staged flow", "command"]
+            elif lowered == "make price-validate":
+                if has_reason and "make price-preview" in lower_reason and "make price-apply" in lower_reason:
+                    body = reason
+                else:
+                    body = "Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
                 badges = ["staged flow", "command"]
             elif "bundle-" in lowered:
                 body = reason if has_reason else "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."

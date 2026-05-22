@@ -4721,11 +4721,39 @@ def test_overview_next_command_cards_use_bundle_and_import_fallbacks_when_reason
 
     assert cards[0]["title"] == "make imports-validate"
     assert "staged flow" in [badge.lower() for badge in cards[0]["badges"]]
-    assert "use the staged local workflow next" in cards[0]["body"].lower()
+    assert "make imports-preview" in cards[0]["body"].lower()
+    assert "make imports-apply" in cards[0]["body"].lower()
     assert cards[1]["title"] == "make bundle-prices"
     assert "bundle first" in [badge.lower() for badge in cards[1]["badges"]]
     assert "highest-leverage local bundle first" in cards[1]["body"].lower()
     assert "not available" not in cards[1]["body"].lower()
+
+
+def test_overview_next_command_cards_keep_staged_follow_through_visible_when_reasons_are_generic():
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Advance staged fundamentals import",
+                "Command": "make imports-validate",
+                "Reason": "Use staged local imports if the free refresh fails.",
+            },
+            {
+                "Step": "Advance staged price import",
+                "Command": "make price-validate",
+                "Reason": "Use staged local imports if the free refresh fails.",
+            },
+        ]
+    }
+
+    cards = dashboard.overview_next_command_cards(payload, None, limit=2)
+
+    assert cards[0]["title"] == "make imports-validate"
+    assert "make imports-preview" in cards[0]["body"].lower()
+    assert "make imports-apply" in cards[0]["body"].lower()
+    assert cards[1]["title"] == "make price-validate"
+    assert "make price-preview" in cards[1]["body"].lower()
+    assert "make price-apply" in cards[1]["body"].lower()
+    assert "use staged local imports if the free refresh fails" not in " ".join(card["body"] for card in cards).lower()
 
 
 def test_overview_next_command_cards_use_runbook_fallback_when_reason_is_missing():
