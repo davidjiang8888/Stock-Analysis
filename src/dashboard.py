@@ -5974,6 +5974,8 @@ def overview_best_local_research_path_cards(
         next_tab = next((card for card in overview_handoff_cards() if card.get("title") == "Monthly Picks"), next_tab)
 
     first_name = format_missing(best_name.get("kicker"), "Not available")
+    if first_name == "BEST CURRENT NAMES":
+        first_name = format_missing(best_name.get("title"), first_name)
     command_text = format_missing(next_command.get("title"), "make status")
     tab_text = format_missing(next_tab.get("title"), "Data Health")
     ready_command_text = format_missing(ready_cards[1].get("title"), "")

@@ -3813,13 +3813,42 @@ def test_overview_current_top_surfaces_cards_keep_staged_fundamentals_context_in
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[1]["title"] == "AMD"
-    assert "unlock dcf" in cards[1]["body"].lower()
+    assert "advance staged fundamentals import" in cards[1]["body"].lower()
     assert "make imports-apply" in cards[1]["body"].lower()
     assert "make status-check top_n=5" in rendered
     assert cards[3]["title"] == "Stock Report Beta"
     assert "open stock report beta after the command step" in cards[3]["body"].lower()
     assert "nvda" in cards[3]["body"].lower()
     assert "live staged" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_current_top_surfaces_cards_use_runbook_fallback_when_no_ready_name_exists():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "TSLA", "usable_for_momentum": False, "dcf_ready": False, "peer_ready": False},
+            {"ticker": "AMD", "usable_for_momentum": False, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Open peer runbook",
+                "Command": "make runbook-peers",
+                "Reason": "",
+            }
+        ]
+    }
+
+    cards = dashboard.overview_current_top_surfaces_cards(coverage, None, None, None, payload, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "No current ready names yet"
+    assert cards[2]["title"] == "make runbook-peers"
+    assert cards[3]["title"] == "Data Health"
+    assert "ordered lane runbook" in rendered
+    assert "staged local workflow" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -4583,10 +4612,39 @@ def test_overview_best_local_research_path_cards_fall_back_gracefully():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert len(cards) == 3
-    assert cards[0]["title"] == "BEST CURRENT NAMES"
+    assert cards[0]["title"] == "No current ready names yet"
     assert cards[1]["title"] == "make onboarding"
     assert cards[2]["title"] == "Data Health"
     assert "no current ready names yet" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_best_local_research_path_cards_use_runbook_fallback_when_no_ready_name_exists():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "TSLA", "usable_for_momentum": False, "dcf_ready": False, "peer_ready": False},
+            {"ticker": "AMD", "usable_for_momentum": False, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Open peer runbook",
+                "Command": "make runbook-peers",
+                "Reason": "",
+            }
+        ]
+    }
+
+    cards = dashboard.overview_best_local_research_path_cards(coverage, None, payload, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "No current ready names yet"
+    assert cards[1]["title"] == "make runbook-peers"
+    assert cards[2]["title"] == "Data Health"
+    assert "ordered lane runbook" in rendered
+    assert "staged local workflow" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
