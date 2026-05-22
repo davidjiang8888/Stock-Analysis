@@ -2450,6 +2450,61 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
     assert "sell" not in rendered
 
 
+def test_data_health_command_bundle_runbook_cards_surface_peer_manual_step():
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Run bundle command",
+                "command": "make templates",
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
+            },
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "step_order": 2,
+                "step_label": "Fill peer mappings manually",
+                "command": "data/imports/peers.csv",
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
+            },
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "step_order": 3,
+                "step_label": "Review follow-up output",
+                "command": "make onboarding",
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
+            },
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "step_order": 4,
+                "step_label": "Refresh onboarding outputs",
+                "command": "make onboarding",
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance transparent peer-relative readiness for the listed tickers",
+            },
+        ]
+    )
+
+    cards = dashboard.data_health_command_bundle_runbook_cards(runbook)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "fill peer mappings manually" in rendered
+    assert "data/imports/peers.csv" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_price_target_cards_surface_exact_history_targets_safely():
     worklist = pd.DataFrame(
         [

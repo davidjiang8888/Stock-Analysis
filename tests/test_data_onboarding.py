@@ -606,6 +606,21 @@ def test_data_onboarding_cli_command_bundle_runbook_text_surfaces_goal_summary(t
     assert "make price-apply" in output
 
 
+def test_data_onboarding_cli_peer_runbook_text_surfaces_manual_peer_step(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--command-bundle-runbook", "--lane", "peers"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = previous_argv
+
+    assert "peer mapping bundle" in output
+    assert "fill peer mappings manually" in output
+    assert "data/imports/peers.csv" in output
+
+
 def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_path: Path):
     _write_fixture(tmp_path)
 
@@ -650,6 +665,10 @@ def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path:
     assert price_steps[4]["command"] == "make price-apply"
     assert price_steps[5]["command"] == "make price-status"
     assert price_steps[-1]["command"] == "make onboarding"
+    peer_steps = [row for row in runbook if row["lane"] == "peers"]
+    assert [row["step_order"] for row in peer_steps] == [1, 2, 3, 4]
+    assert peer_steps[1]["step_label"] == "Fill peer mappings manually"
+    assert peer_steps[1]["command"] == "data/imports/peers.csv"
 
 
 def test_build_data_coverage_wizard_accepts_empty_coverage():

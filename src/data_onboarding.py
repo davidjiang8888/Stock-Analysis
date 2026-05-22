@@ -1689,6 +1689,21 @@ def build_command_bundle_runbook(
                     "After the bundle flow finishes, reopen Data Health or Overview to confirm the updated local coverage state.",
                 ),
             ]
+        elif bundle.lane == "peers":
+            step_specs = [
+                ("Run bundle command", bundle.primary_command, bundle.safe_next_step),
+                (
+                    "Fill peer mappings manually",
+                    "data/imports/peers.csv",
+                    "Fill only manually researched peer mappings for the listed tickers and keep missing peer context explicit when you do not have a trusted comparison set.",
+                ),
+                ("Review follow-up output", bundle.follow_up_command, bundle.safe_next_step),
+                (
+                    "Refresh onboarding outputs",
+                    "make onboarding",
+                    "After the bundle flow finishes, reopen Data Health or Overview to confirm the updated local coverage state.",
+                ),
+            ]
         else:
             step_specs = [
                 ("Run bundle command", bundle.primary_command, bundle.safe_next_step),
