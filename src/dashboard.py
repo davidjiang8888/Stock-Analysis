@@ -2909,7 +2909,7 @@ def overview_deep_research_target_cards(
                     "title": format_missing(row.get("ticker"), "Ticker"),
                     "body": (
                         f"{format_missing(row.get('missing_required_for_dcf'), 'Not specified')}. "
-                        f"{compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=140)}"
+                        f"{compact_reason(row.get('recommended_action') or 'Review fundamentals path.', max_sentences=1, max_chars=140)}"
                     ),
                     "badges": [
                         "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
@@ -2931,7 +2931,7 @@ def overview_deep_research_target_cards(
                     "title": format_missing(row.get("ticker"), "Ticker"),
                     "body": (
                         f"{format_missing(row.get('missing_required_for_peer_relative'), 'Not specified')}. "
-                        f"{compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=140)}"
+                        f"{compact_reason(row.get('recommended_action') or 'Review peer path.', max_sentences=1, max_chars=140)}"
                     ),
                     "badges": [
                         "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
@@ -4216,7 +4216,7 @@ def holdings_deep_research_cards(
                         "body": (
                             f"{format_missing(purpose_map.get(ticker), 'Portfolio holding')}. "
                             f"SEC/fundamentals queue priority P{format_missing(row.get('priority'), '-')}. "
-                            f"{compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
+                            f"{compact_reason(row.get('recommended_action') or 'Review fundamentals path.', max_sentences=1, max_chars=150)}"
                         ),
                         "badges": ["fundamentals", format_missing(row.get("theme"), "theme")],
                         "command": preferred_row_command(
@@ -4241,7 +4241,7 @@ def holdings_deep_research_cards(
                         "body": (
                             f"{format_missing(purpose_map.get(ticker), 'Portfolio holding')}. "
                             f"Peer queue priority P{format_missing(row.get('priority'), '-')}. "
-                            f"{compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
+                            f"{compact_reason(row.get('recommended_action') or 'Review peer path.', max_sentences=1, max_chars=150)}"
                         ),
                         "badges": ["peers", format_missing(row.get("theme"), "theme")],
                         "command": preferred_row_command(
@@ -4333,7 +4333,7 @@ def theme_unlock_cards(
                     f"{format_missing(row.get('group_type'), 'group')} group with "
                     f"{format_missing(row.get('ticker_count'), '0')} tickers and "
                     f"{format_missing(row.get('holdings_count'), '0')} holdings. "
-                    f"Next action: {compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
+                    f"Next action: {compact_reason(row.get('recommended_action') or 'Review grouped unlock path.', max_sentences=1, max_chars=150)}"
                 ),
                 "badges": [
                     format_missing(row.get("top_priority_stage"), "stage"),

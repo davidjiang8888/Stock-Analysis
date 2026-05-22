@@ -2077,6 +2077,27 @@ def test_holdings_deep_research_cards_fall_back_to_onboarding_when_queues_are_mi
     assert "sell" not in rendered
 
 
+def test_holdings_deep_research_cards_use_review_fallback_when_action_is_missing():
+    holdings = pd.DataFrame([{"Ticker": "AMD", "PrimaryPurpose": "Core Compounder"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "theme": "Semis",
+                "price_history_days": 84,
+                "recommended_action": "",
+            }
+        ]
+    )
+
+    cards = dashboard.holdings_deep_research_cards(holdings, sec_queue, None, limit=1)
+
+    assert cards[0]["kicker"] == "AMD"
+    assert "review fundamentals path." in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_holdings_unlock_cards_handle_missing_inputs_gracefully():
     cards = dashboard.holdings_unlock_cards(None, None, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
@@ -2164,6 +2185,30 @@ def test_theme_unlock_cards_fall_back_to_universe_preview_when_only_holdings_con
     assert "make universe-preview" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_theme_unlock_cards_use_review_fallback_when_action_is_missing():
+    summary = pd.DataFrame(
+        [
+            {
+                "group_type": "theme",
+                "group_name": "AI Semiconductors",
+                "ticker_count": 3,
+                "holdings_count": 1,
+                "top_priority_stage": "peers",
+                "next_unlock_goal": "Unlock Peer Relative",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.theme_unlock_cards(summary, limit=1)
+
+    assert cards[1]["kicker"] == "AI Semiconductors"
+    assert "review grouped unlock path." in cards[1]["body"].lower()
+    assert "not available" not in cards[1]["body"].lower()
 
 
 def test_unlock_cards_use_stage_front_doors_when_commands_are_missing():
@@ -5083,6 +5128,28 @@ def test_overview_deep_research_target_cards_preserve_staged_fundamentals_comman
     assert cards[0]["command"] == "make imports-validate"
     assert "make imports-apply" in cards[0]["body"].lower()
     assert "make status-check top_n=5" in cards[0]["body"].lower()
+
+
+def test_overview_deep_research_target_cards_use_review_fallback_when_action_is_missing():
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "is_holding": False,
+                "theme": "Semis",
+                "price_history_days": 84,
+                "missing_required_for_dcf": "fundamentals row",
+                "recommended_action": "",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_target_cards(sec_queue, pd.DataFrame())
+
+    assert "review fundamentals path." in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
 
 
 def test_deep_research_target_fallback_cards_use_onboarding_refresh():
