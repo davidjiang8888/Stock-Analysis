@@ -305,7 +305,7 @@ def _coverage_lane_from_context(missing_fields: str, focus_command: str, recomme
         return "prices"
     if normalized_focus.startswith("make focus-fundamentals"):
         return "fundamentals"
-    if normalized_focus.startswith("make focus-peers") or normalized_focus == "make imports-validate":
+    if normalized_focus.startswith("make focus-peers"):
         return "peers"
 
     context = " ".join(
@@ -313,6 +313,11 @@ def _coverage_lane_from_context(missing_fields: str, focus_command: str, recomme
         for part in (str(missing_fields or ""), str(recommended_action or ""))
         if str(part or "").strip()
     )
+    if normalized_focus == "make imports-validate":
+        if any(token in context for token in ("dcf", "fundamental", "free_cash_flow", "revenue", "shares_outstanding")):
+            return "fundamentals"
+        if "peer" in context:
+            return "peers"
     if any(token in context for token in ("dcf", "fundamental", "free_cash_flow", "revenue", "shares_outstanding")):
         return "fundamentals"
     if "peer" in context:
@@ -394,7 +399,13 @@ def _normalize_data_quality_coverage_action(
         return normalized_recommended, normalized_focus, normalized_example
 
     if lane == "fundamentals":
-        if ticker and "make focus-fundamentals" not in normalized_recommended:
+        if normalized_focus == "make imports-validate":
+            if "make imports-validate" not in normalized_recommended:
+                normalized_recommended = (
+                    "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+                    "to confirm the live local fundamentals and DCF inputs."
+                )
+        elif ticker and "make focus-fundamentals" not in normalized_recommended:
             normalized_recommended = _fundamentals_focus_recommended_action(ticker)
         if not normalized_focus:
             normalized_focus = focus_command_for_ticker("fundamentals", ticker)

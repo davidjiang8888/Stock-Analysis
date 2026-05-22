@@ -1115,6 +1115,35 @@ def test_action_queue_rows_normalize_stale_data_quality_coverage_actions():
     assert "make focus-peers TICKER=AMD" in amd_row.recommended_action
 
 
+def test_action_queue_rows_preserve_staged_fundamentals_data_quality_actions():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(),
+        data_gaps=pd.DataFrame(),
+        data_quality=pd.DataFrame(
+            [
+                {
+                    "Ticker": "NVDA",
+                    "ReadinessStatus": "Needs Enrichment",
+                    "MissingDataFields": "staged fundamentals still need validate/preview/apply, peer mapping",
+                    "NextBestAction": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals and DCF inputs.",
+                    "FocusCommand": "make imports-validate",
+                    "ExampleCommand": "make status",
+                    "Reason": "staged fundamentals still need validate/preview/apply, peer mapping",
+                }
+            ]
+        ),
+    )
+
+    nvda_row = next(row for row in rows if row.ticker == "NVDA")
+
+    assert nvda_row.action_type == "coverage"
+    assert nvda_row.focus_command == "make imports-validate"
+    assert nvda_row.example_command == "make imports-preview"
+    assert "make imports-apply" in nvda_row.recommended_action
+
+
 def test_data_quality_needs_refresh_rejects_stale_example_commands():
     frame = pd.DataFrame(
         [
@@ -1150,6 +1179,23 @@ def test_data_quality_needs_refresh_rejects_stale_example_commands():
     )
 
     assert _data_quality_needs_refresh(frame) is True
+
+
+def test_data_quality_needs_refresh_accepts_staged_fundamentals_example_command():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "ReadinessStatus": "Needs Enrichment",
+                "NextBestAction": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals and DCF inputs.",
+                "FocusCommand": "make imports-validate",
+                "ExampleCommand": "make imports-preview",
+                "MissingDataFields": "staged fundamentals still need validate/preview/apply, peer mapping",
+            }
+        ]
+    )
+
+    assert _data_quality_needs_refresh(frame) is False
 
 
 def test_action_queue_rows_normalize_stale_onboarding_example_commands():
