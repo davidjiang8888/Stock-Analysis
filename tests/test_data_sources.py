@@ -100,9 +100,11 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     assert source_lookup["smh_holdings"]["focus_command"] == "make templates"
     assert source_lookup["smh_holdings"]["target_file"] == "data/custom_universe.csv"
     assert source_lookup["sp500_constituents"]["focus_command"] == "make universe-preview"
+    assert source_lookup["sp500_constituents"]["example_command"] == "make universe-preview"
     assert source_lookup["sp500_constituents"]["target_file"] == "data/imports/universe.csv"
     assert "make universe-preview" in source_lookup["sp500_constituents"]["fallback_action"]
     assert "make universe-preview" in source_lookup["nasdaq_symbols"]["fallback_action"]
+    assert source_lookup["nasdaq_symbols"]["example_command"] == "make universe-preview"
     assert any(gap["dataset"] == "prices" and gap["ticker"] == "MSFT" for gap in payload["data_gaps"])
     gap_lookup = {gap["dataset"]: gap for gap in payload["data_gaps"] if not gap["ticker"]}
     assert "make verify" in gap_lookup["local_outputs"]["recommended_action"]
@@ -124,6 +126,8 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     assert "make templates" in gap_lookup["analyst_estimates"]["recommended_action"]
     assert gap_lookup["analyst_estimates"]["focus_command"] == "make templates"
     assert gap_lookup["analyst_estimates"]["example_command"] == "make templates"
+    assert gap_lookup["sp500_constituents"]["example_command"] == "make universe-preview"
+    assert gap_lookup["nasdaq_symbols"]["example_command"] == "make universe-preview"
     price_gap = next(gap for gap in payload["data_gaps"] if gap["dataset"] == "prices" and gap["ticker"] == "MSFT")
     assert price_gap["recommended_action"] == (
         "Run make focus-price TICKER=MSFT, or run make price-refresh TICKERS=MSFT; "

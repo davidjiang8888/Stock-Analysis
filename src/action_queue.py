@@ -274,6 +274,10 @@ def _normalize_queue_command(command: str) -> str:
         )
         if tickers:
             return f"make price-refresh TICKERS={tickers}"
+    if re.fullmatch(r"python3 -m src\.universe_builder --preview --preset .+", text):
+        return "make universe-preview"
+    if re.fullmatch(r"python3 -m src\.universe_builder --preview --sources .+", text):
+        return "make universe-preview"
     return text
 
 
@@ -501,9 +505,9 @@ def _global_gap_example_command(dataset: str, command_bundles: pd.DataFrame) -> 
     if dataset in {"fundamentals", "peers", "smh_holdings", "earnings", "analyst_estimates"}:
         return _global_gap_command(dataset, command_bundles)
     if dataset == "sp500_constituents":
-        return "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50"
+        return "make universe-preview"
     if dataset == "nasdaq_symbols":
-        return "python3 -m src.universe_builder --preview --sources sp500,nasdaq,smh,holdings --max-tickers 100"
+        return "make universe-preview"
     if dataset == "universe":
         return "make universe-preview"
     return "make status"

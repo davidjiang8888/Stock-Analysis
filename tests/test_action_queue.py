@@ -726,11 +726,11 @@ def test_action_queue_uses_runbook_and_template_commands_for_global_gap_rows():
 
     sp500_row = next(row for row in rows if row.action_type == "sp500_constituents" and not row.ticker)
     assert sp500_row.focus_command == "make universe-preview"
-    assert sp500_row.example_command == "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50"
+    assert sp500_row.example_command == "make universe-preview"
 
     nasdaq_row = next(row for row in rows if row.action_type == "nasdaq_symbols" and not row.ticker)
     assert nasdaq_row.focus_command == "make universe-preview"
-    assert nasdaq_row.example_command == "python3 -m src.universe_builder --preview --sources sp500,nasdaq,smh,holdings --max-tickers 100"
+    assert nasdaq_row.example_command == "make universe-preview"
 
 
 def test_action_queue_prefers_explicit_data_gap_commands_when_present():

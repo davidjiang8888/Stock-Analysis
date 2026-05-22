@@ -127,9 +127,9 @@ def _gap_example_command(dataset: str, ticker: str) -> str:
     if dataset in {"earnings", "analyst_estimates", "smh_holdings"}:
         return "make templates"
     if dataset == "sp500_constituents":
-        return "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50"
+        return "make universe-preview"
     if dataset == "nasdaq_symbols":
-        return "python3 -m src.universe_builder --preview --sources sp500,nasdaq,smh,holdings --max-tickers 100"
+        return "make universe-preview"
     if dataset == "universe":
         return "make universe-preview"
     return "make status"
