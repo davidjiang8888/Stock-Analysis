@@ -178,6 +178,8 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50" not in readme
     assert "If you want to enrich canonical local fundamentals safely, use the staged SEC + import flow:\n\n```bash\nexport SEC_USER_AGENT=\"Your Name your.email@example.com\"\nmake sec-stage TICKERS=NVDA,MSFT\nmake imports-validate\nmake imports-preview\nmake imports-apply\nmake validate-data" in readme
     assert "make imports-apply\nmake validate-data\npython -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json" in readme
+    assert "If the current blocker path is already satisfied and you want the monthly layer directly, use:\n\n```bash\nmake monthly" in readme
+    assert "The local track-record module uses only local historical prices:\n\n```bash\nmake track-record" in readme
 
 
 def test_readme_distinguishes_verify_from_broader_daily_workflow():

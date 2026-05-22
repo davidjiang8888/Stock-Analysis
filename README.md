@@ -826,7 +826,13 @@ make status
 make dashboard-smoke
 ```
 
-If the current blocker path is already satisfied and you want the monthly layer directly, the explicit commands are:
+If the current blocker path is already satisfied and you want the monthly layer directly, use:
+
+```bash
+make monthly
+```
+
+If you explicitly want lower-level CLI control or JSON output for the monthly layer:
 
 ```bash
 python3 -m src.monthly_picks --generate --top-n 5
@@ -872,6 +878,12 @@ The output includes:
 ### Track record
 
 The local track-record module uses only local historical prices:
+
+```bash
+make track-record
+```
+
+If you explicitly want lower-level CLI control or JSON output for the track-record layer:
 
 ```bash
 python3 -m src.track_record --monthly-picks
