@@ -6622,9 +6622,10 @@ def test_data_health_fix_first_cards_use_staged_flow_fallback_when_row_copy_is_m
 
     assert cards[0][0] == "P1 fundamentals - NVDA"
     assert cards[0][2] == "make imports-validate"
-    assert "staged local workflow next" in cards[0][1].lower()
+    assert "make imports-preview" in cards[0][1].lower()
+    assert "make imports-apply" in cards[0][1].lower()
     assert cards[1][2] == "make runbook-peers"
-    assert "staged local workflow next" in cards[1][1].lower()
+    assert "ordered lane runbook" in cards[1][1].lower()
     assert cards[2][2] == "make bundle-peers"
     assert "highest-leverage local bundle first" in cards[2][1].lower()
     assert "not available" not in cards[0][1].lower()
@@ -7019,7 +7020,7 @@ def test_data_health_command_bundle_cards_use_review_fallback_when_summaries_are
     cards = dashboard.data_health_command_bundle_cards(bundles)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
@@ -7490,7 +7491,7 @@ def test_data_health_command_bundle_runbook_cards_use_runbook_fallback_when_summ
     cards = dashboard.data_health_command_bundle_runbook_cards(runbook)
 
     assert cards[0]["command"] == "make runbook-peers"
-    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 

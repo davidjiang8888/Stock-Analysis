@@ -2758,6 +2758,8 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
         command = preferred_bundle_command(row, "")
         goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
         lane_summary = command_family_fallback(command, review_path_fallback(row.get("lane")))
+        if "runbook-" in command.lower():
+            lane_summary = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
         target_file = format_missing(row.get("target_file"), "")
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
@@ -2882,6 +2884,8 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
                 steps.append(f"{step_label}: {step_command}")
         surfaced_command = first_command or fallback_first_command
         lane_summary = command_family_fallback(surfaced_command, review_path_fallback(lane))
+        if "runbook-" in surfaced_command.lower():
+            lane_summary = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
         body_summary = (
             goal_summary
             if goal_summary not in {"", "Not available"}
@@ -3432,6 +3436,17 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
             max_sentences=1,
             max_chars=150,
         )
+        lowered_command = command.lower()
+        if "runbook-" in lowered_command:
+            action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+        elif lowered_command == "make imports-validate":
+            normalized_action = action.lower()
+            if "make imports-preview" not in normalized_action or "make imports-apply" not in normalized_action:
+                action = "Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+        elif lowered_command == "make price-validate":
+            normalized_action = action.lower()
+            if "make price-preview" not in normalized_action or "make price-apply" not in normalized_action:
+                action = "Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
         if staged_follow_through:
             normalized_action = action.lower()
             if target_file == "data/imports/prices.csv":
@@ -5843,6 +5858,8 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
         scope = format_missing(row.get("scope"), "scope").replace("_", " ")
         goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
         lane_summary = command_family_fallback(command, review_path_fallback(row.get("lane")))
+        if "runbook-" in command.lower():
+            lane_summary = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
         target_file = format_missing(row.get("target_file"), "")
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
@@ -6141,6 +6158,8 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
                 steps.append(f"{step_label}: {step_command}")
         surfaced_command = first_command or fallback_first_command
         lane_summary = command_family_fallback(surfaced_command, review_path_fallback(lane))
+        if "runbook-" in surfaced_command.lower():
+            lane_summary = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
         body_summary = (
             goal_summary
             if goal_summary not in {"", "Not available"}
