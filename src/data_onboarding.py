@@ -1205,7 +1205,10 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     target_file="data/imports/prices.csv",
                     focus_command=focus_command_for_ticker("prices", row.ticker),
                     example_command=f"make price-normalize INPUT=data/raw/prices/{row.ticker}.csv TICKER={row.ticker} SOURCE=yahoo_manual",
-                    safe_next_step="Use make price-normalize for downloaded CSVs, then make price-validate and make price-preview before applying.",
+                    safe_next_step=(
+                        "Use make price-normalize for downloaded CSVs, then run make price-validate, "
+                        "make price-preview, and make price-apply before relying on the refreshed local history."
+                    ),
                 )
             )
         if row.price_history_days < 63:
@@ -1625,7 +1628,10 @@ def build_peer_mapping_queue(
         target_file = "data/imports/peers.csv"
         focus_command = focus_command_for_ticker("peers", coverage.ticker)
         example_command = "make templates"
-        safe_next_step = "Use only manually researched peers, then validate and preview before apply; do not guess peer sets."
+        safe_next_step = (
+            "Run make templates, fill only manually researched peers in data/imports/peers.csv, then run "
+            "make imports-validate, make imports-preview, and make imports-apply before make status refreshes readiness."
+        )
         if coverage.has_peer_mapping:
             recommended_action = coverage.next_best_action
             target_file = coverage.target_file

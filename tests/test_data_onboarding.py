@@ -424,6 +424,9 @@ def test_data_coverage_wizard_normalizes_legacy_operator_example_commands():
 
     assert nvda_row.example_command == "make sec-stage TICKERS=NVDA"
     assert amd_row.example_command == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+    assert "make price-validate" in amd_row.safe_next_step
+    assert "make price-preview" in amd_row.safe_next_step
+    assert "make price-apply" in amd_row.safe_next_step
 
 
 def test_data_coverage_wizard_normalizes_stale_action_text():
@@ -892,6 +895,11 @@ def test_peer_mapping_queue_prioritizes_dcf_ready_holdings(tmp_path: Path):
     assert queue["NVDA"]["focus_command"] == "make focus-fundamentals TICKER=AMD"
     assert queue["NVDA"]["target_file"] == "data/imports/fundamentals.csv"
     assert "make focus-fundamentals TICKER=AMD" in queue["NVDA"]["recommended_action"]
+    assert queue["AMD"]["focus_command"] == "make focus-peers TICKER=AMD"
+    assert "make templates" in queue["AMD"]["safe_next_step"]
+    assert "make imports-validate" in queue["AMD"]["safe_next_step"]
+    assert "make imports-preview" in queue["AMD"]["safe_next_step"]
+    assert "make imports-apply" in queue["AMD"]["safe_next_step"]
 
 
 def test_optional_context_worklist_keeps_optional_gaps_lower_priority(tmp_path: Path):
