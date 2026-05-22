@@ -2740,6 +2740,47 @@ def test_overview_deep_research_leverage_cards_use_peer_review_fallback_when_act
     assert "sell" not in rendered
 
 
+def test_overview_deep_research_leverage_cards_keep_staged_import_paths_when_commands_are_missing():
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}, {"Ticker": "TSLA"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI Semiconductors",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            }
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_leverage_cards(holdings, sec_queue, peer_queue)
+    fundamentals_card = next(card for card in cards if card["kicker"] == "DCF LEVERAGE")
+    peer_card = next(card for card in cards if card["kicker"] == "PEER LEVERAGE")
+
+    assert fundamentals_card["title"] == "Staged fundamentals import path"
+    assert fundamentals_card["command"] == "make imports-validate"
+    assert "staged fundamentals import" in fundamentals_card["body"].lower()
+    assert peer_card["title"] == "Staged peer import path"
+    assert peer_card["command"] == "make imports-validate"
+    assert "staged peer import" in peer_card["body"].lower()
+
+
 def test_overview_deep_research_priority_bridge_cards_surface_name_level_shortlist():
     holdings = pd.DataFrame([{"Ticker": "NVDA"}, {"Ticker": "TSLA"}])
     sec_queue = pd.DataFrame(
@@ -2805,8 +2846,9 @@ def test_overview_deep_research_priority_bridge_cards_keep_staged_peer_command_w
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["kicker"] == "TSLA"
+    assert cards[0]["title"] == "Advance staged peer import"
     assert cards[0]["command"] == "make imports-validate"
-    assert "unlock peer relative" in rendered
+    assert "advance staged peer import" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -2851,6 +2893,49 @@ def test_overview_deep_research_priority_bridge_cards_use_peer_review_fallback_w
     assert "review peer path." in cards[0]["body"].lower()
     assert cards[0]["command_reason"].lower() == "review peer path."
     assert "not available" not in cards[0]["body"].lower()
+
+
+def test_overview_deep_research_priority_bridge_cards_keep_staged_import_paths_when_commands_are_missing():
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}, {"Ticker": "TSLA"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI Semiconductors",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            }
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_priority_bridge_cards(holdings, sec_queue, peer_queue, limit=3)
+    fundamentals_card = next(card for card in cards if card["kicker"] == "NVDA")
+    peer_card = next(card for card in cards if card["kicker"] == "TSLA")
+
+    assert fundamentals_card["title"] == "Advance staged fundamentals import"
+    assert fundamentals_card["command"] == "make imports-validate"
+    assert "staged fundamentals import" in fundamentals_card["body"].lower()
+    assert fundamentals_card["command_reason"].lower().startswith("staged fundamentals import")
+    assert peer_card["title"] == "Advance staged peer import"
+    assert peer_card["command"] == "make imports-validate"
+    assert "staged peer import" in peer_card["body"].lower()
+    assert peer_card["command_reason"].lower().startswith("staged peer import")
 
 
 def test_overview_deep_research_priority_bridge_cards_handle_missing_inputs_gracefully():

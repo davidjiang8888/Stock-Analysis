@@ -4591,9 +4591,9 @@ def overview_deep_research_leverage_cards(
             holding_tickers = set(holdings[ticker_col].dropna().astype(str).str.upper().str.strip())
 
     def _peer_lane_title(row: pd.Series) -> str:
-        command = preferred_row_command(row, "")
-        if command == "make imports-validate" and format_missing(row.get("target_file"), "") == "data/imports/peers.csv":
+        if format_missing(row.get("target_file"), "") == "data/imports/peers.csv":
             return "Staged peer import path"
+        command = preferred_row_command(row, "")
         has_peer_mapping = format_missing(row.get("has_peer_mapping"), "").lower() in {"true", "1", "yes"}
         if has_peer_mapping:
             return "Peer support follow-through path"
@@ -4622,18 +4622,35 @@ def overview_deep_research_leverage_cards(
         card_title = title
         card_badges = [badge, f"leverage {leverage_score}"]
         lane_fallback = "make onboarding"
+        target_file = format_missing(top_row.get("target_file"), "")
+        staged_fundamentals_import = lane_name == "DCF LEVERAGE" and target_file == "data/imports/fundamentals.csv"
+        staged_peer_import = lane_name == "PEER LEVERAGE" and target_file == "data/imports/peers.csv"
         if lane_name == "DCF LEVERAGE":
-            lane_fallback = ticker_focus_command("fundamentals", top_row.get("ticker"), "make onboarding")
+            lane_fallback = "make imports-validate" if staged_fundamentals_import else ticker_focus_command("fundamentals", top_row.get("ticker"), "make onboarding")
         elif lane_name == "PEER LEVERAGE":
-            lane_fallback = ticker_focus_command("peers", top_row.get("ticker"), "make onboarding")
+            lane_fallback = "make imports-validate" if staged_peer_import else ticker_focus_command("peers", top_row.get("ticker"), "make onboarding")
         command = preferred_row_command(top_row, lane_fallback)
-        if lane_name == "PEER LEVERAGE":
+        if staged_fundamentals_import:
+            card_title = "Staged fundamentals import path"
+            card_badges = ["staged import", f"leverage {leverage_score}"]
+        elif lane_name == "PEER LEVERAGE":
             card_title = _peer_lane_title(top_row)
             if command == "make imports-validate":
                 card_badges = ["staged import", f"leverage {leverage_score}"]
             elif format_missing(top_row.get("has_peer_mapping"), "").lower() in {"true", "1", "yes"}:
                 card_badges = ["peer support data", f"leverage {leverage_score}"]
-        fallback_action = "Review fundamentals path." if lane_name == "DCF LEVERAGE" else "Review peer path."
+        if staged_fundamentals_import:
+            fallback_action = (
+                f"Top staged fundamentals import is waiting in {target_file}. "
+                "Run make imports-validate, then make imports-preview, then make imports-apply."
+            )
+        elif staged_peer_import:
+            fallback_action = (
+                f"Top staged peer import is waiting in {target_file}. "
+                "Run make imports-validate, then make imports-preview, then make imports-apply."
+            )
+        else:
+            fallback_action = "Review fundamentals path." if lane_name == "DCF LEVERAGE" else "Review peer path."
         return {
             "kicker": lane_name,
             "title": card_title,
@@ -4712,12 +4729,35 @@ def overview_deep_research_priority_bridge_cards(
             lane_fallback = "peers"
         for _, row in rows.sort_values(["priority", "is_holding", "ticker"], ascending=[True, False, True]).iterrows():
             ticker = format_missing(row.get("ticker"), "Ticker")
-            fallback_command = ticker_focus_command(lane_fallback, ticker, fallback="") if lane_fallback else ""
-            fallback_action = "Review fundamentals path." if lane == "Unlock DCF" else "Review peer path."
+            target_file = format_missing(row.get("target_file"), "")
+            staged_fundamentals_import = lane == "Unlock DCF" and target_file == "data/imports/fundamentals.csv"
+            staged_peer_import = lane == "Unlock Peer Relative" and target_file == "data/imports/peers.csv"
+            if staged_fundamentals_import or staged_peer_import:
+                fallback_command = "make imports-validate"
+            else:
+                fallback_command = ticker_focus_command(lane_fallback, ticker, fallback="") if lane_fallback else ""
+            if staged_fundamentals_import:
+                fallback_action = (
+                    f"Staged fundamentals import is waiting in {target_file}. "
+                    "Run make imports-validate, then make imports-preview, then make imports-apply."
+                )
+            elif staged_peer_import:
+                fallback_action = (
+                    f"Staged peer import is waiting in {target_file}. "
+                    "Run make imports-validate, then make imports-preview, then make imports-apply."
+                )
+            else:
+                fallback_action = "Review fundamentals path." if lane == "Unlock DCF" else "Review peer path."
             priority_rows.append(
                 {
                     "ticker": ticker,
-                    "lane": lane,
+                    "lane": (
+                        "Advance staged fundamentals import"
+                        if staged_fundamentals_import
+                        else "Advance staged peer import"
+                        if staged_peer_import
+                        else lane
+                    ),
                     "theme": format_missing(row.get("theme"), "Unclassified"),
                     "is_holding": bool(row.get("is_holding")),
                     "priority": float(row.get("priority", 999)),
