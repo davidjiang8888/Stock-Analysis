@@ -1990,7 +1990,7 @@ def test_overview_research_pressure_cards_compare_price_fundamentals_and_peers()
     assert "1 holdings-first dcf unlocks" in rendered
     assert "2 missing peer mappings" in rendered
     assert "1 mapped follow-through" in rendered
-    assert "1 staged peer import already need validate/preview/apply" in rendered
+    assert "1 staged peer import already need make imports-validate, make imports-preview, and make imports-apply" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -3315,7 +3315,9 @@ def test_stock_report_local_context_cards_show_staged_peer_import_state():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "staged" in rendered
-    assert "validate/preview/apply" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -3803,7 +3805,7 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
                 "follow_up_command": "make imports-validate",
                 "target_file": "data/imports/fundamentals.csv",
                 "why_it_matters": "This holding is the best next candidate for explicit local DCF inputs.",
-                "safe_next_step": "Keep SEC staging review-only until preview is clean.",
+                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             },
         ]
     )
@@ -4912,7 +4914,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
                 "follow_up_command": "make imports-validate",
                 "target_file": "data/imports/fundamentals.csv",
                 "why_it_matters": "These tickers are the best next candidates for explicit local DCF inputs.",
-                "safe_next_step": "Keep SEC enrichment staged and review-only until preview is clean.",
+                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             }
         ]
     )
@@ -4942,7 +4944,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
                 "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
                 "target_file": "data/imports/fundamentals.csv",
                 "why_it_matters": "These tickers are the best next candidates for explicit local DCF inputs.",
-                "safe_next_step": "Keep SEC enrichment staged and review-only until preview is clean.",
+                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
             },
             {
                 "bundle_name": "SEC Fundamentals Bundle",

@@ -842,7 +842,7 @@ def _action_for_coverage(row: TickerCoverage) -> str:
         return _price_action_text(row.ticker)
     if row.price_history_days < 21:
         return _price_action_text(row.ticker)
-    if "staged fundamentals still need validate/preview/apply" in str(row.missing_required_for_dcf or ""):
+    if "staged fundamentals still need make imports-validate, make imports-preview, and make imports-apply" in str(row.missing_required_for_dcf or ""):
         return _staged_fundamentals_action_text()
     if not row.has_fundamentals or not row.dcf_ready:
         return _fundamentals_action_text(row.ticker)
@@ -868,7 +868,7 @@ def _price_onboarding_reason(row: TickerCoverage) -> str:
 
 def _fundamentals_onboarding_reason(row: TickerCoverage) -> str:
     if _has_staged_fundamentals_follow_through(row):
-        return "Staged fundamentals are present but still need validate/preview/apply before DCF inputs are live."
+        return "Staged fundamentals are present but still need make imports-validate, make imports-preview, and make imports-apply before DCF inputs are live."
     if not row.has_fundamentals:
         return "No local fundamentals row is present for this ticker yet."
     if row.missing_required_for_dcf:
@@ -880,7 +880,7 @@ def _peer_onboarding_reason(row: TickerCoverage) -> str:
     if not row.has_peer_mapping:
         return "No local peer mapping is configured for this ticker."
     if row.focus_command == "make imports-validate":
-        return "Staged peer mappings are present but still need validate/preview/apply before peer-relative context is live."
+        return "Staged peer mappings are present but still need make imports-validate, make imports-preview, and make imports-apply before peer-relative context is live."
     if row.missing_required_for_peer_relative:
         return f"Peer-relative inputs are still incomplete: {row.missing_required_for_peer_relative}."
     return "Peer-relative inputs are still incomplete."
@@ -988,7 +988,7 @@ def build_ticker_coverage(
 
         missing_dcf = []
         if has_staged_fundamentals:
-            missing_dcf.append("staged fundamentals still need validate/preview/apply")
+            missing_dcf.append("staged fundamentals still need make imports-validate, make imports-preview, and make imports-apply")
         elif not has_fundamentals:
             missing_dcf.append("fundamentals row")
         if has_fundamentals and not has_staged_fundamentals and not (
@@ -1002,7 +1002,7 @@ def build_ticker_coverage(
         if not has_peer_mapping:
             missing_peer.append("peer mapping")
         elif has_staged_peer_mapping:
-            missing_peer.append("staged peer mappings still need validate/preview/apply")
+            missing_peer.append("staged peer mappings still need make imports-validate, make imports-preview, and make imports-apply")
         if has_peer_mapping and not peer_ready:
             if not has_staged_peer_mapping:
                 missing_peer.append("peer fundamentals or peer price/market-cap context")
@@ -2010,7 +2010,10 @@ def build_command_bundles(
                 follow_up_command="make imports-validate",
                 target_file="data/imports/fundamentals.csv",
                 why_it_matters=why_it_matters,
-                safe_next_step="Keep SEC enrichment staged and review-only until validate/preview/apply confirms the merge.",
+                safe_next_step=(
+                    "Keep SEC enrichment staged and review-only until make imports-validate, "
+                    "make imports-preview, and make imports-apply confirm the merge."
+                ),
             )
         )
 
@@ -2187,7 +2190,7 @@ def build_command_bundle_runbook(
                     (
                         "If refresh fails, normalize first CSV",
                         fallback_command,
-                        "Use the staged manual import path for the first blocked ticker, then repeat for the remaining bundle names before validate/preview/apply.",
+                        "Use the staged manual import path for the first blocked ticker, then repeat for the remaining bundle names through make price-validate, make price-preview, and make price-apply.",
                     )
                 )
             step_specs.extend(

@@ -2135,7 +2135,7 @@ def stock_report_local_context_cards(
             "kicker": "PEER MAPPING",
             "title": "Staged" if staged_peer_import else "Present" if peer_summary.get("peer_dataset_present") else "Missing",
             "body": (
-                f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} staged locally and waiting on validate/preview/apply before live peer-relative context."
+                f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} staged locally and waiting on make imports-validate, make imports-preview, and make imports-apply before live peer-relative context."
                 if staged_peer_import
                 else f"{peer_count} peer ticker{'s' if peer_count != 1 else ''} configured for local peer-relative context."
             ),
@@ -3621,7 +3621,7 @@ def empty_state_command_rows() -> list[dict[str, str]]:
         {"Scenario": "No local fundamentals for valuation", "Next step": "make status, then use make focus-fundamentals TICKER=... or make runbook-fundamentals-broader, then run make imports-validate, make imports-preview, and make imports-apply"},
         {"Scenario": "No peer-relative context", "Next step": "make status, then use make focus-peers TICKER=... or make runbook-peers-broader. If mappings are missing, run make templates, then fill data/imports/peers.csv; if mappings already exist, follow the staged peer fundamentals or price blocker the queue prints."},
         {"Scenario": "No earnings or analyst estimates", "Next step": "Leave them missing safely unless you have a trusted local source"},
-        {"Scenario": "No staged imports to review", "Next step": "Use templates or SEC/manual price staging first, then come back to preview/apply"},
+        {"Scenario": "No staged imports to review", "Next step": "Use templates or SEC/manual price staging first, then come back to make imports-preview, make imports-apply, or the staged price follow-through commands."},
     ]
 
 
@@ -4315,7 +4315,7 @@ def overview_research_pressure_cards(
                 f"{peer_summary.get('priority_1', 0)} holdings-first peer unlocks and "
                 f"{peer_summary.get('priority_2', 0)} theme-level follow-ons are visible in the local queue. "
                 + (
-                    f"{staged_peer_imports} staged peer import{'s' if staged_peer_imports != 1 else ''} already need validate/preview/apply."
+                    f"{staged_peer_imports} staged peer import{'s' if staged_peer_imports != 1 else ''} already need make imports-validate, make imports-preview, and make imports-apply."
                     if staged_peer_imports
                     else (
                         f"{peer_follow_through} mapped peer set{'s' if peer_follow_through != 1 else ''} still need peer-relative follow-through beyond the initial mapping step."

@@ -198,7 +198,9 @@ def test_staged_peer_imports_surface_validate_flow_in_coverage_and_wizard(tmp_pa
     assert nvda["example_command"] == "make imports-preview"
     assert nvda["target_file"] == "data/imports/peers.csv"
     assert "make imports-apply" in nvda["next_best_action"]
-    assert "validate/preview/apply" in nvda["missing_required_for_peer_relative"]
+    assert "make imports-validate" in nvda["missing_required_for_peer_relative"]
+    assert "make imports-preview" in nvda["missing_required_for_peer_relative"]
+    assert "make imports-apply" in nvda["missing_required_for_peer_relative"]
 
     nvda_peer_action = peer_actions["NVDA"]
     assert nvda_peer_action["focus_command"] == "make imports-validate"
@@ -282,6 +284,9 @@ def test_staged_fundamentals_surface_validate_flow_in_coverage_and_wizard(tmp_pa
     assert amd["example_command"] == "make imports-preview"
     assert amd["target_file"] == "data/imports/fundamentals.csv"
     assert "make imports-apply" in amd["next_best_action"]
+    assert "make imports-validate" in amd["missing_required_for_dcf"]
+    assert "make imports-preview" in amd["missing_required_for_dcf"]
+    assert "make imports-apply" in amd["missing_required_for_dcf"]
 
     amd_action = fundamentals_actions["AMD"]
     assert amd_action["focus_command"] == "make imports-validate"
@@ -1155,6 +1160,9 @@ def test_command_bundles_surface_holdings_first_price_and_sec_paths(tmp_path: Pa
     assert "DCF readiness" in fundamentals_bundle["goal_summary"]
     assert fundamentals_bundle["primary_command"].startswith("make sec-stage TICKERS=")
     assert fundamentals_bundle["follow_up_command"] == "make imports-validate"
+    assert "make imports-validate" in fundamentals_bundle["safe_next_step"]
+    assert "make imports-preview" in fundamentals_bundle["safe_next_step"]
+    assert "make imports-apply" in fundamentals_bundle["safe_next_step"]
     assert peer_bundle["scope"] == "holdings_first"
     assert "NVDA" in peer_bundle["tickers"]
     assert "peer-relative readiness" in peer_bundle["goal_summary"]
