@@ -96,13 +96,17 @@ def _onboarding_actions_need_refresh(frame: pd.DataFrame) -> bool:
         return True
     if "dataset" not in frame.columns or "reason" not in frame.columns:
         return True
-    core_rows = frame.loc[frame["dataset"].astype(str).isin({"prices", "fundamentals", "peers"})]
-    if core_rows.empty:
+    dataset_text = frame["dataset"].astype(str).str.strip().str.lower()
+    core_rows = frame.loc[dataset_text.isin({"prices", "fundamentals", "peers"})]
+    special_rows = frame.loc[dataset_text.eq("smh_holdings")]
+    if core_rows.empty and special_rows.empty:
         return False
-    normalized_reasons = core_rows["reason"].astype(str).str.strip().str.lower()
+    normalized_reasons = core_rows["reason"].astype(str).str.strip().str.lower() if not core_rows.empty else pd.Series(dtype=str)
     if normalized_reasons.isin(STALE_ONBOARDING_REASONS).any():
         return True
-    if "ticker" not in core_rows.columns or "recommended_action" not in core_rows.columns:
+    if "recommended_action" not in frame.columns:
+        return True
+    if not core_rows.empty and "ticker" not in core_rows.columns:
         return True
     for _, row in core_rows.iterrows():
         dataset = str(row.get("dataset", "")).strip().lower()
@@ -112,6 +116,16 @@ def _onboarding_actions_need_refresh(frame: pd.DataFrame) -> bool:
             continue
         expected_focus = focus_command_for_ticker(dataset, ticker)
         if expected_focus and expected_focus not in recommended_action:
+            return True
+    for _, row in special_rows.iterrows():
+        recommended_action = str(row.get("recommended_action", "")).strip().lower()
+        focus_command = str(row.get("focus_command", "")).strip().lower()
+        example_command = str(row.get("example_command", "")).strip().lower()
+        if "make templates" not in recommended_action:
+            return True
+        if focus_command and focus_command != "make templates":
+            return True
+        if example_command and example_command != "make templates":
             return True
     return False
 
@@ -256,8 +270,24 @@ def _global_gap_command(dataset: str, command_bundles: pd.DataFrame) -> str:
         return _bundle_runbook_shortcut(command_bundles, "fundamentals") or "make sec-preview"
     if dataset == "peers":
         return _bundle_runbook_shortcut(command_bundles, "peers") or "make templates"
+    if dataset == "smh_holdings":
+        return "make templates"
+    if dataset in {"sp500_constituents", "nasdaq_symbols", "universe"}:
+        return "make universe-preview"
     if dataset in {"earnings", "analyst_estimates"}:
         return "make templates"
+    return "make daily"
+
+
+def _global_gap_example_command(dataset: str, command_bundles: pd.DataFrame) -> str:
+    if dataset in {"fundamentals", "peers", "smh_holdings", "earnings", "analyst_estimates"}:
+        return _global_gap_command(dataset, command_bundles)
+    if dataset == "sp500_constituents":
+        return "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50"
+    if dataset == "nasdaq_symbols":
+        return "python3 -m src.universe_builder --preview --sources sp500,nasdaq,smh,holdings --max-tickers 100"
+    if dataset == "universe":
+        return "make universe-preview"
     return "make daily"
 
 
@@ -268,6 +298,8 @@ def _global_gap_source_file(dataset: str, source_file: str) -> str:
         return "data/imports/earnings.csv"
     if dataset == "analyst_estimates":
         return "data/imports/analyst_estimates.csv"
+    if dataset == "smh_holdings":
+        return "data/custom_universe.csv"
     return source_file
 
 
@@ -465,7 +497,7 @@ def build_action_queue_rows(
             if not ticker:
                 focus_command = _global_gap_command(dataset, command_bundles)
             example_command = (
-                _global_gap_command(dataset, command_bundles)
+                _global_gap_example_command(dataset, command_bundles)
                 if not ticker
                 else "make onboarding"
                 if dataset in {"fundamentals", "peers", "earnings", "analyst_estimates"}

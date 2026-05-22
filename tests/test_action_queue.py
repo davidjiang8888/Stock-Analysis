@@ -401,6 +401,30 @@ def test_action_queue_uses_runbook_and_template_commands_for_global_gap_rows():
                     "recommended_action": "Add earnings manually.",
                     "local_file": "data/earnings.csv",
                 },
+                {
+                    "dataset": "smh_holdings",
+                    "ticker": "",
+                    "status": "partial",
+                    "reason": "Remote page unavailable.",
+                    "recommended_action": "Use custom universe fallback.",
+                    "local_file": "data/custom_universe.csv or data/imports/universe.csv",
+                },
+                {
+                    "dataset": "sp500_constituents",
+                    "ticker": "",
+                    "status": "partial",
+                    "reason": "Preview before apply.",
+                    "recommended_action": "Preview S&P expansion before applying.",
+                    "local_file": "data/imports/universe.csv",
+                },
+                {
+                    "dataset": "nasdaq_symbols",
+                    "ticker": "",
+                    "status": "partial",
+                    "reason": "Broad preview only.",
+                    "recommended_action": "Preview broad universe before applying.",
+                    "local_file": "data/imports/universe.csv",
+                },
             ]
         ),
         data_quality=pd.DataFrame(),
@@ -435,6 +459,19 @@ def test_action_queue_uses_runbook_and_template_commands_for_global_gap_rows():
     assert earnings_row.focus_command == "make templates"
     assert earnings_row.example_command == "make templates"
     assert earnings_row.source_file == "data/imports/earnings.csv"
+
+    smh_row = next(row for row in rows if row.action_type == "smh_holdings" and not row.ticker)
+    assert smh_row.focus_command == "make templates"
+    assert smh_row.example_command == "make templates"
+    assert smh_row.source_file == "data/custom_universe.csv"
+
+    sp500_row = next(row for row in rows if row.action_type == "sp500_constituents" and not row.ticker)
+    assert sp500_row.focus_command == "make universe-preview"
+    assert sp500_row.example_command == "python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50"
+
+    nasdaq_row = next(row for row in rows if row.action_type == "nasdaq_symbols" and not row.ticker)
+    assert nasdaq_row.focus_command == "make universe-preview"
+    assert nasdaq_row.example_command == "python3 -m src.universe_builder --preview --sources sp500,nasdaq,smh,holdings --max-tickers 100"
 
 
 def test_action_queue_payload_refreshes_stale_data_gap_actions(tmp_path: Path):
@@ -513,6 +550,38 @@ def test_action_queue_payload_refreshes_stale_data_gap_actions(tmp_path: Path):
     assert earnings_row["recommended_action"].startswith("Run make templates")
     assert analyst_row["focus_command"] == "make templates"
     assert analyst_row["recommended_action"].startswith("Run make templates")
+
+
+def test_action_queue_payload_refreshes_stale_smh_onboarding_row(tmp_path: Path):
+    outputs_dir = tmp_path / "outputs"
+    data_dir = tmp_path / "data"
+    outputs_dir.mkdir()
+    data_dir.mkdir()
+    (tmp_path / "config.yaml").write_text("{}", encoding="utf-8")
+    pd.DataFrame(
+        [
+            {"date": "2026-01-01", "ticker": "NVDA", "adj_close": 100, "volume": 1000},
+        ]
+    ).to_csv(data_dir / "prices.csv", index=False)
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "theme": "AI", "sectoretf": "SMH", "defaultpurpose": "Momentum Leader", "marketcapbucket": "Large", "notes": "fixture"},
+        ]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    pd.DataFrame([{"ticker": "NVDA", "primarypurpose": "Momentum Leader"}]).to_csv(data_dir / "holdings.csv", index=False)
+    (outputs_dir / "data_onboarding_actions.csv").write_text(
+        "priority,ticker,dataset,status,reason,recommended_action,target_file,focus_command,example_command\n"
+        "6,,smh_holdings,manual_fallback_available,SMH remote holdings can be unavailable because of redirect/cookie/location handling.,Use data/custom_universe.csv if the SMH source is unavailable.,data/custom_universe.csv,,python3 -m src.data_onboarding --write-templates\n",
+        encoding="utf-8",
+    )
+
+    payload = build_action_queue_payload(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
+
+    smh_row = next(row for row in payload["action_queue"] if row["action_type"] == "smh_holdings")
+    assert smh_row["focus_command"] == "make templates"
+    assert smh_row["example_command"] == "make templates"
+    assert "make templates" in smh_row["recommended_action"]
+    assert "data/custom_universe.csv" in smh_row["recommended_action"]
 
 
 def test_action_queue_merges_price_status_with_price_worklist_guidance():
