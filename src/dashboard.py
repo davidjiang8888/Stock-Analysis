@@ -3929,8 +3929,9 @@ def overview_coverage_hotspot_cards(action_queue: pd.DataFrame | None, limit: in
             {
                 "kicker": "COVERAGE HOTSPOT",
                 "title": "No hotspot queue yet",
-                "body": "Generate the local action queue to see whether prices, fundamentals, peers, or optional context are creating the most research friction.",
-                "badges": ["read-only"],
+                "body": "Run make action-queue to generate the local action queue and see whether prices, fundamentals, peers, or optional context are creating the most research friction.",
+                "badges": ["research queue"],
+                "command": "make action-queue",
             }
         ]
 
@@ -3985,8 +3986,9 @@ def overview_coverage_hotspot_cards(action_queue: pd.DataFrame | None, limit: in
         {
             "kicker": "COVERAGE HOTSPOT",
             "title": "No hotspot queue yet",
-            "body": "Generate the local action queue to see whether prices, fundamentals, peers, or optional context are creating the most research friction.",
-            "badges": ["read-only"],
+            "body": "Run make action-queue to generate the local action queue and see whether prices, fundamentals, peers, or optional context are creating the most research friction.",
+            "badges": ["research queue"],
+            "command": "make action-queue",
         }
     ]
 

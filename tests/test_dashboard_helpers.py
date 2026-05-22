@@ -3066,6 +3066,8 @@ def test_overview_coverage_hotspot_cards_handle_missing_queue():
 
     assert len(cards) == 1
     assert "no hotspot queue yet" in rendered
+    assert cards[0]["command"] == "make action-queue"
+    assert "make action-queue" in rendered
     assert "prices, fundamentals, peers, or optional context" in rendered
 
 
