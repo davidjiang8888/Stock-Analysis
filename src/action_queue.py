@@ -898,6 +898,18 @@ def _print_human(payload: dict[str, Any], *, top_n: int = 20) -> None:
         print(f"  command: {row['example_command']}")
 
 
+def _filter_action_queue_payload(payload: dict[str, Any], tickers: list[str] | None) -> dict[str, Any]:
+    if not tickers:
+        return payload
+    allowed = {str(ticker).upper().strip() for ticker in tickers if str(ticker).strip()}
+    rows = [row for row in payload["action_queue"] if str(row.get("ticker", "")).upper().strip() in allowed]
+    return {
+        **payload,
+        "action_queue": rows,
+        "action_count": len(rows),
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build a unified local research action queue.")
     parser.add_argument("--check", action="store_true", help="Print the current action queue summary.")
@@ -906,8 +918,12 @@ def main() -> None:
     parser.add_argument("--project-root", help="Project root for default data/output directories.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
+    parser.add_argument("--tickers", help="Optional comma-separated ticker filter for read-only summary views.")
     parser.add_argument("--top-n", type=int, default=20, help="Number of action rows to print in human-readable mode.")
     args = parser.parse_args()
+    explicit_tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()] if args.tickers else None
+    if args.write_output and explicit_tickers:
+        parser.error("--tickers is only supported for read-only action queue views")
 
     root = resolve_project_root(args.project_root)
     data_path = resolve_data_dir(args.data_dir, root)
@@ -917,6 +933,7 @@ def main() -> None:
         if args.write_output
         else build_action_queue_payload(root, data_dir=data_path, output_dir=output_path)
     )
+    payload = _filter_action_queue_payload(payload, explicit_tickers)
 
     if args.json:
         print(json.dumps(payload, indent=2))

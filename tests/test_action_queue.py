@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.action_queue import (
+    _filter_action_queue_payload,
     _data_quality_needs_refresh,
     build_action_queue_payload,
     build_action_queue_rows,
@@ -1073,6 +1074,23 @@ def test_action_queue_write_output_creates_csv_from_existing_outputs(tmp_path: P
     assert {"priority", "action_type", "recommended_action", "reason"} <= set(frame.columns)
     assert "focus_command" in frame.columns
     assert frame.iloc[0]["action_type"] == "prices"
+
+
+def test_filter_action_queue_payload_respects_ticker_slice():
+    payload = {
+        "action_queue": [
+            {"ticker": "AMD", "action_type": "prices", "priority": 1, "recommended_action": "A", "example_command": "cmd"},
+            {"ticker": "NVDA", "action_type": "fundamentals", "priority": 2, "recommended_action": "B", "example_command": "cmd"},
+            {"ticker": "", "action_type": "coverage", "priority": 3, "recommended_action": "C", "example_command": "cmd"},
+        ],
+        "action_count": 3,
+    }
+
+    filtered = _filter_action_queue_payload(payload, ["nvda"])
+
+    assert filtered["action_count"] == 1
+    assert len(filtered["action_queue"]) == 1
+    assert filtered["action_queue"][0]["ticker"] == "NVDA"
 
 
 def test_action_queue_payload_normalizes_legacy_parse_error_reason_from_price_status(tmp_path: Path):

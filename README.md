@@ -1205,7 +1205,7 @@ make action-queue-check
 make action-queue
 ```
 
-Use `make action-queue-check` for the current read-only summary view and `make action-queue` when you explicitly want to refresh `outputs/research_action_queue.csv`. If you want a shorter triage view in the terminal, use `make action-queue-check TOP_N=10`. The queue stays read-only and research-only. It does not apply imports or write market data for you; it only ranks what to fix next and shows the relevant local file or command.
+Use `make action-queue-check` for the current read-only summary view and `make action-queue` when you explicitly want to refresh `outputs/research_action_queue.csv`. If you want a shorter triage view in the terminal, use `make action-queue-check TOP_N=10`. If you want to inspect only a smaller local ticker slice, use `make action-queue-check TICKERS=NVDA,MSFT`. The queue stays read-only and research-only. It does not apply imports or write market data for you; it only ranks what to fix next and shows the relevant local file or command.
 
 ## Data coverage wizard
 

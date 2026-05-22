@@ -25,7 +25,7 @@ help:
 	@echo "  make track-record     Generate local monthly picks track record"
 	@echo "  make research-health-check [TOP_N=10] Print the current read-only research health summary"
 	@echo "  make research-health  Generate data quality, liquidity, and correlation outputs"
-	@echo "  make action-queue-check [TOP_N=10] Print the current read-only action queue summary"
+	@echo "  make action-queue-check [TICKERS=NVDA,MSFT] [TOP_N=10] Print the current read-only action queue summary"
 	@echo "  make action-queue     Generate prioritized data/research actions"
 	@echo ""
 	@echo "Data onboarding:"
@@ -128,7 +128,7 @@ action-queue:
 	python3 -m src.action_queue --write-output
 
 action-queue-check:
-	python3 -m src.action_queue --check --top-n $(or $(TOP_N),20)
+	python3 -m src.action_queue --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)
 
 verify:
 	$(MAKE) test
