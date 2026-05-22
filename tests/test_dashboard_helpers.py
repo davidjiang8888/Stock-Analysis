@@ -5330,6 +5330,24 @@ def test_data_health_fix_first_cards_use_staged_flow_fallback_when_row_copy_is_m
                 "recommended_action": "",
                 "focus_command": "make imports-validate",
                 "example_command": "",
+            },
+            {
+                "priority": 2,
+                "dataset": "peers",
+                "ticker": "TSLA",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make runbook-peers",
+                "example_command": "",
+            },
+            {
+                "priority": 3,
+                "dataset": "peers",
+                "ticker": "",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make bundle-peers",
+                "example_command": "",
             }
         ]
     )
@@ -5339,7 +5357,12 @@ def test_data_health_fix_first_cards_use_staged_flow_fallback_when_row_copy_is_m
     assert cards[0][0] == "P1 fundamentals - NVDA"
     assert cards[0][2] == "make imports-validate"
     assert "staged local workflow next" in cards[0][1].lower()
+    assert cards[1][2] == "make runbook-peers"
+    assert "staged local workflow next" in cards[1][1].lower()
+    assert cards[2][2] == "make bundle-peers"
+    assert "highest-leverage local bundle first" in cards[2][1].lower()
     assert "not available" not in cards[0][1].lower()
+    assert "not available" not in " ".join(card[1] for card in cards).lower()
 
 
 def test_data_health_action_path_cards_surface_best_and_lane_commands():
