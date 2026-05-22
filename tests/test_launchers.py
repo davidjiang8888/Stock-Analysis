@@ -133,6 +133,10 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
         "make imports-preview",
         "make imports-apply",
         "make data-sources-check",
+        "make coverage",
+        "make data-wizard",
+        "make command-bundles",
+        "make templates",
         "make universe-preview",
         "make universe-apply",
         "make price-refresh",
@@ -140,6 +144,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
         assert phrase in readme
 
     assert "Run a local-only source check:\n\n```bash\nmake data-sources-check" in readme
+    assert "```bash\nmake coverage\nmake data-wizard\nmake command-bundles\nmake templates" in readme
     assert "Useful flags:\n\n```bash\nmake price-refresh\nmake price-refresh TICKERS=NVDA,MSFT,AVGO" in readme
 
 

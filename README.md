@@ -250,22 +250,21 @@ Important source boundaries:
 Use the onboarding workflow when the dashboard shows sparse coverage or when you want a prioritized checklist for improving the local CSV dataset. It inspects local files only by default and does not fetch, guess, or fabricate unavailable data.
 
 ```bash
-python3 -m src.data_onboarding --coverage
+make coverage
+make data-wizard
+make command-bundles
+make templates
+```
+
+Use the raw CLI only when you want a narrower targeted coverage pass or to force a write outside the broader operator workflow:
+
+```bash
 python3 -m src.data_onboarding --coverage --tickers NVDA,MSFT,AMD,AVGO
 python3 -m src.data_onboarding --write-output
 python3 -m src.data_onboarding --write-templates
 ```
 
-Convenience targets:
-
-```bash
-make coverage
-make command-bundles
-make templates
-make status
-```
-
-Use `make onboarding` after you have changed local imports and want to refresh the generated onboarding, coverage, bundle, and action-queue outputs in one pass.
+`make coverage` gives the read-only ticker coverage view, `make data-wizard` renders the operator-focused next-step ladder, `make command-bundles` summarizes the current bundle shortcuts, and `make templates` writes the local CSV templates. Use `make onboarding` after you have changed local imports and want to refresh the generated onboarding, coverage, bundle, and action-queue outputs in one pass.
 
 `--write-output` creates:
 
