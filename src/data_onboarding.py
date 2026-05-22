@@ -145,6 +145,7 @@ TICKER_UNLOCK_LADDER_COLUMNS = [
     "next_unlock_goal",
     "recommended_action",
     "target_file",
+    "focus_command",
     "example_command",
     "safe_next_step",
 ]
@@ -498,6 +499,7 @@ class TickerUnlockLadderRow:
     next_unlock_goal: str
     recommended_action: str
     target_file: str
+    focus_command: str
     example_command: str
     safe_next_step: str
 
@@ -1371,28 +1373,39 @@ def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[Tick
         if not coverage.usable_for_momentum:
             current_unlock_stage = "prices"
             next_unlock_goal = "Unlock Monthly Picks"
-            recommended_action = "Add more verified local price history before working on deeper research context."
+            recommended_action = _price_action_text(coverage.ticker)
             target_file = "data/imports/prices.csv"
-            example_command = f"python3 -m src.data_update --tickers {coverage.ticker}"
+            focus_command = focus_command_for_ticker("prices", coverage.ticker)
+            example_command = f"make price-normalize INPUT=data/raw/prices/{coverage.ticker}.csv TICKER={coverage.ticker} SOURCE=yahoo_manual"
             safe_next_step = "Use data/raw/prices/ plus price normalize/validate/preview/apply when the free source is unreliable."
         elif not coverage.dcf_ready:
             current_unlock_stage = "fundamentals"
             next_unlock_goal = "Unlock DCF"
-            recommended_action = "Stage or add verified fundamentals so DCF inputs are explicit and reviewable."
+            recommended_action = _fundamentals_action_text(coverage.ticker)
             target_file = "data/imports/fundamentals.csv"
+            focus_command = focus_command_for_ticker("fundamentals", coverage.ticker)
             example_command = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {coverage.ticker}"
             safe_next_step = "Review staged SEC-derived fundamentals before import merge and keep unavailable fields blank."
         elif not coverage.peer_ready:
             current_unlock_stage = "peers"
             next_unlock_goal = "Unlock Peer Relative"
-            recommended_action = "Add manual peer mappings and make sure peer price/fundamental context exists locally."
+            recommended_action = _peer_action_text(coverage.ticker, missing_mapping=not coverage.has_peer_mapping)
             target_file = "data/imports/peers.csv"
-            example_command = "python3 -m src.data_onboarding --write-templates"
+            focus_command = focus_command_for_ticker("peers", coverage.ticker)
+            example_command = "make templates"
             safe_next_step = "Use manually researched peers only; missing peer context should stay explicit."
         elif not coverage.has_earnings or not coverage.has_analyst_estimates:
             current_unlock_stage = "optional_context"
             next_unlock_goal = "Add Optional Context"
-            recommended_action = "Add earnings or analyst-estimate rows only if you have trusted local sources."
+            if not coverage.has_earnings and coverage.has_analyst_estimates:
+                recommended_action = _earnings_action_text()
+            elif coverage.has_earnings and not coverage.has_analyst_estimates:
+                recommended_action = _analyst_estimates_action_text()
+            else:
+                recommended_action = (
+                    "Run make templates, then fill data/imports/earnings.csv and data/imports/analyst_estimates.csv "
+                    "manually only from trusted local sources."
+                )
             target_file = (
                 "data/imports/earnings.csv"
                 if not coverage.has_earnings and coverage.has_analyst_estimates
@@ -1400,13 +1413,15 @@ def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[Tick
                 if coverage.has_earnings and not coverage.has_analyst_estimates
                 else "data/imports/earnings.csv and data/imports/analyst_estimates.csv"
             )
-            example_command = "python3 -m src.data_onboarding --write-templates"
+            focus_command = "make templates"
+            example_command = "make templates"
             safe_next_step = "It is safe to leave optional context missing until you have verified local data."
         else:
             current_unlock_stage = "ready"
             next_unlock_goal = "Maintain Coverage"
             recommended_action = "Core local research coverage is already in place for this ticker."
             target_file = ""
+            focus_command = ""
             example_command = ""
             safe_next_step = "Refresh prices and staged fundamentals only as real local data changes."
 
@@ -1422,6 +1437,7 @@ def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[Tick
                 next_unlock_goal=next_unlock_goal,
                 recommended_action=recommended_action,
                 target_file=target_file,
+                focus_command=focus_command,
                 example_command=example_command,
                 safe_next_step=safe_next_step,
             )

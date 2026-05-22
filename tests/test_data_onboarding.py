@@ -545,6 +545,7 @@ def test_data_onboarding_cli_unlock_ladder_json(tmp_path: Path, capsys):
     assert "ticker_unlock_ladder" in payload
     assert payload["ticker_unlock_ladder"][0]["ticker"] == "AMD"
     assert "current_unlock_stage" in payload["ticker_unlock_ladder"][0]
+    assert "focus_command" in payload["ticker_unlock_ladder"][0]
 
 
 def test_ticker_unlock_ladder_orders_price_then_peer_then_optional(tmp_path: Path):
@@ -555,8 +556,14 @@ def test_ticker_unlock_ladder_orders_price_then_peer_then_optional(tmp_path: Pat
 
     assert ladder["AMD"]["current_unlock_stage"] == "prices"
     assert ladder["AMD"]["next_unlock_goal"] == "Unlock Monthly Picks"
+    assert ladder["AMD"]["focus_command"] == "make focus-price TICKER=AMD"
+    assert "make focus-price TICKER=AMD" in ladder["AMD"]["recommended_action"]
+    assert ladder["AMD"]["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
     assert ladder["NVDA"]["current_unlock_stage"] == "peers"
     assert ladder["NVDA"]["next_unlock_goal"] == "Unlock Peer Relative"
+    assert ladder["NVDA"]["focus_command"] == "make focus-peers TICKER=NVDA"
+    assert "make focus-peers TICKER=NVDA" in ladder["NVDA"]["recommended_action"]
+    assert ladder["NVDA"]["example_command"] == "make templates"
 
 
 def test_data_onboarding_cli_unlock_summary_json(tmp_path: Path, capsys):
