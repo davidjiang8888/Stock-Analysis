@@ -232,10 +232,10 @@ Run a local-only source check:
 ```bash
 make data-sources-check
 python3 -m src.data_sources --check --json
-python3 -m src.data_sources --write-output
+make data-sources
 ```
 
-Use `make data-sources-check` for the standard read-only operator path. Keep the raw `--json` / `--write-output` CLI forms for machine-readable inspection or when you explicitly want to write refreshed diagnostics without running the broader workflow.
+Use `make data-sources-check` for the standard read-only operator path and `make data-sources` when you explicitly want to refresh just the source diagnostics without running the broader onboarding workflow. Keep the raw `--json` / `--write-output` CLI forms for machine-readable inspection or lower-level scripting control.
 
 `--write-output` creates:
 

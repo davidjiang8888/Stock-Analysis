@@ -15,6 +15,7 @@ def test_makefile_contains_convenience_targets():
         "track-record",
         "validate-data",
         "data-sources-check",
+        "data-sources",
         "research-health",
         "action-queue",
         "verify",
@@ -85,6 +86,7 @@ def test_makefile_help_documents_key_workflows():
         "make daily",
         "make dashboard-smoke",
         "make data-sources-check",
+        "make data-sources",
         "make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json]",
         "make local-tickers",
         "make data-wizard",
@@ -161,6 +163,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
         assert phrase in readme
 
     assert "Run a local-only source check:\n\n```bash\nmake data-sources-check" in readme
+    assert "make data-sources" in readme
     assert "If you intentionally want lower-level CLI control against a fixture or alternate local dataset, the raw module commands remain available:\n\n```bash\npython3 -m src.stock_report --project-root \"/Users/yjian070/Documents/New project\" --validate-local-data" in readme
     assert "```bash\nmake validate-data\nmake pipeline\nmake monthly" in readme
     assert "## Run the dashboard\n\n```bash\nmake dashboard" in readme
@@ -264,6 +267,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),)" in makefile
     assert "local-tickers:\n\tpython3 -m src.stock_report --list-local-tickers" in makefile
     assert "import-staging:\n\tpython3 -m src.stock_report --write-import-staging" in makefile
+    assert "data-sources:\n\tpython3 -m src.data_sources --write-output" in makefile
     assert "verify:\n\t$(MAKE) test\n\t$(MAKE) pipeline\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
     assert "daily:\n\t$(MAKE) price-refresh\n\t$(MAKE) pipeline\n\t$(MAKE) monthly\n\t$(MAKE) track-record\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
     assert "verify:\n\tpython3 -m pytest tests -q" not in makefile
