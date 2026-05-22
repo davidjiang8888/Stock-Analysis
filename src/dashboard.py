@@ -3072,8 +3072,8 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
         return [
             (
                 "Generate onboarding actions",
-                "Start with make status, then follow the printed focus or runbook path to identify price, fundamentals, peer, earnings, and estimate gaps.",
-                "make status",
+                "Start with make onboarding so the local action set refreshes before you follow the printed focus or runbook path for prices, fundamentals, peers, earnings, and estimate gaps.",
+                "make onboarding",
                 "warning",
             )
         ]
