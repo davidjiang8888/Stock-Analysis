@@ -115,7 +115,7 @@ def _gap_example_command(dataset: str, ticker: str) -> str:
     if dataset == "prices" and ticker:
         return f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
     if dataset == "fundamentals" and ticker:
-        return f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+        return f"make sec-stage TICKERS={ticker}"
     if dataset == "peers" and ticker:
         return "make templates"
     if dataset == "prices":
@@ -167,8 +167,7 @@ def _ticker_gap_recommended_action(dataset: str, ticker: str) -> str:
     if dataset == "fundamentals" and ticker:
         return (
             f"Run make focus-fundamentals TICKER={ticker}, or stage explicit local "
-            f"fundamentals with python3 -m src.stock_report --sec-stage-fundamentals "
-            f"--tickers {ticker}."
+            f"fundamentals with make sec-stage TICKERS={ticker}."
         )
     return ""
 

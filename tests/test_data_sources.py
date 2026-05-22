@@ -136,11 +136,10 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     fundamentals_gap = next(gap for gap in payload["data_gaps"] if gap["dataset"] == "fundamentals" and gap["ticker"] == "MSFT")
     assert fundamentals_gap["recommended_action"] == (
         "Run make focus-fundamentals TICKER=MSFT, or stage explicit local "
-        "fundamentals with python3 -m src.stock_report --sec-stage-fundamentals "
-        "--tickers MSFT."
+        "fundamentals with make sec-stage TICKERS=MSFT."
     )
     assert fundamentals_gap["focus_command"] == "make focus-fundamentals TICKER=MSFT"
-    assert fundamentals_gap["example_command"] == "python3 -m src.stock_report --sec-stage-fundamentals --tickers MSFT"
+    assert fundamentals_gap["example_command"] == "make sec-stage TICKERS=MSFT"
     assert fundamentals_gap["target_file"] == "data/imports/fundamentals.csv"
 
 
