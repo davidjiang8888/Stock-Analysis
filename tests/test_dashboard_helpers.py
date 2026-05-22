@@ -3477,6 +3477,27 @@ def test_overview_best_current_name_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_overview_best_current_name_cards_use_actionable_empty_state_when_no_names_are_ready():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "TSLA", "usable_for_momentum": False, "dcf_ready": False, "peer_ready": False},
+            {"ticker": "AMD", "usable_for_momentum": False, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+
+    cards = dashboard.overview_best_current_name_cards(coverage, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 1
+    assert cards[0]["kicker"] == "READY NAME STATUS"
+    assert cards[0]["title"] == "No current ready names yet"
+    assert cards[0]["command"] == "make onboarding"
+    assert "refresh local coverage" in rendered
+    assert "price-ready names" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_ready_name_handoff_cards_route_stock_report_names_to_verify_then_tab():
     coverage = pd.DataFrame(
         [

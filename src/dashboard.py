@@ -5165,8 +5165,9 @@ def overview_best_current_name_cards(
             {
                 "kicker": "READY NAME STATUS",
                 "title": "No current ready names yet",
-                "body": "Price-ready names will appear here once local momentum coverage is usable.",
+                "body": "Run make onboarding to refresh local coverage and unblock the next price-ready names before treating any name as ready.",
                 "badges": ["needs prices"],
+                "command": "make onboarding",
             }
         ]
 
