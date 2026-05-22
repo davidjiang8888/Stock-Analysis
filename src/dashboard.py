@@ -5297,7 +5297,7 @@ def overview_workflow_path_cards(
             return cards
 
     commands = [row.get("Command", "") for row in command_rows]
-    first_command = "make status"
+    first_command = "make status-check TOP_N=5"
     if action_queue is not None and not action_queue.empty:
         top_signal = top_priority_signals(action_queue, limit=1)
         if top_signal:
@@ -5361,6 +5361,8 @@ def overview_workflow_reason_card(
         summary = project_status_payload.get("summary", {})
         data_gaps = int(summary.get("data_gaps") or 0)
         critical_actions = int(summary.get("critical_actions") or 0)
+        if first_command == "make status":
+            first_command = "make status-check TOP_N=5"
         reason = (
             f"{critical_actions} critical actions and {data_gaps} visible data gaps are in the current read-only status snapshot, "
             "so the workflow starts with local coverage before interpretation."
