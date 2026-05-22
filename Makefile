@@ -27,7 +27,8 @@ help:
 	@echo ""
 	@echo "Data onboarding:"
 	@echo "  make onboarding       Write source status, coverage, research-health, action queue, and project status outputs"
-	@echo "  make data-wizard      Show prioritized data coverage unlocks"
+	@echo "  make coverage [TICKERS=NVDA,MSFT] Show ticker-level local data coverage"
+	@echo "  make data-wizard [TICKERS=NVDA,MSFT] Show prioritized data coverage unlocks"
 	@echo "  make unlock-ladder    Show one next-step unlock stage per ticker"
 	@echo "  make unlock-summary   Show grouped unlock priorities by holdings, theme, and sector ETF"
 	@echo "  make command-bundles Show holdings-first local command bundles for prices, SEC, and peers"
@@ -126,10 +127,10 @@ validate-all:
 	scripts/validate_all.sh
 
 coverage:
-	python3 -m src.data_onboarding --coverage
+	python3 -m src.data_onboarding --coverage $(if $(TICKERS),--tickers $(TICKERS),)
 
 data-wizard:
-	python3 -m src.data_onboarding --wizard
+	python3 -m src.data_onboarding --wizard $(if $(TICKERS),--tickers $(TICKERS),)
 
 unlock-ladder:
 	python3 -m src.data_onboarding --unlock-ladder

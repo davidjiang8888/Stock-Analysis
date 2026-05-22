@@ -264,10 +264,16 @@ make command-bundles
 make templates
 ```
 
-Use the raw CLI only when you want a narrower targeted coverage pass or to force a write outside the broader operator workflow:
+If you want a narrower targeted coverage pass without leaving the make-based operator path, use:
 
 ```bash
-python3 -m src.data_onboarding --coverage --tickers NVDA,MSFT,AMD,AVGO
+make coverage TICKERS=NVDA,MSFT,AMD,AVGO
+make data-wizard TICKERS=NVDA,MSFT,AMD,AVGO
+```
+
+Keep the raw CLI only when you explicitly want the lower-level writer paths outside the broader operator workflow:
+
+```bash
 python3 -m src.data_onboarding --write-output
 python3 -m src.data_onboarding --write-templates
 ```

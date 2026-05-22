@@ -89,7 +89,8 @@ def test_makefile_help_documents_key_workflows():
         "make data-sources",
         "make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json]",
         "make local-tickers",
-        "make data-wizard",
+        "make coverage [TICKERS=NVDA,MSFT]",
+        "make data-wizard [TICKERS=NVDA,MSFT]",
         "make unlock-ladder",
         "make unlock-summary",
         "make command-bundles",
@@ -168,6 +169,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "```bash\nmake validate-data\nmake pipeline\nmake monthly" in readme
     assert "## Run the dashboard\n\n```bash\nmake dashboard" in readme
     assert "```bash\nmake coverage\nmake data-wizard\nmake command-bundles\nmake templates" in readme
+    assert "If you want a narrower targeted coverage pass without leaving the make-based operator path, use:\n\n```bash\nmake coverage TICKERS=NVDA,MSFT,AMD,AVGO\nmake data-wizard TICKERS=NVDA,MSFT,AMD,AVGO" in readme
     assert "Generate it with:\n\n```bash\nmake status\nmake data-wizard" in readme
     assert "If you want one row per ticker instead of several queue outputs, use:\n\n```bash\nmake unlock-ladder" in readme
     assert "If you want to see where local data gaps are most concentrated by holdings, theme, or sector ETF, use:\n\n```bash\nmake unlock-summary" in readme
@@ -264,6 +266,8 @@ def test_daily_launcher_reuses_current_make_targets():
 def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
+    assert "coverage:\n\tpython3 -m src.data_onboarding --coverage $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "data-wizard:\n\tpython3 -m src.data_onboarding --wizard $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),)" in makefile
     assert "local-tickers:\n\tpython3 -m src.stock_report --list-local-tickers" in makefile
     assert "import-staging:\n\tpython3 -m src.stock_report --write-import-staging" in makefile
