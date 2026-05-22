@@ -1650,6 +1650,51 @@ def test_top_priority_signals_use_lane_front_doors_when_commands_are_missing():
     assert signals[1]["command"] == "make action-queue-check TOP_N=10"
 
 
+def test_operator_summary_helpers_normalize_legacy_status_copy():
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "fundamentals",
+                "ticker": "NVDA",
+                "reason": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals.",
+                "recommended_action": "",
+            }
+        ]
+    )
+    payload = {
+        "top_onboarding_actions": [
+            {
+                "priority": 1,
+                "dataset": "fundamentals",
+                "ticker": "NVDA",
+                "reason": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals.",
+                "recommended_action": "",
+            }
+        ]
+    }
+    actions = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "dataset": "fundamentals",
+                "ticker": "NVDA",
+                "reason": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals.",
+                "recommended_action": "",
+            }
+        ]
+    )
+
+    signals = dashboard.top_priority_signals(queue, limit=1)
+    status_actions = dashboard.project_status_action_cards(payload)
+    action_cards = dashboard.data_health_action_path_cards(actions, queue)
+
+    assert "make status-check TOP_N=5" in signals[0]["body"]
+    assert "make status-check TOP_N=5" in status_actions[0][1]
+    assert "make status-check TOP_N=5" in action_cards[1]["body"]
+
+
 def test_workflow_health_score_reflects_action_pressure():
     strong_score, strong_label = dashboard.workflow_health_score(
         {"critical": 0, "high": 0, "medium": 1},

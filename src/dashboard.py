@@ -2569,8 +2569,8 @@ def data_health_action_path_cards(
     action_queue_frame: pd.DataFrame | None,
 ) -> list[dict[str, object]]:
     def _action_path_body(row: pd.Series) -> str:
-        reason = format_missing(row.get("reason"), "")
-        recommended_action = format_missing(row.get("recommended_action"), "")
+        reason = normalize_operator_copy(row.get("reason"))
+        recommended_action = normalize_operator_copy(row.get("recommended_action"))
         body_source = recommended_action
         if reason and reason != "Not available":
             body_source = f"{reason} {recommended_action}".strip() if recommended_action and recommended_action != reason else reason
@@ -3814,8 +3814,8 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
         priority = int(row.get("priority") or 999)
         dataset = format_missing(row.get("dataset"))
         ticker = format_missing(row.get("ticker"), fallback="")
-        reason = format_missing(row.get("reason"), fallback="Local data coverage needs attention.")
-        recommended_action = format_missing(row.get("recommended_action"), "")
+        reason = normalize_operator_copy(row.get("reason") or "Local data coverage needs attention.")
+        recommended_action = normalize_operator_copy(row.get("recommended_action"))
         body = recommended_action
         if reason and reason != "Not available":
             body = f"{reason} {recommended_action}".strip() if recommended_action and recommended_action != reason else reason
@@ -5996,8 +5996,8 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
     rows = []
     ordered = action_queue.sort_values(["priority", "ticker", "action_type"], na_position="last").head(limit)
     for _, row in ordered.iterrows():
-        reason = format_missing(row.get("reason"), "")
-        recommended_action = format_missing(row.get("recommended_action"), "")
+        reason = normalize_operator_copy(row.get("reason"))
+        recommended_action = normalize_operator_copy(row.get("recommended_action"))
         body_source = reason
         if recommended_action and recommended_action != reason:
             body_source = f"{reason} {recommended_action}".strip() if reason else recommended_action
