@@ -651,6 +651,31 @@ def _action_for_coverage(row: TickerCoverage) -> str:
     return "Coverage is sufficient for the current CSV-first research workflow."
 
 
+def _price_onboarding_reason(row: TickerCoverage) -> str:
+    if not row.has_prices:
+        return "No verified local price history is present for this ticker yet."
+    return (
+        f"Only {row.price_history_days} verified local price rows are present; "
+        "at least 21 are needed for stable momentum and monthly-picks context."
+    )
+
+
+def _fundamentals_onboarding_reason(row: TickerCoverage) -> str:
+    if not row.has_fundamentals:
+        return "No local fundamentals row is present for this ticker yet."
+    if row.missing_required_for_dcf:
+        return f"DCF inputs are still incomplete: {row.missing_required_for_dcf}."
+    return "DCF inputs are still incomplete."
+
+
+def _peer_onboarding_reason(row: TickerCoverage) -> str:
+    if not row.has_peer_mapping:
+        return "No local peer mapping is configured for this ticker."
+    if row.missing_required_for_peer_relative:
+        return f"Peer-relative inputs are still incomplete: {row.missing_required_for_peer_relative}."
+    return "Peer-relative inputs are still incomplete."
+
+
 def _ticker_context_lookup(
     project_root: Path | str | None = None,
     *,
@@ -792,7 +817,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     ticker=row.ticker,
                     dataset="prices",
                     status="missing" if not row.has_prices else "insufficient_history",
-                    reason=row.missing_required_for_momentum or "Price coverage is too sparse for stable momentum research.",
+                    reason=_price_onboarding_reason(row),
                     recommended_action=(
                         f"Run python3 -m src.data_update --tickers {row.ticker}, or add verified rows to "
                         "data/imports/prices.csv and run validate/preview/apply."
@@ -809,7 +834,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     ticker=row.ticker,
                     dataset="fundamentals",
                     status="missing_or_incomplete",
-                    reason=row.missing_required_for_dcf or "DCF inputs are incomplete.",
+                    reason=_fundamentals_onboarding_reason(row),
                     recommended_action="Run SEC staging for fundamentals, then validate and preview before applying.",
                     target_file="data/imports/fundamentals.csv",
                     focus_command=focus_command_for_ticker("fundamentals", row.ticker),
@@ -837,7 +862,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     ticker=row.ticker,
                     dataset="peers",
                     status="partial",
-                    reason=row.missing_required_for_peer_relative or "Peer mappings exist but peer valuation inputs are incomplete.",
+                    reason=_peer_onboarding_reason(row),
                     recommended_action="Add local fundamentals and prices or market-cap context for mapped peers.",
                     target_file="data/fundamentals.csv, data/prices.csv",
                     focus_command=focus_command_for_ticker("peers", row.ticker),

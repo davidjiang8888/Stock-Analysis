@@ -714,12 +714,26 @@ The dashboard and CLI are research-only surfaces. They do not execute trades, ro
 The easiest path is now:
 
 ```bash
-make onboarding
-make daily
+make status
+# then run the first focus or bundle shortcut that status prints
+make verify
 make dashboard
 ```
 
-`make onboarding` refreshes local source/gap reports, ticker-level coverage actions, and the unified action queue. `make daily` runs the local price updater, report generator, monthly picks, track record, local-data validation, and the action queue in order. `make dashboard` opens the Streamlit dashboard from the repo root.
+`make status` is now the read-only front door. It prints the current top onboarding blockers plus the next structured commands, usually:
+
+- one ticker-level `make focus-* TICKER=...` shortcut
+- one bundle/runbook shortcut like `make runbook-prices` or `make runbook-prices-broader`
+- `make verify`
+- `make dashboard-smoke`
+
+After the blocker work is done, `make dashboard` opens the Streamlit dashboard from the repo root. If you want the broader end-to-end pipeline after the blocker pass, run:
+
+```bash
+make daily
+```
+
+`make daily` runs the local price updater, report generator, monthly picks, track record, local-data validation, and the action queue in order.
 
 If price history is the main blocker, run:
 

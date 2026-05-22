@@ -12,6 +12,7 @@ help:
 	@echo "  make daily            Refresh local workflow outputs end-to-end"
 	@echo "  make dashboard        Open the Streamlit dashboard"
 	@echo "  make dashboard-smoke  Start dashboard headless and check Streamlit health"
+	@echo "  make status now prints the top focus shortcut, top bundle/runbook shortcut, then verify/smoke steps"
 	@echo ""
 	@echo "Research outputs:"
 	@echo "  make monthly          Generate monthly research candidates"
