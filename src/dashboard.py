@@ -4363,11 +4363,19 @@ def holdings_deep_research_cards(
                 ticker = format_missing(row.get("ticker"), "Holding")
                 target_file = format_missing(row.get("target_file"), "")
                 staged_import = target_file == "data/imports/fundamentals.csv"
+                command = preferred_row_command(
+                    row,
+                    (
+                        "make imports-validate"
+                        if staged_import
+                        else ticker_focus_command("fundamentals", row.get("ticker"), "make onboarding")
+                    ),
+                )
                 fallback_action = (
                     f"{ticker} already has staged fundamentals in {target_file}. "
                     "Run make imports-validate, then make imports-preview, then make imports-apply before trusting DCF coverage."
                     if staged_import
-                    else "Review fundamentals path."
+                    else command_family_fallback(command, "Review fundamentals path.")
                 )
                 cards.append(
                     {
@@ -4379,14 +4387,7 @@ def holdings_deep_research_cards(
                             f"{compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)}"
                         ),
                         "badges": ["fundamentals", format_missing(row.get("theme"), "theme")],
-                        "command": preferred_row_command(
-                            row,
-                            (
-                                "make imports-validate"
-                                if staged_import
-                                else ticker_focus_command("fundamentals", row.get("ticker"), "make onboarding")
-                            ),
-                        ),
+                        "command": command,
                     }
                 )
 
@@ -4400,11 +4401,19 @@ def holdings_deep_research_cards(
                 ticker = format_missing(row.get("ticker"), "Holding")
                 target_file = format_missing(row.get("target_file"), "")
                 staged_import = target_file == "data/imports/peers.csv"
+                command = preferred_row_command(
+                    row,
+                    (
+                        "make imports-validate"
+                        if staged_import
+                        else ticker_focus_command("peers", row.get("ticker"), "make onboarding")
+                    ),
+                )
                 fallback_action = (
                     f"{ticker} already has staged peer mappings in {target_file}. "
                     "Run make imports-validate, then make imports-preview, then make imports-apply before trusting peer-relative context."
                     if staged_import
-                    else "Review peer path."
+                    else command_family_fallback(command, "Review peer path.")
                 )
                 cards.append(
                     {
@@ -4416,14 +4425,7 @@ def holdings_deep_research_cards(
                             f"{compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)}"
                         ),
                         "badges": ["peers", format_missing(row.get("theme"), "theme")],
-                        "command": preferred_row_command(
-                            row,
-                            (
-                                "make imports-validate"
-                                if staged_import
-                                else ticker_focus_command("peers", row.get("ticker"), "make onboarding")
-                            ),
-                        ),
+                        "command": command,
                     }
                 )
 
@@ -4554,11 +4556,22 @@ def theme_deep_research_cards(
                 (dataset_badge == "fundamentals" and target_file == "data/imports/fundamentals.csv")
                 or (dataset_badge == "peers" and target_file == "data/imports/peers.csv")
             )
+            command = preferred_row_command(
+                top_row,
+                (
+                    "make imports-validate"
+                    if staged_import
+                    else ticker_focus_command(dataset_badge, top_row.get("ticker"), "make onboarding")
+                ),
+            )
             fallback_action = (
                 f"Top staged {dataset_badge.lower()} import is waiting in {target_file}. "
                 "Run make imports-validate, then make imports-preview, then make imports-apply."
                 if staged_import
-                else ("Review fundamentals path." if dataset_badge == "fundamentals" else "Review peer path.")
+                else command_family_fallback(
+                    command,
+                    "Review fundamentals path." if dataset_badge == "fundamentals" else "Review peer path.",
+                )
             )
             rows.append(
                 {
@@ -4576,14 +4589,7 @@ def theme_deep_research_cards(
                         f"Next action: {compact_reason(top_row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)}"
                     ),
                     "badges": [dataset_badge, f"P{format_missing(top_row.get('priority'), '-')}"],
-                    "command": preferred_row_command(
-                        top_row,
-                        (
-                            "make imports-validate"
-                            if staged_import
-                            else ticker_focus_command(dataset_badge, top_row.get("ticker"), "make onboarding")
-                        ),
-                    ),
+                    "command": command,
                     "sort_priority": float(top_row.get("priority", 999)),
                     "holdings_count": int(theme_frame["is_holding"].sum()),
                 }
@@ -4769,7 +4775,10 @@ def overview_deep_research_leverage_cards(
                 "Run make imports-validate, then make imports-preview, then make imports-apply."
             )
         else:
-            fallback_action = "Review fundamentals path." if lane_name == "DCF LEVERAGE" else "Review peer path."
+            fallback_action = command_family_fallback(
+                command,
+                "Review fundamentals path." if lane_name == "DCF LEVERAGE" else "Review peer path.",
+            )
         return {
             "kicker": lane_name,
             "title": card_title,
@@ -4855,6 +4864,7 @@ def overview_deep_research_priority_bridge_cards(
                 fallback_command = "make imports-validate"
             else:
                 fallback_command = ticker_focus_command(lane_fallback, ticker, fallback="") if lane_fallback else ""
+            command = preferred_row_command(row, fallback_command or "Not available")
             if staged_fundamentals_import:
                 fallback_action = (
                     "Run make imports-validate, then make imports-preview, then make imports-apply "
@@ -4866,7 +4876,10 @@ def overview_deep_research_priority_bridge_cards(
                     "for the staged peer import."
                 )
             else:
-                fallback_action = "Review fundamentals path." if lane == "Unlock DCF" else "Review peer path."
+                fallback_action = command_family_fallback(
+                    command,
+                    "Review fundamentals path." if lane == "Unlock DCF" else "Review peer path.",
+                )
             priority_rows.append(
                 {
                     "ticker": ticker,
@@ -4886,7 +4899,7 @@ def overview_deep_research_priority_bridge_cards(
                         max_sentences=1,
                         max_chars=140,
                     ),
-                    "command": preferred_row_command(row, fallback_command or "Not available"),
+                    "command": command,
                 }
             )
 

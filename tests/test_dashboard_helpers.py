@@ -2239,6 +2239,29 @@ def test_holdings_deep_research_cards_use_review_fallback_when_action_is_missing
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_holdings_deep_research_cards_use_runbook_fallback_when_action_is_missing():
+    holdings = pd.DataFrame([{"Ticker": "AMD", "PrimaryPurpose": "Core Compounder"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "theme": "Semis",
+                "price_history_days": 84,
+                "recommended_action": "",
+                "focus_command": "make runbook-fundamentals",
+            }
+        ]
+    )
+
+    cards = dashboard.holdings_deep_research_cards(holdings, sec_queue, None, limit=1)
+
+    assert cards[0]["kicker"] == "AMD"
+    assert cards[0]["command"] == "make runbook-fundamentals"
+    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_holdings_deep_research_cards_use_peer_review_fallback_when_action_is_missing():
     holdings = pd.DataFrame([{"Ticker": "TSLA", "PrimaryPurpose": "Speculative Optionality"}])
     peer_queue = pd.DataFrame(
@@ -2256,6 +2279,28 @@ def test_holdings_deep_research_cards_use_peer_review_fallback_when_action_is_mi
 
     assert cards[0]["kicker"] == "TSLA"
     assert "review peer path." in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
+def test_holdings_deep_research_cards_use_peer_runbook_fallback_when_action_is_missing():
+    holdings = pd.DataFrame([{"Ticker": "TSLA", "PrimaryPurpose": "Speculative Optionality"}])
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "",
+                "focus_command": "make runbook-peers",
+            }
+        ]
+    )
+
+    cards = dashboard.holdings_deep_research_cards(holdings, None, peer_queue, limit=1)
+
+    assert cards[0]["kicker"] == "TSLA"
+    assert cards[0]["command"] == "make runbook-peers"
+    assert "staged local workflow next" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -2552,6 +2597,28 @@ def test_theme_deep_research_cards_use_review_fallback_when_action_is_missing():
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_theme_deep_research_cards_use_runbook_fallback_when_action_is_missing():
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "theme": "Semis",
+                "is_holding": False,
+                "recommended_action": "",
+                "focus_command": "make runbook-fundamentals",
+            }
+        ]
+    )
+
+    cards = dashboard.theme_deep_research_cards(sec_queue, None, limit=1)
+
+    assert cards[0]["kicker"] == "Semis"
+    assert cards[0]["command"] == "make runbook-fundamentals"
+    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_theme_deep_research_cards_use_peer_review_fallback_when_action_is_missing():
     peer_queue = pd.DataFrame(
         [
@@ -2569,6 +2636,28 @@ def test_theme_deep_research_cards_use_peer_review_fallback_when_action_is_missi
 
     assert cards[0]["kicker"] == "Semiconductor ETF"
     assert "review peer path." in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
+def test_theme_deep_research_cards_use_peer_runbook_fallback_when_action_is_missing():
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "SMH",
+                "theme": "Semiconductor ETF",
+                "is_holding": False,
+                "recommended_action": "",
+                "focus_command": "make runbook-peers",
+            }
+        ]
+    )
+
+    cards = dashboard.theme_deep_research_cards(None, peer_queue, limit=1)
+
+    assert cards[0]["kicker"] == "Semiconductor ETF"
+    assert cards[0]["command"] == "make runbook-peers"
+    assert "staged local workflow next" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -2811,6 +2900,28 @@ def test_overview_deep_research_leverage_cards_use_review_fallback_when_action_i
     assert "sell" not in rendered
 
 
+def test_overview_deep_research_leverage_cards_use_runbook_fallback_when_action_is_missing():
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI Semiconductors",
+                "recommended_action": "",
+                "focus_command": "make runbook-fundamentals",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_leverage_cards(holdings, sec_queue, None)
+    dcf_card = next(card for card in cards if card["kicker"] == "DCF LEVERAGE")
+
+    assert dcf_card["command"] == "make runbook-fundamentals"
+    assert "staged local workflow next" in dcf_card["body"].lower()
+    assert "not available" not in dcf_card["body"].lower()
+
+
 def test_overview_deep_research_leverage_cards_use_peer_review_fallback_when_action_is_missing():
     holdings = pd.DataFrame([{"Ticker": "TSLA"}])
     peer_queue = pd.DataFrame(
@@ -2832,6 +2943,28 @@ def test_overview_deep_research_leverage_cards_use_peer_review_fallback_when_act
     assert "not available" not in peer_card["body"].lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_overview_deep_research_leverage_cards_use_peer_runbook_fallback_when_action_is_missing():
+    holdings = pd.DataFrame([{"Ticker": "TSLA"}])
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "",
+                "focus_command": "make runbook-peers",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_leverage_cards(holdings, None, peer_queue)
+    peer_card = next(card for card in cards if card["kicker"] == "PEER LEVERAGE")
+
+    assert peer_card["command"] == "make runbook-peers"
+    assert "staged local workflow next" in peer_card["body"].lower()
+    assert "not available" not in peer_card["body"].lower()
 
 
 def test_overview_deep_research_leverage_cards_keep_staged_import_paths_when_commands_are_missing():
@@ -2968,6 +3101,29 @@ def test_overview_deep_research_priority_bridge_cards_use_review_fallback_when_a
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_overview_deep_research_priority_bridge_cards_use_runbook_fallback_when_action_is_missing():
+    holdings = pd.DataFrame([{"Ticker": "AMD"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "theme": "Semis",
+                "recommended_action": "",
+                "focus_command": "make runbook-fundamentals",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_priority_bridge_cards(holdings, sec_queue, None, limit=1)
+
+    assert cards[0]["kicker"] == "AMD"
+    assert cards[0]["command"] == "make runbook-fundamentals"
+    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "staged local workflow next" in cards[0]["command_reason"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_overview_deep_research_priority_bridge_cards_use_peer_review_fallback_when_action_is_missing():
     holdings = pd.DataFrame([{"Ticker": "TSLA"}])
     peer_queue = pd.DataFrame(
@@ -2986,6 +3142,29 @@ def test_overview_deep_research_priority_bridge_cards_use_peer_review_fallback_w
     assert cards[0]["kicker"] == "TSLA"
     assert "review peer path." in cards[0]["body"].lower()
     assert cards[0]["command_reason"].lower() == "review peer path."
+    assert "not available" not in cards[0]["body"].lower()
+
+
+def test_overview_deep_research_priority_bridge_cards_use_peer_runbook_fallback_when_action_is_missing():
+    holdings = pd.DataFrame([{"Ticker": "TSLA"}])
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "",
+                "focus_command": "make runbook-peers",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_priority_bridge_cards(holdings, None, peer_queue, limit=1)
+
+    assert cards[0]["kicker"] == "TSLA"
+    assert cards[0]["command"] == "make runbook-peers"
+    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "staged local workflow next" in cards[0]["command_reason"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
