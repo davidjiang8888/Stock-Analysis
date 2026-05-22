@@ -5013,11 +5013,12 @@ def test_unlock_table_helpers_surface_command_columns():
     ]
 
 
-def test_price_refresh_fallback_message_uses_status_and_normalize_flow():
+def test_price_refresh_fallback_message_uses_runbook_and_normalize_flow():
     plain = dashboard.price_refresh_fallback_message()
     warned = dashboard.price_refresh_fallback_message(include_remote_failure_prefix=True)
 
-    assert "make status" in plain
+    assert "make runbook-prices-broader" in plain
+    assert "make focus-price" in plain
     assert "make price-normalize" in plain
     assert "make price-validate" in plain
     assert warned.startswith("Remote price refresh had source issues.")

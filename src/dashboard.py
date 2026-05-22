@@ -1689,7 +1689,7 @@ def unlock_priority_summary_table_columns(frame: pd.DataFrame | None) -> list[st
 
 def price_refresh_fallback_message(include_remote_failure_prefix: bool = False) -> str:
     body = (
-        "Use `make status`, then follow the printed price focus or runbook path. "
+        "Use `make runbook-prices-broader` or `make focus-price TICKER=...` first. "
         "For downloaded OHLCV files, run `make price-normalize INPUT=data/raw/prices/NVDA.csv "
         "TICKER=NVDA SOURCE=yahoo_manual`, then `make price-validate`, `make price-preview`, and `make price-apply`."
     )
@@ -6976,8 +6976,8 @@ def render_stock_report_beta(provider, show_raw_json: bool) -> None:
         else:
             render_notice_card(
                 "Price chart not available yet",
-                "The report generated, but there is not enough provider-backed daily close history to render a chart. Start with make status, then use the first price focus or runbook path it prints. For downloaded files, use make price-normalize, then run make price-validate, make price-preview, and make price-apply.",
-                "make status",
+                "The report generated, but there is not enough provider-backed daily close history to render a chart. Use make runbook-prices-broader or make focus-price TICKER=... first. For downloaded files, use make price-normalize, then run make price-validate, make price-preview, and make price-apply.",
+                "make runbook-prices-broader",
                 tone="warning",
             )
 
