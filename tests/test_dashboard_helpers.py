@@ -3890,6 +3890,50 @@ def test_overview_workflow_path_cards_use_runbook_fallback_when_action_queue_dri
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_overview_workflow_path_cards_use_imports_and_bundle_fallbacks_when_action_queue_drives_step_one():
+    imports_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "fundamentals",
+                "ticker": "NVDA",
+                "title": "Advance staged fundamentals",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+            }
+        ]
+    )
+    bundle_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "peers",
+                "ticker": "",
+                "title": "Run peer bundle",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make bundle-peers",
+                "example_command": "",
+            }
+        ]
+    )
+
+    imports_cards = dashboard.overview_workflow_path_cards(None, imports_queue)
+    bundle_cards = dashboard.overview_workflow_path_cards(None, bundle_queue)
+
+    assert imports_cards[0]["title"] == "make imports-validate"
+    assert "staged flow" in [badge.lower() for badge in imports_cards[0]["badges"]]
+    assert "use the staged local workflow next" in imports_cards[0]["body"].lower()
+    assert bundle_cards[0]["title"] == "make bundle-peers"
+    assert "bundle first" in [badge.lower() for badge in bundle_cards[0]["badges"]]
+    assert "highest-leverage local bundle first" in bundle_cards[0]["body"].lower()
+    assert "not available" not in " ".join(str(value) for card in imports_cards + bundle_cards for value in card.values()).lower()
+
+
 def test_overview_workflow_path_cards_use_structured_project_status_steps():
     payload = {
         "recommended_next_command_rows": [
