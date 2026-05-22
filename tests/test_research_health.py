@@ -76,6 +76,36 @@ def test_data_quality_wizard_scores_readiness_and_reasons():
     assert "make price-normalize" in frame.loc[frame["Ticker"] == "AMD", "ExampleCommand"].iloc[0]
 
 
+def test_data_quality_wizard_uses_staged_peer_follow_through_when_mappings_already_exist():
+    coverage = [
+        {
+            "ticker": "NVDA",
+            "has_prices": True,
+            "price_history_days": 80,
+            "has_fundamentals": True,
+            "dcf_ready": True,
+            "has_peer_mapping": True,
+            "peer_ready": False,
+            "has_earnings": False,
+            "has_analyst_estimates": False,
+            "usable_for_momentum": True,
+            "usable_for_monthly_picks": True,
+            "next_best_action": (
+                "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+                "to confirm the live local peer mappings."
+            ),
+            "focus_command": "make imports-validate",
+            "example_command": "make imports-preview",
+        }
+    ]
+
+    frame = build_data_quality_wizard(coverage)
+
+    assert frame.loc[0, "FocusCommand"] == "make imports-validate"
+    assert frame.loc[0, "ExampleCommand"] == "make imports-preview"
+    assert "make imports-apply" in frame.loc[0, "NextBestAction"]
+
+
 def test_liquidity_risk_calculates_context_without_recommendations():
     frame = build_liquidity_risk(_price_frame(), tickers=["NVDA", "THIN", "MISSING"])
 

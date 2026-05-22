@@ -165,8 +165,12 @@ def build_data_quality_wizard(coverage_rows: list[dict[str, Any]] | pd.DataFrame
             focus_command = focus_command_for_ticker("fundamentals", ticker)
             example_command = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
         elif not peer_ready:
-            focus_command = focus_command_for_ticker("peers", ticker)
-            example_command = "make templates"
+            if has_peer_mapping:
+                focus_command = str(row.get("focus_command", "") or "").strip() or focus_command_for_ticker("peers", ticker)
+                example_command = str(row.get("example_command", "") or "").strip() or "make templates"
+            else:
+                focus_command = focus_command_for_ticker("peers", ticker)
+                example_command = "make templates"
         elif not has_earnings:
             focus_command = "make templates"
             example_command = "make templates"
