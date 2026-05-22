@@ -4990,6 +4990,7 @@ def overview_best_local_research_path_cards(
     action_queue: pd.DataFrame | None,
 ) -> list[dict[str, object]]:
     best_name = overview_best_current_name_cards(coverage, holdings, limit=1)[0]
+    ready_cards = overview_ready_name_handoff_cards(coverage, holdings, project_status_payload, action_queue)
     next_command = overview_next_command_cards(project_status_payload, action_queue, limit=1)[0]
     next_tab = overview_handoff_cards()[0]
 
@@ -5002,7 +5003,11 @@ def overview_best_local_research_path_cards(
     first_name = format_missing(best_name.get("kicker"), "Not available")
     command_text = format_missing(next_command.get("title"), "make status")
     tab_text = format_missing(next_tab.get("title"), "Data Health")
-    command_reason = compact_reason(next_command.get("body"), max_sentences=2, max_chars=220)
+    ready_command_text = format_missing(ready_cards[1].get("title"), "")
+    if command_text == ready_command_text:
+        command_reason = compact_reason(ready_cards[1].get("command_reason"), max_sentences=2, max_chars=220)
+    else:
+        command_reason = compact_reason(next_command.get("body"), max_sentences=2, max_chars=220)
     queue_signal = top_priority_signals(action_queue, limit=1) if action_queue is not None else []
     queue_reason = compact_reason(queue_signal[0].get("body"), max_sentences=2, max_chars=220) if queue_signal else ""
     generic_reason_markers = (
@@ -5101,6 +5106,7 @@ def overview_ready_name_handoff_cards(
             "body": body,
             "badges": badges,
             "command": command_text,
+            "command_reason": body,
         },
         {
             "kicker": "READY NAME TAB",
@@ -5149,6 +5155,10 @@ def overview_current_top_surfaces_cards(
     )
     if queue_reason and any(marker in command_reason.lower() for marker in generic_reason_markers):
         command_reason = queue_reason
+    elif not queue_reason and len(deep_cards) > 1:
+        deep_reason = compact_reason(deep_cards[1].get("body"), max_sentences=2, max_chars=220)
+        if deep_reason and deep_reason != "Not available":
+            command_reason = deep_reason
     if not command_reason or command_reason == "Not available":
         command_reason = "Highest-value repo-native command from the current local workflow state."
 
