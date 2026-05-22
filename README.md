@@ -1235,6 +1235,19 @@ If you want a smaller, holdings-first command view instead of the full ticker qu
 make command-bundles
 make command-bundle-details
 make command-bundle-runbook
+```
+
+If you want to narrow those bundle views to a specific local ticker slice without leaving the make-based operator path, use:
+
+```bash
+make command-bundles TICKERS=NVDA,MSFT
+make command-bundle-details TICKERS=NVDA,MSFT
+make command-bundle-runbook TICKERS=NVDA,MSFT
+```
+
+Use the raw CLI only when you explicitly want machine-readable bundle output:
+
+```bash
 python3 -m src.data_onboarding --command-bundles --json
 ```
 

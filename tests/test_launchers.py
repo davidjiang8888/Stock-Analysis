@@ -93,9 +93,9 @@ def test_makefile_help_documents_key_workflows():
         "make data-wizard [TICKERS=NVDA,MSFT]",
         "make unlock-ladder",
         "make unlock-summary",
-        "make command-bundles",
-        "make command-bundle-details",
-        "make command-bundle-runbook",
+        "make command-bundles [TICKERS=NVDA,MSFT]",
+        "make command-bundle-details [TICKERS=NVDA,MSFT]",
+        "make command-bundle-runbook [TICKERS=NVDA,MSFT]",
         "make bundle-prices",
         "make bundle-fundamentals",
         "make bundle-peers",
@@ -174,6 +174,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "If you want one row per ticker instead of several queue outputs, use:\n\n```bash\nmake unlock-ladder" in readme
     assert "If you want to see where local data gaps are most concentrated by holdings, theme, or sector ETF, use:\n\n```bash\nmake unlock-summary" in readme
     assert "```bash\nmake command-bundles\nmake command-bundle-details\nmake command-bundle-runbook" in readme
+    assert "If you want to narrow those bundle views to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake command-bundles TICKERS=NVDA,MSFT\nmake command-bundle-details TICKERS=NVDA,MSFT\nmake command-bundle-runbook TICKERS=NVDA,MSFT" in readme
     assert "If you only want one lane at a time, use:\n\n```bash\nmake bundle-prices\nmake bundle-fundamentals\nmake bundle-peers" in readme
     assert "make runbook-prices\nmake runbook-fundamentals\nmake runbook-peers" in readme
     assert "If you want the broader queue explicitly instead of the holdings-first slice, use the same bundle views with `--scope broader_queue`, or the matching Make shortcuts:\n\n```bash\nmake bundle-prices-broader\nmake detail-prices-broader\nmake runbook-prices-broader" in readme
@@ -268,6 +269,9 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
 
     assert "coverage:\n\tpython3 -m src.data_onboarding --coverage $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "data-wizard:\n\tpython3 -m src.data_onboarding --wizard $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "command-bundles:\n\tpython3 -m src.data_onboarding --command-bundles $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "command-bundle-details:\n\tpython3 -m src.data_onboarding --command-bundle-details $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "command-bundle-runbook:\n\tpython3 -m src.data_onboarding --command-bundle-runbook $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),)" in makefile
     assert "local-tickers:\n\tpython3 -m src.stock_report --list-local-tickers" in makefile
     assert "import-staging:\n\tpython3 -m src.stock_report --write-import-staging" in makefile

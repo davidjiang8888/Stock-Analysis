@@ -31,9 +31,9 @@ help:
 	@echo "  make data-wizard [TICKERS=NVDA,MSFT] Show prioritized data coverage unlocks"
 	@echo "  make unlock-ladder    Show one next-step unlock stage per ticker"
 	@echo "  make unlock-summary   Show grouped unlock priorities by holdings, theme, and sector ETF"
-	@echo "  make command-bundles Show holdings-first local command bundles for prices, SEC, and peers"
-	@echo "  make command-bundle-details Show ticker-level rows for the current local command bundles"
-	@echo "  make command-bundle-runbook Show ordered runbook rows for the current local command bundles"
+	@echo "  make command-bundles [TICKERS=NVDA,MSFT] Show holdings-first local command bundles for prices, SEC, and peers"
+	@echo "  make command-bundle-details [TICKERS=NVDA,MSFT] Show ticker-level rows for the current local command bundles"
+	@echo "  make command-bundle-runbook [TICKERS=NVDA,MSFT] Show ordered runbook rows for the current local command bundles"
 	@echo "  make bundle-prices    Show only the price bundle and its holdings-first scope when available"
 	@echo "  make bundle-fundamentals Show only the SEC fundamentals bundle"
 	@echo "  make bundle-peers     Show only the peer-mapping bundle"
@@ -139,13 +139,13 @@ unlock-summary:
 	python3 -m src.data_onboarding --unlock-summary
 
 command-bundles:
-	python3 -m src.data_onboarding --command-bundles
+	python3 -m src.data_onboarding --command-bundles $(if $(TICKERS),--tickers $(TICKERS),)
 
 command-bundle-details:
-	python3 -m src.data_onboarding --command-bundle-details
+	python3 -m src.data_onboarding --command-bundle-details $(if $(TICKERS),--tickers $(TICKERS),)
 
 command-bundle-runbook:
-	python3 -m src.data_onboarding --command-bundle-runbook
+	python3 -m src.data_onboarding --command-bundle-runbook $(if $(TICKERS),--tickers $(TICKERS),)
 
 bundle-prices:
 	python3 -m src.data_onboarding --command-bundles --lane prices --holdings-only
