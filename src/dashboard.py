@@ -4784,13 +4784,13 @@ def overview_deep_research_priority_bridge_cards(
                 fallback_command = ticker_focus_command(lane_fallback, ticker, fallback="") if lane_fallback else ""
             if staged_fundamentals_import:
                 fallback_action = (
-                    f"Staged fundamentals import is waiting in {target_file}. "
-                    "Run make imports-validate, then make imports-preview, then make imports-apply."
+                    "Run make imports-validate, then make imports-preview, then make imports-apply "
+                    "for the staged fundamentals import."
                 )
             elif staged_peer_import:
                 fallback_action = (
-                    f"Staged peer import is waiting in {target_file}. "
-                    "Run make imports-validate, then make imports-preview, then make imports-apply."
+                    "Run make imports-validate, then make imports-preview, then make imports-apply "
+                    "for the staged peer import."
                 )
             else:
                 fallback_action = "Review fundamentals path." if lane == "Unlock DCF" else "Review peer path."

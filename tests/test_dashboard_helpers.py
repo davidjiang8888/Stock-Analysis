@@ -2931,11 +2931,11 @@ def test_overview_deep_research_priority_bridge_cards_keep_staged_import_paths_w
     assert fundamentals_card["title"] == "Advance staged fundamentals import"
     assert fundamentals_card["command"] == "make imports-validate"
     assert "staged fundamentals import" in fundamentals_card["body"].lower()
-    assert fundamentals_card["command_reason"].lower().startswith("staged fundamentals import")
+    assert "make imports-preview" in fundamentals_card["command_reason"].lower()
     assert peer_card["title"] == "Advance staged peer import"
     assert peer_card["command"] == "make imports-validate"
     assert "staged peer import" in peer_card["body"].lower()
-    assert peer_card["command_reason"].lower().startswith("staged peer import")
+    assert "make imports-preview" in peer_card["command_reason"].lower()
 
 
 def test_overview_deep_research_priority_bridge_cards_handle_missing_inputs_gracefully():
@@ -3030,6 +3030,35 @@ def test_overview_deep_research_handoff_cards_keep_staged_peer_reason_and_comman
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
     assert "make status-check top_n=5" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_deep_research_handoff_cards_keep_staged_fundamentals_reason_and_command_when_commands_are_missing():
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI Semiconductors",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            }
+        ]
+    )
+    payload = {"recommended_next_commands": ["make status", "make verify", "make dashboard-smoke"]}
+
+    cards = dashboard.overview_deep_research_handoff_cards(holdings, sec_queue, None, payload, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "NVDA"
+    assert cards[1]["title"] == "make imports-validate"
+    assert "staged fundamentals import" in cards[1]["body"].lower()
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
