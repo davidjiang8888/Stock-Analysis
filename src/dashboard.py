@@ -5471,6 +5471,21 @@ def overview_bundle_handoff_cards(
     lane = format_missing(top_bundle.get("lane"), "bundle").replace("_", " ")
     ticker_text = format_missing(top_bundle.get("tickers"), "No tickers")
     target_file = format_missing(top_bundle.get("target_file"), "")
+    staged_summary = ""
+    if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
+        staged_summary = compact_reason(top_bundle.get("safe_next_step"), max_sentences=1, max_chars=150)
+        if staged_summary == "Not available":
+            if target_file == "data/imports/fundamentals.csv":
+                staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
+            elif target_file == "data/imports/peers.csv":
+                staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
+            else:
+                staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+    bundle_summary = (
+        goal_summary
+        if goal_summary not in {"", "Not available"}
+        else compact_reason(top_bundle.get("why_it_matters") or staged_summary or review_path_fallback(top_bundle.get("lane")), max_sentences=1, max_chars=150)
+    )
     refresh_command = "make onboarding"
     refresh_step_label = "Refresh onboarding outputs"
 
@@ -5530,7 +5545,7 @@ def overview_bundle_handoff_cards(
             "kicker": f"{lane.upper()} HANDOFF",
             "title": bundle_name,
             "body": (
-                f"{goal_summary}{hint_text}. " if goal_summary else ""
+                f"{bundle_summary}{hint_text}. " if bundle_summary not in {"", "Not available"} else ""
             ) + f"Start with {primary_command} for {ticker_text}. This is the highest-leverage local bundle right now.",
             "badges": ["bundle first", "research only"],
             "command": primary_command,

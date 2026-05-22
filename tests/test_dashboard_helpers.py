@@ -7161,6 +7161,34 @@ def test_overview_bundle_handoff_cards_use_staged_follow_through_when_bundle_row
     assert "make imports-apply" in rendered
 
 
+def test_overview_bundle_handoff_cards_use_staged_summary_when_goal_summary_is_missing():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "ticker_count": 3,
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "",
+                "why_it_matters": "",
+                "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=META,NVDA,TSLA",
+                "follow_up_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+                "safe_next_step": "Keep SEC enrichment staged and review-only until make imports-validate, make imports-preview, and make imports-apply confirm the merge.",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_bundle_handoff_cards(bundles, None, None)
+
+    assert cards[0]["command"] == "make sec-stage TICKERS=META,NVDA,TSLA"
+    assert "make imports-preview" in cards[0]["body"].lower()
+    assert "make imports-apply" in cards[0]["body"].lower()
+    assert "start with make sec-stage tickers=meta,nvda,tsla" in cards[0]["body"].lower()
+    assert cards[1]["command"] == "make imports-validate"
+
+
 def test_overview_bundle_handoff_cards_normalize_refresh_command_from_runbook():
     bundles = pd.DataFrame(
         [
