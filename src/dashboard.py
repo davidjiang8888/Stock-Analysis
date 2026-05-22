@@ -4144,13 +4144,14 @@ def holdings_unlock_cards(
         stage = format_missing(row.get("current_unlock_stage"), "coverage")
         goal = format_missing(row.get("next_unlock_goal"), "Unlock data")
         purpose = format_missing(purpose_map.get(ticker), "Portfolio holding")
+        fallback_action = f"Review {stage} path."
         cards.append(
             {
                 "kicker": ticker,
                 "title": goal,
                 "body": (
                     f"{purpose}. Current stage: {stage}. "
-                    f"Next action: {compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
+                    f"Next action: {compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)}"
                 ),
                 "badges": [stage, format_missing(row.get("price_stage_status"), "prices")],
                 "command": preferred_row_command(
@@ -4372,6 +4373,7 @@ def theme_deep_research_cards(
             theme_frame = theme_frame.sort_values(["priority", "is_holding", "ticker"], ascending=[True, False, True])
             top_row = theme_frame.iloc[0]
             tickers = ", ".join(theme_frame["ticker"].head(4).tolist())
+            fallback_action = f"Review {dataset_badge.lower()} path."
             rows.append(
                 {
                     "kicker": str(theme_name),
@@ -4379,7 +4381,7 @@ def theme_deep_research_cards(
                     "body": (
                         f"{len(theme_frame)} ticker rows in this theme currently point to {dataset_badge.lower()} work. "
                         f"Representative names: {tickers}. "
-                        f"Next action: {compact_reason(top_row.get('recommended_action'), max_sentences=1, max_chars=150)}"
+                        f"Next action: {compact_reason(top_row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)}"
                     ),
                     "badges": [dataset_badge, f"P{format_missing(top_row.get('priority'), '-')}"],
                     "command": preferred_row_command(
@@ -4554,13 +4556,14 @@ def overview_deep_research_leverage_cards(
                 card_badges = ["staged import", f"leverage {leverage_score}"]
             elif format_missing(top_row.get("has_peer_mapping"), "").lower() in {"true", "1", "yes"}:
                 card_badges = ["peer support data", f"leverage {leverage_score}"]
+        fallback_action = "Review fundamentals path." if lane_name == "DCF LEVERAGE" else "Review peer path."
         return {
             "kicker": lane_name,
             "title": card_title,
             "body": (
                 f"{holdings_count} holdings, {len(themes)} themes, and {unique_tickers} queued tickers are currently gated here. "
                 f"Lead theme: {lead_theme}. Start with: {lead_names}. "
-                f"Next action: {compact_reason(top_row.get('recommended_action'), max_sentences=1, max_chars=140)}"
+                f"Next action: {compact_reason(top_row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=140)}"
             ),
             "badges": card_badges,
             "command": command,

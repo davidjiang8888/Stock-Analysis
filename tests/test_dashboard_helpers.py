@@ -1942,6 +1942,29 @@ def test_holdings_unlock_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_holdings_unlock_cards_use_review_fallback_when_action_is_missing():
+    holdings = pd.DataFrame([{"Ticker": "AMD", "PrimaryPurpose": "Core Compounder"}])
+    ladder = pd.DataFrame(
+        [
+            {
+                "ticker": "AMD",
+                "current_unlock_stage": "fundamentals",
+                "next_unlock_goal": "Unlock DCF",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "price_stage_status": "momentum_ready_short_history",
+            }
+        ]
+    )
+
+    cards = dashboard.holdings_unlock_cards(holdings, ladder, None, limit=1)
+
+    assert cards[0]["kicker"] == "AMD"
+    assert "review fundamentals path." in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_holdings_deep_research_cards_surface_sec_and_peer_blockers():
     holdings = pd.DataFrame(
         [
@@ -2256,6 +2279,26 @@ def test_theme_deep_research_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_theme_deep_research_cards_use_review_fallback_when_action_is_missing():
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "AMD",
+                "theme": "Semis",
+                "is_holding": False,
+                "recommended_action": "",
+            }
+        ]
+    )
+
+    cards = dashboard.theme_deep_research_cards(sec_queue, None, limit=1)
+
+    assert cards[0]["kicker"] == "Semis"
+    assert "review fundamentals path." in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_overview_research_pressure_cards_compare_price_fundamentals_and_peers():
     price_worklist = pd.DataFrame(
         {
@@ -2428,6 +2471,27 @@ def test_overview_deep_research_leverage_cards_handle_missing_inputs_gracefully(
     assert "no deep-research leverage view yet" in rendered
     assert cards[0]["command"] == "make onboarding"
     assert "make onboarding" in rendered
+
+
+def test_overview_deep_research_leverage_cards_use_review_fallback_when_action_is_missing():
+    holdings = pd.DataFrame([{"Ticker": "NVDA"}])
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI Semiconductors",
+                "recommended_action": "",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_leverage_cards(holdings, sec_queue, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    dcf_card = next(card for card in cards if card["kicker"] == "DCF LEVERAGE")
+
+    assert "review fundamentals path." in dcf_card["body"].lower()
+    assert "not available" not in dcf_card["body"].lower()
     assert "buy" not in rendered
     assert "sell" not in rendered
 
