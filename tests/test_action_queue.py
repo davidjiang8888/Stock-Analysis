@@ -41,6 +41,9 @@ def test_action_queue_prioritizes_price_failures_before_optional_gaps():
     assert rows[0].action_type == "prices"
     assert rows[0].priority == 1
     assert rows[0].focus_command == "make focus-price TICKER=NVDA"
+    assert rows[0].example_command == "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"
+    assert "normalize verified downloaded ohlcv files" in rows[0].recommended_action.lower()
+    assert "price-validate" in rows[0].reason.lower()
     assert rows[-1].action_type == "analyst_estimates"
 
 
@@ -66,6 +69,7 @@ def test_action_queue_uses_research_health_when_price_data_is_missing():
     assert rows[0].action_type == "prices"
     assert rows[0].focus_command == "make focus-price TICKER=AMD"
     assert "Refresh or import prices" in rows[0].recommended_action
+    assert rows[0].example_command == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
 
 
 def test_action_queue_uses_operator_friendly_onboarding_titles():

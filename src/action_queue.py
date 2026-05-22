@@ -30,6 +30,11 @@ ACTION_QUEUE_COLUMNS = [
 ]
 
 PROBLEM_PRICE_STATUSES = {"parse_error", "source_unavailable", "network_error", "no_rows", "failed"}
+STALE_PRICE_RECOMMENDED_ACTIONS = {
+    "use staged manual prices.",
+    "retry later or use staged manual prices in data/imports/prices.csv.",
+    "use staged manual prices in data/imports/prices.csv.",
+}
 STALE_ONBOARDING_REASONS = {
     "prices",
     "at least 21 price rows",
@@ -122,6 +127,13 @@ def _example_command_rank(item: ActionQueueItem) -> int:
     return 0
 
 
+def _price_normalize_command(ticker: str) -> str:
+    ticker = _normalized_ticker(ticker)
+    if not ticker:
+        return "make status"
+    return f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
+
+
 def _dedupe(items: list[ActionQueueItem]) -> list[ActionQueueItem]:
     best_by_key: dict[tuple[str, str], ActionQueueItem] = {}
     for item in items:
@@ -151,15 +163,27 @@ def build_action_queue_rows(
                 continue
             ticker = _normalized_ticker(row.get("ticker"))
             worklist_row = _worklist_lookup(price_worklist, ticker)
-            fallback_recommended_action = "Use staged manual prices in data/imports/prices.csv."
+            fallback_recommended_action = (
+                f"Run python3 -m src.data_update --tickers {ticker}, or normalize verified downloaded OHLCV files into "
+                "data/imports/prices.csv."
+                if ticker
+                else "Use staged manual prices in data/imports/prices.csv."
+            )
+            row_recommended_action = str(row.get("recommended_action", "")).strip()
+            if row_recommended_action.lower() in STALE_PRICE_RECOMMENDED_ACTIONS:
+                row_recommended_action = ""
             recommended_action = (
                 str(worklist_row.get("recommended_action", "")).strip()
-                or str(row.get("recommended_action", "")).strip()
+                or row_recommended_action
                 or fallback_recommended_action
             )
-            fallback_command = f"python3 -m src.data_update --tickers {ticker}" if ticker else "make price-refresh"
+            fallback_command = _price_normalize_command(ticker)
             example_command = str(worklist_row.get("example_command", "")).strip() or fallback_command
-            safe_next_step = str(worklist_row.get("safe_next_step", "")).strip()
+            safe_next_step = str(worklist_row.get("safe_next_step", "")).strip() or (
+                "Run make price-validate and make price-preview before make price-apply; do not fabricate missing history."
+                if ticker
+                else ""
+            )
             error_message = str(row.get("error_message", "")).strip() or "Remote price refresh failed for this ticker."
             reason = f"{error_message} {safe_next_step}".strip() if safe_next_step else error_message
             items.append(
@@ -194,7 +218,7 @@ def build_action_queue_rows(
                         status=status,
                         recommended_action=str(row.get("NextBestAction", "")).strip() or "Refresh or manually import prices for this ticker.",
                         focus_command=focus_command_for_ticker("prices", ticker),
-                        example_command=f"python3 -m src.data_update --tickers {ticker}" if ticker else "make price-refresh",
+                        example_command=_price_normalize_command(ticker),
                         source_file="data/imports/prices.csv",
                         source_artifact="outputs/data_quality_wizard.csv",
                         reason=str(row.get("Reason", "")).strip(),
