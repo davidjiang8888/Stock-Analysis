@@ -260,21 +260,22 @@ def _categorize_price_error(messages: list[str]) -> tuple[str, str]:
 
 
 def _price_recommended_action(status: str, ticker: str, has_local_data: bool) -> str:
+    normalize_action = f"Run python3 -m src.data_update --tickers {ticker}, or normalize verified downloaded OHLCV rows into data/imports/prices.csv."
     if status == "fetched":
         return "No action needed; remote rows were merged into local prices."
     if status == "skipped_fresh":
         return "Leave unchanged because local data exists and is fresh."
     if status == "no_rows":
-        return "Verify ticker symbol or add verified rows to data/imports/prices.csv."
+        return normalize_action
     if status == "parse_error":
-        return "Retry later or use staged manual prices in data/imports/prices.csv."
+        return normalize_action
     if status == "network_error":
-        return "Retry later, reduce ticker batch size, or use staged manual prices in data/imports/prices.csv."
+        return normalize_action
     if status == "source_unavailable":
-        return "Retry later or use staged manual prices in data/imports/prices.csv."
+        return normalize_action
     if has_local_data:
         return "Leave unchanged because local data exists; use staged manual prices if you need fresher rows."
-    return f"Add verified rows to data/imports/prices.csv, then validate and preview before applying for {ticker}."
+    return normalize_action
 
 
 def _price_status_row(

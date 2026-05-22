@@ -297,7 +297,7 @@ def test_update_local_price_data_writes_status_when_remote_parse_errors(tmp_path
     status = pd.read_csv(result.status_path)
     assert status.iloc[0]["status"] == "parse_error"
     assert status.iloc[0]["fallback_used"] in {True, "True", "true"}
-    assert "data/imports/prices.csv" in status.iloc[0]["recommended_action"]
+    assert "normalize verified downloaded ohlcv rows into data/imports/prices.csv" in status.iloc[0]["recommended_action"].lower()
 
 
 def _write_price_import_fixture(root: Path) -> None:
