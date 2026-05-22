@@ -4566,6 +4566,13 @@ def theme_unlock_cards(
     ]
 
     for _, row in theme_rows.sort_values(["stage_rank", "holdings_count", "ticker_count", "group_name"], ascending=[True, False, False, True]).head(limit).iterrows():
+        command = (
+            normalize_operator_command(format_missing(row.get("example_command"), ""))
+            or preferred_row_command(
+                row,
+                unlock_stage_command(row.get("top_priority_stage"), "make universe-preview"),
+            )
+        )
         cards.append(
             {
                 "kicker": format_missing(row.get("group_name"), "Theme"),
@@ -4574,19 +4581,13 @@ def theme_unlock_cards(
                     f"{format_missing(row.get('group_type'), 'group')} group with "
                     f"{format_missing(row.get('ticker_count'), '0')} tickers and "
                     f"{format_missing(row.get('holdings_count'), '0')} holdings. "
-                    f"Next action: {compact_reason(row.get('recommended_action') or 'Review grouped unlock path.', max_sentences=1, max_chars=150)}"
+                    f"Next action: {compact_reason(row.get('recommended_action') or command_family_fallback(command, 'Review grouped unlock path.'), max_sentences=1, max_chars=150)}"
                 ),
                 "badges": [
                     format_missing(row.get("top_priority_stage"), "stage"),
                     format_missing(row.get("group_type"), "group"),
                 ],
-                "command": (
-                    normalize_operator_command(format_missing(row.get("example_command"), ""))
-                    or preferred_row_command(
-                        row,
-                        unlock_stage_command(row.get("top_priority_stage"), "make universe-preview"),
-                    )
-                ),
+                "command": command,
             }
         )
     return cards

@@ -2463,7 +2463,33 @@ def test_theme_unlock_cards_use_review_fallback_when_action_is_missing():
     cards = dashboard.theme_unlock_cards(summary, limit=1)
 
     assert cards[1]["kicker"] == "AI Semiconductors"
-    assert "review grouped unlock path." in cards[1]["body"].lower()
+    assert cards[1]["command"] == "make runbook-peers-broader"
+    assert "staged local workflow next" in cards[1]["body"].lower()
+    assert "not available" not in cards[1]["body"].lower()
+
+
+def test_theme_unlock_cards_use_runbook_fallback_when_action_is_missing():
+    summary = pd.DataFrame(
+        [
+            {
+                "group_type": "theme",
+                "group_name": "AI Semiconductors",
+                "ticker_count": 3,
+                "holdings_count": 1,
+                "top_priority_stage": "peers",
+                "next_unlock_goal": "Unlock Peer Relative",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "make runbook-peers",
+            }
+        ]
+    )
+
+    cards = dashboard.theme_unlock_cards(summary, limit=1)
+
+    assert cards[1]["kicker"] == "AI Semiconductors"
+    assert cards[1]["command"] == "make runbook-peers"
+    assert "staged local workflow next" in cards[1]["body"].lower()
     assert "not available" not in cards[1]["body"].lower()
 
 
