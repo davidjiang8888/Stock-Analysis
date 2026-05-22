@@ -1644,6 +1644,12 @@ def preferred_bundle_command(row: pd.Series | dict[str, object], fallback: str =
         primary = normalize_operator_command(format_missing(row.get("primary_command"), fallback=""))
         if primary:
             return primary
+        runbook = normalize_operator_command(format_missing(row.get("runbook_shortcut_command"), fallback=""))
+        if runbook:
+            return runbook
+        detail = normalize_operator_command(format_missing(row.get("detail_shortcut_command"), fallback=""))
+        if detail:
+            return detail
     return normalize_operator_command(fallback)
 
 

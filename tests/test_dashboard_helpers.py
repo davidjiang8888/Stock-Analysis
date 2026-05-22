@@ -5350,6 +5350,18 @@ def test_preferred_bundle_command_rewrites_legacy_sec_user_agent_command():
     assert dashboard.preferred_bundle_command(row) == "make sec-stage TICKERS=NVDA,MSFT"
 
 
+def test_preferred_bundle_command_falls_back_to_runbook_and_detail_shortcuts():
+    runbook_only = {
+        "runbook_shortcut_command": "make runbook-prices",
+    }
+    detail_only = {
+        "detail_shortcut_command": "make detail-prices",
+    }
+
+    assert dashboard.preferred_bundle_command(runbook_only) == "make runbook-prices"
+    assert dashboard.preferred_bundle_command(detail_only) == "make detail-prices"
+
+
 def test_dashboard_tab_titles_and_navigation_labels_stay_consistent():
     assert dashboard.DASHBOARD_TAB_TITLES[0] == "Overview"
     assert dashboard.DASHBOARD_TAB_TITLES[1] == "Monthly Picks"
@@ -5508,6 +5520,31 @@ def test_overview_command_bundle_cards_surface_bundle_commands_safely():
     assert "make bundle-prices" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_overview_command_bundle_cards_use_bundle_native_shortcuts_when_primary_is_missing():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "ticker_count": 3,
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; Unlock Track Record for 1 ticker; 57 verified rows still needed across this bundle",
+                "target_history_rows": 63,
+                "suggested_start_date": "2025-10-01",
+                "bundle_shortcut_command": "",
+                "detail_shortcut_command": "",
+                "runbook_shortcut_command": "make runbook-prices",
+                "primary_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_command_bundle_cards(bundles)
+
+    assert cards[0]["command"] == "make runbook-prices"
 
 
 def test_overview_onboarding_fallback_cards_use_status_refresh():
