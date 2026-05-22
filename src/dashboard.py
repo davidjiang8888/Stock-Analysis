@@ -5514,7 +5514,13 @@ def overview_bundle_handoff_cards(
     bundle_summary = (
         goal_summary
         if goal_summary not in {"", "Not available"}
-        else compact_reason(top_bundle.get("why_it_matters") or staged_summary or review_path_fallback(top_bundle.get("lane")), max_sentences=1, max_chars=150)
+        else compact_reason(
+            top_bundle.get("why_it_matters")
+            or staged_summary
+            or command_family_fallback(primary_command, review_path_fallback(top_bundle.get("lane"))),
+            max_sentences=1,
+            max_chars=150,
+        )
     )
     refresh_command = "make onboarding"
     refresh_step_label = "Refresh onboarding outputs"

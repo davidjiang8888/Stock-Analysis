@@ -7534,6 +7534,33 @@ def test_overview_bundle_handoff_cards_use_staged_summary_when_goal_summary_is_m
     assert cards[1]["command"] == "make imports-validate"
 
 
+def test_overview_bundle_handoff_cards_use_runbook_fallback_when_summaries_are_missing():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "ticker_count": 1,
+                "tickers": "TSLA",
+                "goal_summary": "",
+                "why_it_matters": "",
+                "bundle_shortcut_command": "",
+                "detail_shortcut_command": "",
+                "runbook_shortcut_command": "make runbook-peers",
+                "primary_command": "",
+                "follow_up_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_bundle_handoff_cards(bundles, None, None)
+
+    assert cards[0]["command"] == "make runbook-peers"
+    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_overview_bundle_handoff_cards_normalize_refresh_command_from_runbook():
     bundles = pd.DataFrame(
         [
