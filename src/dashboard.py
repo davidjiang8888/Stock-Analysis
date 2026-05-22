@@ -5257,13 +5257,15 @@ def overview_bundle_handoff_cards(
                 matches.get("step_label", pd.Series(dtype=str)).astype(str).str.lower().isin(refresh_labels)
             ]
             target_row = refresh_matches.iloc[0] if not refresh_matches.empty else matches.iloc[-1]
-            refresh_command = format_missing(target_row.get("command"), refresh_command)
+            refresh_command = normalize_operator_command(format_missing(target_row.get("command"), refresh_command))
+            if refresh_command == "make status":
+                refresh_command = "make status-check TOP_N=5"
             refresh_step_label = format_missing(target_row.get("step_label"), refresh_step_label)
 
     if (
         str(top_bundle.get("lane", "")).strip().lower() == "prices"
         and "unlock monthly picks" in goal_summary.lower()
-        and refresh_command in {"make status", "make onboarding"}
+        and refresh_command in {"make status", "make status-check TOP_N=5", "make onboarding"}
     ):
         refresh_command = "make monthly"
         refresh_step_label = "Refresh monthly context"

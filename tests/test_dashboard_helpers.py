@@ -5808,7 +5808,7 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
     assert "dcf readiness" in rendered
     assert "make sec-stage" in rendered
     assert "make imports-validate" in rendered
-    assert "make status" in rendered
+    assert "make status-check top_n=5" in rendered
     assert "meta" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -5876,6 +5876,48 @@ def test_overview_bundle_handoff_cards_use_runbook_follow_through_when_bundle_fi
 
     assert cards[1]["title"] == "make imports-validate"
     assert cards[1]["command"] == "make imports-validate"
+
+
+def test_overview_bundle_handoff_cards_normalize_refresh_command_from_runbook():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "ticker_count": 3,
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
+                "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=META,NVDA,TSLA",
+                "follow_up_command": "make imports-validate",
+            }
+        ]
+    )
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Run bundle command",
+                "command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=META,NVDA,TSLA",
+            },
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "step_order": 2,
+                "step_label": "Refresh status outputs",
+                "command": "make status",
+            },
+        ]
+    )
+
+    cards = dashboard.overview_bundle_handoff_cards(bundles, None, runbook)
+
+    assert cards[2]["title"] == "Refresh status outputs"
+    assert cards[2]["command"] == "make status-check TOP_N=5"
 
 
 def test_overview_bundle_handoff_cards_use_monthly_front_door_for_price_bundle_refresh():
@@ -6037,9 +6079,9 @@ def test_overview_bundle_handoff_cards_surface_peer_manual_follow_through():
 
     assert cards[0]["kicker"] == "PEERS HANDOFF"
     assert cards[1]["command"] == "data/imports/peers.csv"
-    assert cards[2]["command"] == "make status"
+    assert cards[2]["command"] == "make status-check TOP_N=5"
     assert "make templates" in rendered
     assert "data/imports/peers.csv" in rendered
-    assert "make status" in rendered
+    assert "make status-check top_n=5" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
