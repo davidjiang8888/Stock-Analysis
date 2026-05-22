@@ -30,6 +30,15 @@ ACTION_QUEUE_COLUMNS = [
 ]
 
 PROBLEM_PRICE_STATUSES = {"parse_error", "source_unavailable", "network_error", "no_rows", "failed"}
+STALE_ONBOARDING_REASONS = {
+    "prices",
+    "at least 21 price rows",
+    "fundamentals row",
+    "free_cash_flow or revenue plus fcf_margin",
+    "shares_outstanding",
+    "peer mapping",
+    "peer fundamentals or peer price/market-cap context",
+}
 
 
 @dataclass
@@ -60,6 +69,29 @@ def _load_csv(path: Path) -> pd.DataFrame:
 def _normalized_ticker(value: object) -> str:
     text = str(value or "").strip().upper()
     return "" if text in {"", "NAN", "NONE"} else text
+
+
+def _onboarding_actions_need_refresh(frame: pd.DataFrame) -> bool:
+    if frame.empty:
+        return True
+    if "dataset" not in frame.columns or "reason" not in frame.columns:
+        return True
+    core_rows = frame.loc[frame["dataset"].astype(str).isin({"prices", "fundamentals", "peers"})]
+    if core_rows.empty:
+        return False
+    normalized_reasons = core_rows["reason"].astype(str).str.strip().str.lower()
+    return bool(normalized_reasons.isin(STALE_ONBOARDING_REASONS).any())
+
+
+def _onboarding_title(dataset: str, ticker: str, status: str) -> str:
+    ticker_suffix = f" for {ticker}" if ticker else ""
+    if dataset == "prices":
+        return f"Fix price coverage{ticker_suffix}"
+    if dataset == "fundamentals":
+        return f"Stage fundamentals{ticker_suffix}" if status == "missing_or_incomplete" else f"Improve fundamentals{ticker_suffix}"
+    if dataset == "peers":
+        return f"Add peer mappings{ticker_suffix}" if status == "manual_input_needed" else f"Complete peer-relative context{ticker_suffix}"
+    return f"Improve {dataset} coverage{ticker_suffix}".strip()
 
 
 def _dedupe(items: list[ActionQueueItem]) -> list[ActionQueueItem]:
@@ -147,6 +179,7 @@ def build_action_queue_rows(
         for _, row in onboarding_actions.iterrows():
             dataset = str(row.get("dataset", "")).strip()
             ticker = _normalized_ticker(row.get("ticker"))
+            status = str(row.get("status", "")).strip() or "pending"
             priority_value = int(pd.to_numeric(pd.Series([row.get("priority")]), errors="coerce").fillna(5).iloc[0])
             urgency = "critical" if priority_value == 1 else "high" if priority_value <= 3 else "medium"
             focus_command = str(row.get("focus_command", "")).strip()
@@ -158,8 +191,8 @@ def build_action_queue_rows(
                     urgency=urgency,
                     action_type=dataset or "onboarding",
                     ticker=ticker,
-                    title=f"Improve {dataset} coverage for {ticker}".strip() if ticker else f"Improve {dataset} coverage".strip(),
-                    status=str(row.get("status", "")).strip() or "pending",
+                    title=_onboarding_title(dataset, ticker, status),
+                    status=status,
                     recommended_action=str(row.get("recommended_action", "")).strip(),
                     focus_command=focus_command,
                     example_command=str(row.get("example_command", "")).strip(),
@@ -224,7 +257,7 @@ def build_action_queue_payload(
     data_gaps = _load_csv(output_path / "data_gap_report.csv")
     data_quality = _load_csv(output_path / "data_quality_wizard.csv")
 
-    if onboarding_actions.empty:
+    if _onboarding_actions_need_refresh(onboarding_actions):
         onboarding_actions = pd.DataFrame(build_onboarding_payload(root, data_dir=data_path, output_dir=output_path)["onboarding_actions"])
     if data_gaps.empty:
         data_gaps = pd.DataFrame(build_data_source_payload(root, data_dir=data_path, output_dir=output_path)["data_gaps"])
