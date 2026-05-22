@@ -963,6 +963,100 @@ def test_load_data_onboarding_tables_refreshes_stale_optional_context_artifact(t
     assert amd_row["focus_command"] == "make templates"
 
 
+def test_load_data_onboarding_tables_refreshes_stale_bundle_artifacts(tmp_path):
+    old_base = dashboard.BASE_DIR
+    try:
+        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
+        dashboard.write_onboarding_outputs(dashboard.BASE_DIR, output_dir=tmp_path)
+
+        pd.DataFrame(
+            [
+                {
+                    "bundle_name": "Price Coverage Bundle",
+                    "lane": "prices",
+                    "scope": "holdings_first",
+                    "ticker_count": 2,
+                    "tickers": "AMD,AVGO",
+                    "goal_summary": "old",
+                    "target_history_rows": 21,
+                    "suggested_start_date": "2025-12-01",
+                    "bundle_shortcut_command": "make bundle-prices",
+                    "detail_shortcut_command": "make detail-prices",
+                    "runbook_shortcut_command": "make runbook-prices",
+                    "primary_command": "python3 -m src.data_update --tickers AMD,AVGO",
+                    "follow_up_command": "make price-status",
+                    "target_file": "data/imports/prices.csv",
+                    "why_it_matters": "old",
+                    "safe_next_step": "old",
+                }
+            ]
+        ).to_csv(tmp_path / "command_bundles.csv", index=False)
+        pd.DataFrame(
+            [
+                {
+                    "bundle_name": "Price Coverage Bundle",
+                    "lane": "prices",
+                    "ticker": "AMD",
+                    "is_holding": True,
+                    "theme": "AI Infra",
+                    "sector_etf": "SMH",
+                    "current_unlock_stage": "prices",
+                    "target_goal": "Unlock Monthly Picks",
+                    "rows_needed": 21,
+                    "target_history_rows": 21,
+                    "suggested_start_date": "2025-12-01",
+                    "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                    "exact_next_command": "python3 -m src.data_update --tickers AMD",
+                    "recommended_action": "old",
+                    "primary_command": "python3 -m src.data_update --tickers AMD,AVGO",
+                    "follow_up_command": "make price-status",
+                    "target_file": "data/imports/prices.csv",
+                    "safe_next_step": "old",
+                }
+            ]
+        ).to_csv(tmp_path / "command_bundle_details.csv", index=False)
+        pd.DataFrame(
+            [
+                {
+                    "bundle_name": "Price Coverage Bundle",
+                    "lane": "prices",
+                    "scope": "holdings_first",
+                    "step_order": 1,
+                    "step_label": "Run bundle command",
+                    "command": "python3 -m src.data_update --tickers AMD,AVGO",
+                    "target_file": "data/imports/prices.csv",
+                    "tickers": "AMD,AVGO",
+                    "goal_summary": "old",
+                    "target_history_rows": 21,
+                    "suggested_start_date": "2025-12-01",
+                    "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                    "why_it_matters": "old",
+                    "safe_next_step": "old",
+                }
+            ]
+        ).to_csv(tmp_path / "command_bundle_runbook.csv", index=False)
+
+        tables = dashboard.load_data_onboarding_tables(tmp_path)
+    finally:
+        dashboard.BASE_DIR = old_base
+
+    bundle_frame, bundle_message = tables["command_bundles.csv"]
+    detail_frame, detail_message = tables["command_bundle_details.csv"]
+    runbook_frame, runbook_message = tables["command_bundle_runbook.csv"]
+
+    assert bundle_message is None
+    assert detail_message is None
+    assert runbook_message is None
+    assert bundle_frame is not None
+    assert detail_frame is not None
+    assert runbook_frame is not None
+    assert not bundle_frame["primary_command"].astype(str).str.startswith("python3 -m src.data_update --tickers ").any()
+    assert not detail_frame["exact_next_command"].astype(str).str.startswith("python3 -m src.data_update --tickers ").any()
+    assert not runbook_frame["command"].astype(str).str.startswith("python3 -m src.data_update --tickers ").any()
+    assert bundle_frame["primary_command"].astype(str).str.startswith("make price-refresh TICKERS=").any()
+    assert "make focus-price TICKER=AMD" in set(detail_frame["exact_next_command"])
+
+
 def test_onboarding_tables_handle_missing_outputs_and_summary():
     tables = dashboard.load_data_onboarding_tables(Path("/tmp/nonexistent-dashboard-test-dir"))
 

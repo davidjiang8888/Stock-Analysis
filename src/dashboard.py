@@ -276,6 +276,38 @@ def load_data_onboarding_tables(
     if optional_context_frame is not None and not optional_context_frame.empty:
         if "focus_command" not in optional_context_frame.columns:
             needs_refresh = True
+    command_bundles_frame, _ = tables.get("command_bundles.csv", (None, None))
+    if command_bundles_frame is not None and not command_bundles_frame.empty:
+        primary_commands = command_bundles_frame.get("primary_command")
+        if primary_commands is not None:
+            normalized_primary = primary_commands.astype(str).str.strip()
+            if normalized_primary.str.startswith("python3 -m src.data_update --tickers ").any():
+                needs_refresh = True
+            elif normalized_primary.str.startswith("SEC_USER_AGENT=").any():
+                needs_refresh = True
+    command_bundle_details_frame, _ = tables.get("command_bundle_details.csv", (None, None))
+    if command_bundle_details_frame is not None and not command_bundle_details_frame.empty:
+        exact_next_commands = command_bundle_details_frame.get("exact_next_command")
+        primary_commands = command_bundle_details_frame.get("primary_command")
+        if exact_next_commands is not None:
+            normalized_exact = exact_next_commands.astype(str).str.strip()
+            if normalized_exact.str.startswith("python3 -m src.data_update --tickers ").any():
+                needs_refresh = True
+        if not needs_refresh and primary_commands is not None:
+            normalized_primary = primary_commands.astype(str).str.strip()
+            if normalized_primary.str.startswith("python3 -m src.data_update --tickers ").any():
+                needs_refresh = True
+            elif normalized_primary.str.startswith("SEC_USER_AGENT=").any():
+                needs_refresh = True
+    command_bundle_runbook_frame, _ = tables.get("command_bundle_runbook.csv", (None, None))
+    if command_bundle_runbook_frame is not None and not command_bundle_runbook_frame.empty:
+        commands = command_bundle_runbook_frame.get("command")
+        if commands is not None:
+            normalized_commands = commands.astype(str).str.strip()
+            if normalized_commands.str.startswith("python3 -m src.data_update --tickers ").any():
+                needs_refresh = True
+            elif normalized_commands.str.startswith("SEC_USER_AGENT=").any():
+                needs_refresh = True
     if needs_refresh:
         write_onboarding_outputs(BASE_DIR, output_dir=outputs_dir)
         for filename in DATA_ONBOARDING_FILES:
