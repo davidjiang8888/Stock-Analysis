@@ -5632,6 +5632,29 @@ def test_bundle_runbook_cards_use_first_usable_step_command_when_lead_row_is_bla
     assert overview_cards[0]["command"] == "make templates"
 
 
+def test_bundle_runbook_cards_normalize_top_level_command_from_first_usable_step():
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Run bundle command",
+                "command": "python3 -m src.data_update --tickers META",
+                "tickers": "META",
+                "goal_summary": "Unlock Monthly Picks for 1 ticker; 21 verified rows still needed across this bundle",
+            }
+        ]
+    )
+
+    data_health_cards = dashboard.data_health_command_bundle_runbook_cards(runbook)
+    overview_cards = dashboard.overview_bundle_runbook_cards(runbook)
+
+    assert data_health_cards[0]["command"] == "make price-refresh TICKERS=META"
+    assert overview_cards[0]["command"] == "make price-refresh TICKERS=META"
+
+
 def test_overview_bundle_runbook_cards_surface_lane_steps_safely():
     runbook = pd.DataFrame(
         [

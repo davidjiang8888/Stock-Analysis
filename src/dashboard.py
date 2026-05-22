@@ -2718,8 +2718,9 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
         for _, row in lane_rows.head(max_steps).iterrows():
             step_label = format_missing(row.get("step_label"), "Step")
             command = format_missing(row.get("command"), "")
+            normalized_command = normalize_operator_command(command)
             if command:
-                first_command = first_command or command
+                first_command = first_command or normalized_command or command
                 steps.append(f"{step_label}: {command}")
         cards.append(
             {
@@ -5340,7 +5341,8 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
         first_command = ""
         for _, row in lane_rows.head(2).iterrows():
             command = format_missing(row.get("command"), "")
-            first_command = first_command or command
+            normalized_command = normalize_operator_command(command)
+            first_command = first_command or normalized_command or command
             steps.append(
                 f"{format_missing(row.get('step_label'), 'Step')}: {command}"
             )
