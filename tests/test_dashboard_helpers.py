@@ -6968,8 +6968,11 @@ def test_deep_research_target_fallback_cards_use_onboarding_refresh():
     ).lower()
 
     assert data_health_cards[0]["command"] == "make onboarding"
+    assert data_health_cards[0]["title"] == "No DCF or peer targets yet"
     assert overview_cards[0]["command"] == "make onboarding"
+    assert overview_cards[0]["title"] == "No DCF or peer targets yet"
     assert price_cards[0]["command"] == "make onboarding"
+    assert price_cards[0]["title"] == "No price targets yet"
     assert "run make onboarding" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

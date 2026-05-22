@@ -3106,7 +3106,7 @@ def overview_deep_research_target_cards(
     return [
         {
             "kicker": "DEEP TARGETS",
-            "title": "Generate DCF and peer targets",
+            "title": "No DCF or peer targets yet",
             "body": "Run make onboarding to refresh the onboarding outputs and surface the next exact fundamentals and peer-relative targets.",
             "badges": ["read-only", "data moat"],
             "command": "make onboarding",
@@ -3119,7 +3119,7 @@ def overview_price_target_cards(price_worklist_frame: pd.DataFrame | None, limit
         return [
             {
                 "kicker": "PRICE TARGET",
-                "title": "Generate price targets",
+                "title": "No price targets yet",
                 "body": "Run make onboarding to refresh the onboarding outputs and surface the next exact history targets for Monthly Picks, track record, and fuller local coverage.",
                 "badges": ["read-only", "data moat"],
                 "command": "make onboarding",
