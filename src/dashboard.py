@@ -203,7 +203,7 @@ COLUMN_LABELS = {
 
 def load_output(path: Path) -> tuple[pd.DataFrame | None, str | None]:
     if not path.exists():
-        return None, f"`{path.name}` has not been generated yet. Run `python -m src.report_generator` first."
+        return None, f"`{path.name}` has not been generated yet. Run `make verify` to regenerate local CSV outputs and validation artifacts first."
     try:
         frame = pd.read_csv(path)
     except Exception as exc:  # pragma: no cover - defensive UI path
@@ -6273,11 +6273,11 @@ def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | 
         render_notice_card(
             f"{title} output is not available yet",
             message,
-            "python3 -m src.report_generator",
+            "make verify",
         )
         return
     if message and frame is not None:
-        render_notice_card(f"{title} output note", message, "python3 -m src.report_generator")
+        render_notice_card(f"{title} output note", message, "make verify")
     if frame is None:
         return
     render_signal_cards(output_tab_summary_cards(title, frame))

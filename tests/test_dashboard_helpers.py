@@ -43,6 +43,14 @@ def test_notice_card_escapes_content_and_uses_tones():
     assert "notice-card warning" in html
 
 
+def test_load_output_missing_message_uses_verify(tmp_path):
+    frame, message = dashboard.load_output(tmp_path / "final_watchlist.csv")
+
+    assert frame is None
+    assert "make verify" in message
+    assert "report_generator" not in message
+
+
 def test_context_note_html_is_readable_and_escaped():
     html = dashboard.context_note_html("<Filters>", "Use <trusted> local CSV inputs.", tone="warning")
 
