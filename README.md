@@ -81,6 +81,10 @@ Common commands:
 ```bash
 make help
 make status
+make focus-price TICKER=AMD
+make focus-fundamentals TICKER=NVDA
+make focus-peers TICKER=NVDA
+make runbook-prices-broader
 make test
 make verify
 make validate-all
@@ -93,7 +97,6 @@ make action-queue
 make coverage
 make onboarding
 make templates
-make price-refresh
 make price-status
 make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual
 make price-validate
@@ -285,13 +288,14 @@ That makes it easier to tell whether a ticker needs enough history for Monthly P
 
 Recommended order:
 
-1. Run `make onboarding`.
-2. Inspect the dashboard `Data Health` tab.
-3. Refresh prices for priority tickers, for example `python3 -m src.data_update --tickers NVDA,MSFT`.
-4. Stage SEC fundamentals for tickers that need DCF inputs.
-5. Manually add peer mappings for important themes in `data/imports/peers.csv`.
-6. Optionally add earnings or analyst-estimate CSVs only from trusted sources.
-7. Rerun `make pipeline` and `make dashboard`.
+1. Run `make status`.
+2. Follow the first `make focus-*` or bundle/runbook shortcut it prints.
+3. Inspect the dashboard `Data Health` tab for lane-specific blocker detail.
+4. Use staged manual price imports when needed: `make price-normalize`, then `make price-validate`, `make price-preview`, and `make price-apply`.
+5. Use SEC staging for DCF blockers through the printed fundamentals shortcut or runbook.
+6. Manually add peer mappings for important themes in `data/imports/peers.csv`.
+7. Optionally add earnings or analyst-estimate CSVs only from trusted sources.
+8. Rerun `make pipeline`, `make verify`, and `make dashboard`.
 
 Missing optional files are expected in many local workflows. Earnings, analyst estimates, peers, and SMH fallback data should remain blank until you provide verified local data.
 
@@ -547,9 +551,10 @@ Remote price refresh can fail because the default source is free, unofficial, an
 When remote refresh fails, use the staged manual import path:
 
 ```bash
-make price-refresh
-make price-status
-# Fill data/imports/prices.csv with verified exported/local OHLCV rows.
+make status
+# Follow the first make focus-price TICKER=... or make runbook-prices-broader path.
+# For downloaded files, normalize them into staged imports first.
+make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual
 make price-validate
 make price-preview
 make price-apply

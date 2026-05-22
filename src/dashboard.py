@@ -7267,7 +7267,10 @@ with st.sidebar:
     )
     render_action_cards(dashboard_navigation_cards())
     render_context_note("Safe local commands.", "These commands are read-only or preview-first by default.")
-    st.code("make help\nmake verify\nmake onboarding\nmake daily\nmake dashboard", language="bash")
+    st.code(
+        "make help\nmake status\nmake focus-price TICKER=AMD\nmake verify\nmake dashboard-smoke\nmake daily\nmake dashboard",
+        language="bash",
+    )
     render_context_note("Safety note.", "CLI-only applies remain the safest path for staged imports and universe changes.", tone="warning")
     with st.expander("How to read this dashboard", expanded=False):
         st.dataframe(pd.DataFrame(status_legend_rows()), width="stretch", hide_index=True)
