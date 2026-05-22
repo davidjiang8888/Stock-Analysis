@@ -174,6 +174,8 @@ def _ticker_gap_recommended_action(dataset: str, ticker: str) -> str:
 
 
 def _staged_import_file_name(dataset: str) -> str | None:
+    if dataset == "fundamentals":
+        return "fundamentals.csv"
     if dataset == "peers":
         return "peers.csv"
     if dataset == "earnings":
@@ -202,6 +204,11 @@ def _staged_import_status(dataset: str, root: Path, data_path: Path) -> dict[str
 
 
 def _staged_import_follow_up(dataset: str) -> str:
+    if dataset == "fundamentals":
+        return (
+            "Run make imports-validate, then make imports-preview, then make imports-apply, "
+            "then make status to confirm the live local fundamentals and DCF inputs."
+        )
     if dataset == "peers":
         return (
             "Run make imports-validate, then make imports-preview, then make imports-apply, "
@@ -493,9 +500,19 @@ def build_data_source_status(
             row_count = int(metadata.row_count)
             columns = ", ".join(metadata.available_columns)
             warnings = "; ".join(metadata.validation_warnings)
+            staged = _staged_import_status(entry.dataset, root, data_path)
+            staged_ready = staged and staged["row_count"] > 0 and staged["status"] in {"valid", "valid_with_warnings"}
+            if entry.dataset == "fundamentals" and staged_ready:
+                notes = (
+                    f"{entry.notes} Staged import rows are present in "
+                    f"{_display_path(staged['path'], root)}; validate, preview, apply, "
+                    "then refresh status before relying on canonical local data."
+                )
+                fallback_action = _staged_import_follow_up(entry.dataset)
+                focus_command = "make imports-validate"
+                example_command = "make imports-preview"
             if entry.dataset in {"peers", "earnings", "analyst_estimates"} and metadata.validation_status == "missing_file":
-                staged = _staged_import_status(entry.dataset, root, data_path)
-                if staged and staged["row_count"] > 0 and staged["status"] in {"valid", "valid_with_warnings"}:
+                if staged_ready:
                     status = "partial"
                     local_file = _display_path(staged["path"], root)
                     row_count = int(staged["row_count"])
