@@ -117,6 +117,7 @@ def test_makefile_help_documents_key_workflows():
         "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual",
         "export SEC_USER_AGENT='Name email@example.com'",
         "make sec-stage TICKERS=NVDA,MSFT",
+        "make imports-validate && make imports-preview && make imports-apply",
         "make universe-preview",
     ):
         assert phrase in makefile

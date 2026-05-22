@@ -69,7 +69,6 @@ help:
 	@echo "Staged fundamentals and universe:"
 	@echo "  export SEC_USER_AGENT='Name email@example.com'"
 	@echo "  make sec-stage TICKERS=NVDA,MSFT"
-	@echo "  make sec-validate && make sec-preview && make sec-apply"
 	@echo "  make imports-validate && make imports-preview && make imports-apply"
 	@echo "  make universe-preview"
 	@echo "  make universe-apply"
