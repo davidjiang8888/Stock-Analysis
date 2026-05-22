@@ -160,8 +160,8 @@ def _ticker_gap_recommended_action(dataset: str, ticker: str) -> str:
     ticker = str(ticker or "").strip().upper()
     if dataset == "prices" and ticker:
         return (
-            f"Run make focus-price TICKER={ticker}, or run python3 -m src.data_update "
-            f"--tickers {ticker} and normalize verified downloaded OHLCV files into "
+            f"Run make focus-price TICKER={ticker}, or run make price-refresh TICKERS={ticker}; "
+            "if the free refresh path fails, normalize verified downloaded OHLCV files into "
             "data/imports/prices.csv."
         )
     if dataset == "fundamentals" and ticker:

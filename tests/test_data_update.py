@@ -243,7 +243,7 @@ def test_show_price_update_status_enriches_legacy_rows_with_commands(tmp_path: P
                 "error_category": "parse_error",
                 "error_message": "AMD: parse failed",
                 "fallback_used": True,
-                "recommended_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
             }
         ]
     ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)
@@ -284,7 +284,7 @@ def test_enrich_price_update_status_frame_normalizes_parse_error_messages():
                 "ticker": "META",
                 "status": "parse_error",
                 "error_message": "META: update failed (Error tokenizing data. C error: Expected 1 fields in line 6, saw 2\n)",
-                "recommended_action": "Run make focus-price TICKER=META, or run python3 -m src.data_update --tickers META and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=META, or run make price-refresh TICKERS=META; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
             }
         ]
     )
@@ -303,7 +303,7 @@ def test_enrich_price_update_status_frame_refreshes_stale_example_command():
                 "status": "parse_error",
                 "requested_start": "",
                 "rows_merged": 0,
-                "recommended_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
                 "example_command": "make onboarding",
             }
         ]

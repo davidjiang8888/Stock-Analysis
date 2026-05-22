@@ -260,8 +260,8 @@ def _price_focus_recommended_action(ticker: str) -> str:
             "If you are using downloaded files, normalize verified OHLCV files into data/imports/prices.csv."
         )
     return (
-        f"Run make focus-price TICKER={ticker}, or run python3 -m src.data_update --tickers {ticker} and "
-        "normalize verified downloaded OHLCV files into data/imports/prices.csv."
+        f"Run make focus-price TICKER={ticker}, or run make price-refresh TICKERS={ticker}; "
+        "if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
 
 

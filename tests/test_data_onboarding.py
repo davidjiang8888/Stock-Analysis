@@ -98,8 +98,8 @@ def test_data_onboarding_coverage_works_with_local_fixtures(tmp_path: Path):
     assert coverage["NVDA"]["dcf_ready"] is True
     assert coverage["AMD"]["usable_for_momentum"] is False
     assert coverage["AMD"]["next_best_action"] == (
-        "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize "
-        "verified downloaded OHLCV files into data/imports/prices.csv."
+        "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; "
+        "if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
     assert "make focus-fundamentals TICKER=AMD" in coverage["NVDA"]["next_best_action"]
     assert "peer-relative context" in coverage["NVDA"]["next_best_action"]
@@ -126,8 +126,8 @@ def test_onboarding_actions_prioritize_prices_fundamentals_peers_before_estimate
     assert any(
         row["dataset"] == "prices"
         and row["recommended_action"] == (
-            "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize "
-            "verified downloaded OHLCV files into data/imports/prices.csv."
+            "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; "
+            "if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
         )
         for row in amd_actions
     )

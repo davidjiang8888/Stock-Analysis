@@ -126,8 +126,8 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     assert gap_lookup["analyst_estimates"]["example_command"] == "make templates"
     price_gap = next(gap for gap in payload["data_gaps"] if gap["dataset"] == "prices" and gap["ticker"] == "MSFT")
     assert price_gap["recommended_action"] == (
-        "Run make focus-price TICKER=MSFT, or run python3 -m src.data_update "
-        "--tickers MSFT and normalize verified downloaded OHLCV files into "
+        "Run make focus-price TICKER=MSFT, or run make price-refresh TICKERS=MSFT; "
+        "if the free refresh path fails, normalize verified downloaded OHLCV files into "
         "data/imports/prices.csv."
     )
     assert price_gap["focus_command"] == "make focus-price TICKER=MSFT"

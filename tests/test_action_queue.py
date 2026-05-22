@@ -954,7 +954,7 @@ def test_action_queue_merges_price_status_with_price_worklist_guidance():
     row = rows[0]
     assert row.action_type == "prices"
     assert "make focus-price TICKER=AMD" in row.recommended_action
-    assert "normalize verified downloaded ohlcv files" in row.recommended_action.lower()
+    assert "make price-refresh tickers=amd" in row.recommended_action.lower()
     assert row.example_command == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
     assert "price-validate" in row.reason.lower()
 
@@ -1048,8 +1048,8 @@ def test_action_queue_payload_normalizes_legacy_parse_error_reason_from_price_st
                 "PriceHistoryDays": 0,
                 "MissingDataFields": "prices",
                 "NextBestAction": (
-                    "Run make focus-price TICKER=META, or run python3 -m src.data_update --tickers META and "
-                    "normalize verified downloaded OHLCV files into data/imports/prices.csv."
+                    "Run make focus-price TICKER=META, or run make price-refresh TICKERS=META; "
+                    "if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
                 ),
                 "FocusCommand": "make focus-price TICKER=META",
                 "ExampleCommand": "make price-normalize INPUT=data/raw/prices/META.csv TICKER=META SOURCE=yahoo_manual",
@@ -1150,7 +1150,7 @@ def test_data_quality_needs_refresh_rejects_stale_example_commands():
             {
                 "Ticker": "AMD",
                 "ReadinessStatus": "Needs Price Data",
-                "NextBestAction": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "NextBestAction": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
                 "FocusCommand": "make focus-price TICKER=AMD",
                 "ExampleCommand": "make status",
             },
@@ -1209,7 +1209,7 @@ def test_action_queue_rows_normalize_stale_onboarding_example_commands():
                     "dataset": "prices",
                     "ticker": "AMD",
                     "status": "missing_or_incomplete",
-                    "recommended_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                    "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
                     "focus_command": "make focus-price TICKER=AMD",
                     "example_command": "make status",
                     "target_file": "data/imports/prices.csv",

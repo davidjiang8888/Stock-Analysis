@@ -64,7 +64,7 @@ def test_project_status_prefers_live_price_status_context_for_price_actions(tmp_
                 "error_category": "parse_error",
                 "error_message": "NVDA: parse failed",
                 "fallback_used": True,
-                "recommended_action": "Run make focus-price TICKER=NVDA, or run python3 -m src.data_update --tickers NVDA and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=NVDA, or run make price-refresh TICKERS=NVDA; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
                 "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "make onboarding",
                 "target_file": "data/imports/prices.csv",

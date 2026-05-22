@@ -950,7 +950,7 @@ def test_load_research_health_tables_refreshes_stale_wizard_artifact(tmp_path):
     assert amd_row["FocusCommand"] == "make focus-price TICKER=AMD"
     assert "make price-normalize" in amd_row["ExampleCommand"]
     assert "make focus-price TICKER=AMD" in amd_row["NextBestAction"]
-    assert "normalize verified downloaded OHLCV files into data/imports/prices.csv" in amd_row["NextBestAction"]
+    assert "make price-refresh tickers=amd" in amd_row["NextBestAction"].lower()
 
 
 def test_load_research_health_tables_refreshes_stale_enrichment_wizard_actions(tmp_path):
@@ -1082,7 +1082,7 @@ def test_load_data_onboarding_tables_refreshes_stale_coverage_wizard_actions(tmp
                     "blocking_dataset": "prices",
                     "current_status": "0 local price rows",
                     "why_it_matters": "old",
-                    "recommended_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
+                    "recommended_action": "Run make focus-price TICKER=AMD, or run make price-refresh TICKERS=AMD; if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv.",
                     "target_file": "data/imports/prices.csv",
                     "focus_command": "make focus-price TICKER=AMD",
                     "example_command": "make status",

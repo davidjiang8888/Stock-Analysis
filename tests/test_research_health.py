@@ -58,7 +58,7 @@ def test_data_quality_wizard_scores_readiness_and_reasons():
             "usable_for_momentum": False,
             "usable_for_monthly_picks": False,
             "next_best_action": (
-                "Run python3 -m src.data_update --tickers AMD, or add verified rows to "
+                "Run make price-refresh TICKERS=AMD; if the free refresh path fails, add verified rows to "
                 "data/imports/prices.csv and run validate/preview/apply."
             ),
         },

@@ -289,7 +289,10 @@ def _normalized_error_message(status: str, ticker: str, error_message: object) -
 
 
 def _price_recommended_action(status: str, ticker: str, has_local_data: bool) -> str:
-    normalize_action = f"Run make focus-price TICKER={ticker}, or run python3 -m src.data_update --tickers {ticker} and normalize verified downloaded OHLCV files into data/imports/prices.csv."
+    normalize_action = (
+        f"Run make focus-price TICKER={ticker}, or run make price-refresh TICKERS={ticker}; "
+        "if the free refresh path fails, normalize verified downloaded OHLCV files into data/imports/prices.csv."
+    )
     if status == "fetched":
         return "No action needed; remote rows were merged into local prices."
     if status == "skipped_fresh":
