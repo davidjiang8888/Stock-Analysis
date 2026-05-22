@@ -8501,6 +8501,32 @@ def test_overview_bundle_runbook_cards_use_staged_follow_through_when_goal_summa
     assert "review staged import" in cards[0]["body"].lower()
 
 
+def test_overview_bundle_runbook_cards_use_price_staged_follow_through_when_goal_summary_is_missing():
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Review staged import",
+                "command": "make price-validate",
+                "tickers": "AMD,AVGO",
+                "goal_summary": "",
+                "target_file": "data/imports/prices.csv",
+                "safe_next_step": "",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_bundle_runbook_cards(runbook)
+
+    assert cards[0]["command"] == "make price-validate"
+    assert "make price-preview" in cards[0]["body"].lower()
+    assert "make price-apply" in cards[0]["body"].lower()
+    assert "review staged import" in cards[0]["body"].lower()
+
+
 def test_overview_bundle_runbook_cards_use_staged_command_when_steps_are_blank():
     runbook = pd.DataFrame(
         [
