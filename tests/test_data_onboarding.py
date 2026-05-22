@@ -859,6 +859,7 @@ def test_command_bundles_surface_holdings_first_price_and_sec_paths(tmp_path: Pa
     assert "AMD" in fundamentals_bundle["tickers"]
     assert "DCF readiness" in fundamentals_bundle["goal_summary"]
     assert fundamentals_bundle["primary_command"].startswith("make sec-stage TICKERS=")
+    assert fundamentals_bundle["follow_up_command"] == "make sec-validate"
     assert peer_bundle["scope"] == "holdings_first"
     assert "NVDA" in peer_bundle["tickers"]
     assert "peer-relative readiness" in peer_bundle["goal_summary"]
@@ -1068,6 +1069,22 @@ def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path:
     assert price_steps[5]["command"] == "make price-status"
     assert price_steps[-1]["step_label"] == "Refresh status outputs"
     assert price_steps[-1]["command"] == "make status"
+    fundamentals_steps = [
+        row
+        for row in runbook
+        if row["lane"] == "fundamentals"
+    ]
+    fundamentals_scope = fundamentals_steps[0]["scope"]
+    fundamentals_steps = [row for row in fundamentals_steps if row["scope"] == fundamentals_scope]
+    assert [row["step_order"] for row in fundamentals_steps] == [1, 2, 3, 4, 5]
+    assert fundamentals_steps[1]["step_label"] == "Validate staged fundamentals"
+    assert fundamentals_steps[1]["command"] == "make sec-validate"
+    assert fundamentals_steps[2]["step_label"] == "Preview fundamentals merge"
+    assert fundamentals_steps[2]["command"] == "make sec-preview"
+    assert fundamentals_steps[3]["step_label"] == "Apply fundamentals merge"
+    assert fundamentals_steps[3]["command"] == "make sec-apply"
+    assert fundamentals_steps[4]["step_label"] == "Refresh status outputs"
+    assert fundamentals_steps[4]["command"] == "make status"
     peer_steps = [
         row
         for row in runbook
