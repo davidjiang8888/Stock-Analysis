@@ -13,6 +13,7 @@ from src.data_update import enrich_price_update_status_frame
 from src.data_sources import write_data_source_outputs
 from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_importer import preview_import_merge, validate_imports
+from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
 from src.monthly_picks import MonthlyPickConfig
 from src.paths import path_context
@@ -210,8 +211,14 @@ def load_output(path: Path) -> tuple[pd.DataFrame | None, str | None]:
     return frame, None
 
 
-def load_pipeline_outputs() -> dict[str, tuple[pd.DataFrame | None, str | None]]:
-    return {filename: load_output(OUTPUTS_DIR / filename) for filename in PIPELINE_FILES}
+def load_pipeline_outputs(
+    outputs_dir: Path = OUTPUTS_DIR,
+) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
+    tables = {filename: load_output(outputs_dir / filename) for filename in PIPELINE_FILES}
+    if any(frame is None for frame, _ in tables.values()):
+        run_report_generator(BASE_DIR, output_dir=outputs_dir)
+        tables = {filename: load_output(outputs_dir / filename) for filename in PIPELINE_FILES}
+    return tables
 
 
 def load_data_source_status_tables(

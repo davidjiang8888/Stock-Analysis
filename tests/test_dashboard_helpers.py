@@ -372,6 +372,27 @@ def test_data_source_status_tables_handle_missing_outputs(tmp_path):
     assert dashboard.friendly_data_source_status("optional_unofficial") == "Optional unofficial"
 
 
+def test_pipeline_outputs_loader_regenerates_missing_core_outputs(tmp_path):
+    old_base = dashboard.BASE_DIR
+    old_outputs = dashboard.OUTPUTS_DIR
+    try:
+        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
+        dashboard.OUTPUTS_DIR = tmp_path
+        tables = dashboard.load_pipeline_outputs(tmp_path)
+    finally:
+        dashboard.BASE_DIR = old_base
+        dashboard.OUTPUTS_DIR = old_outputs
+
+    for filename in dashboard.PIPELINE_FILES:
+        frame, message = tables[filename]
+        assert frame is not None
+        assert message is None
+
+    assert (tmp_path / "purpose_classification.csv").exists()
+    assert (tmp_path / "market_direction.csv").exists()
+    assert (tmp_path / "final_watchlist.csv").exists()
+
+
 def test_data_source_status_table_columns_surface_command_fields():
     frame = pd.DataFrame(
         [
