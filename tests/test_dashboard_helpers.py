@@ -1994,11 +1994,12 @@ def test_project_status_action_cards_use_command_family_fallbacks_when_row_copy_
     actions = dashboard.project_status_action_cards(payload)
 
     assert actions[0][2] == "make imports-validate"
-    assert "staged local workflow next" in actions[0][1].lower()
+    assert "make imports-preview" in actions[0][1].lower()
+    assert "make imports-apply" in actions[0][1].lower()
     assert actions[1][2] == "make bundle-peers"
     assert "highest-leverage local bundle first" in actions[1][1].lower()
     assert actions[2][2] == "make runbook-peers"
-    assert "staged local workflow next" in actions[2][1].lower()
+    assert "ordered lane runbook" in actions[2][1].lower()
     assert "not available" not in " ".join(action[1] for action in actions).lower()
 
 

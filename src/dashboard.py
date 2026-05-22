@@ -4154,12 +4154,31 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
         reason = normalize_operator_copy(row.get("reason"))
         recommended_action = normalize_operator_copy(row.get("recommended_action"))
         body = command_family_fallback(command, review_path_fallback(row.get("dataset")))
+        lowered_command = command.lower()
+        if "runbook-" in lowered_command:
+            body = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
         if reason and reason != "Not available":
             body = f"{reason} {recommended_action}".strip() if recommended_action and recommended_action != reason else reason
         elif recommended_action and recommended_action != "Not available":
             body = recommended_action
         elif body == "Review local data coverage.":
             body = "Local data coverage needs attention."
+        if lowered_command == "make imports-validate":
+            normalized_body = body.lower()
+            if "make imports-preview" not in normalized_body or "make imports-apply" not in normalized_body:
+                body = (
+                    f"{reason} Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+                    if reason and reason != "Not available"
+                    else "Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+                )
+        elif lowered_command == "make price-validate":
+            normalized_body = body.lower()
+            if "make price-preview" not in normalized_body or "make price-apply" not in normalized_body:
+                body = (
+                    f"{reason} Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
+                    if reason and reason != "Not available"
+                    else "Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
+                )
         staged_follow_through = ""
         if target_file == "data/imports/fundamentals.csv":
             staged_follow_through = "Run make imports-validate, then make imports-preview, then make imports-apply for the staged fundamentals import."
