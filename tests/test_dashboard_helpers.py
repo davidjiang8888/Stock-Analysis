@@ -2816,7 +2816,7 @@ def test_overview_next_command_cards_prioritize_project_status_commands():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert len(cards) == 3
-    assert cards[0]["title"] == "make status"
+    assert cards[0]["title"] == "make status-check TOP_N=5"
     assert "make verify" in rendered
     assert "make dashboard-smoke" in rendered
     assert "buy" not in rendered
