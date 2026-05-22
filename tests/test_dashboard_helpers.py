@@ -1681,6 +1681,18 @@ def test_project_status_cockpit_is_readable_and_research_safe():
     assert "sell" not in html.lower()
 
 
+def test_project_status_read_only_fallbacks_use_status_check():
+    actions = dashboard.project_status_action_cards(None)
+    html = dashboard.project_status_cockpit_html(None, 0, "Unknown")
+
+    assert actions[0][0] == "Project status unavailable"
+    assert actions[0][2] == "make status-check TOP_N=5"
+    assert "read-only status command" in actions[0][1].lower()
+    assert "make status-check top_n=5" in html.lower()
+    assert "buy" not in html.lower()
+    assert "sell" not in html.lower()
+
+
 def test_project_status_command_rows_prefer_structured_rows():
     payload = {
         "recommended_next_command_rows": [

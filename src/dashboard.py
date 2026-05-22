@@ -3735,7 +3735,7 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
             (
                 "Project status unavailable",
                 "Run the read-only status command to rebuild local source and onboarding summaries.",
-                "make status",
+                "make status-check TOP_N=5",
                 "warning",
             )
         ]
@@ -3798,8 +3798,8 @@ def project_status_cockpit_html(payload: dict[str, Any] | None, health_score: in
     if not payload:
         return notice_card_html(
             "Project status unavailable",
-            "Run `make status` to rebuild the local project status snapshot.",
-            "make status",
+            "Run `make status-check TOP_N=5` to rebuild the local read-only project status snapshot.",
+            "make status-check TOP_N=5",
             tone="warning",
         )
     summary = payload.get("summary", {})
