@@ -1617,6 +1617,8 @@ def normalize_operator_command(command: object) -> str:
         return "make universe-preview"
     if re.fullmatch(r"python3 -m src\.universe_builder --preview --sources .+", command_text):
         return "make universe-preview"
+    if re.fullmatch(r"python3 -m src\.universe_builder --write-import .+", command_text):
+        return "make universe-apply"
     if command_text == "python3 -m src.universe_builder --apply-import":
         return "make universe-apply"
     return command_text

@@ -4629,6 +4629,10 @@ def test_normalize_operator_command_rewrites_legacy_price_and_universe_commands(
         dashboard.normalize_operator_command("python3 -m src.universe_builder --preview --sources sp500,nasdaq,smh,holdings --max-tickers 100")
         == "make universe-preview"
     )
+    assert (
+        dashboard.normalize_operator_command("python3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50")
+        == "make universe-apply"
+    )
 
 
 def test_preferred_row_command_rewrites_legacy_price_refresh_example_command():

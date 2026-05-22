@@ -278,6 +278,8 @@ def _normalize_queue_command(command: str) -> str:
         return "make universe-preview"
     if re.fullmatch(r"python3 -m src\.universe_builder --preview --sources .+", text):
         return "make universe-preview"
+    if re.fullmatch(r"python3 -m src\.universe_builder --write-import .+", text):
+        return "make universe-apply"
     return text
 
 

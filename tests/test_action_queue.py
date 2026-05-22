@@ -235,6 +235,32 @@ def test_action_queue_normalizes_legacy_sec_stage_example_commands():
     assert rows[0].example_command == "make sec-stage TICKERS=NVDA,MSFT"
 
 
+def test_action_queue_normalizes_legacy_universe_write_import_example_commands():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(
+            [
+                {
+                    "priority": 2,
+                    "ticker": "",
+                    "dataset": "universe",
+                    "status": "partial",
+                    "reason": "Staged universe import is ready to apply.",
+                    "recommended_action": "Apply the staged universe after review.",
+                    "target_file": "data/imports/universe.csv",
+                    "focus_command": "make universe-preview",
+                    "example_command": "python3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50",
+                },
+            ]
+        ),
+        data_gaps=pd.DataFrame(),
+        data_quality=pd.DataFrame(),
+    )
+
+    assert rows[0].example_command == "make universe-apply"
+
+
 def test_action_queue_uses_staged_import_titles_for_global_gap_rows():
     rows = build_action_queue_rows(
         price_status=pd.DataFrame(),
