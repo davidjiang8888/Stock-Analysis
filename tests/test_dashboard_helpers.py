@@ -2234,7 +2234,7 @@ def test_holdings_unlock_cards_use_runbook_fallback_when_action_is_missing():
 
     assert cards[0]["kicker"] == "AMD"
     assert cards[0]["command"] == "make runbook-peers"
-    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -2472,7 +2472,7 @@ def test_holdings_deep_research_cards_use_runbook_fallback_when_action_is_missin
 
     assert cards[0]["kicker"] == "AMD"
     assert cards[0]["command"] == "make runbook-fundamentals"
-    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -2514,7 +2514,7 @@ def test_holdings_deep_research_cards_use_peer_runbook_fallback_when_action_is_m
 
     assert cards[0]["kicker"] == "TSLA"
     assert cards[0]["command"] == "make runbook-peers"
-    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 

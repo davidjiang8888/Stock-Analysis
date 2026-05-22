@@ -4573,6 +4573,8 @@ def holdings_unlock_cards(
             )
         else:
             fallback_action = command_family_fallback(command, f"Review {stage} path.")
+            if "runbook-" in command.lower():
+                fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
         next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
         if staged_price_import and (
             "make price-validate" not in next_action_summary
@@ -4653,6 +4655,8 @@ def holdings_deep_research_cards(
                     if staged_import
                     else command_family_fallback(command, "Review fundamentals path.")
                 )
+                if not staged_import and "runbook-" in command.lower():
+                    fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
                 next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
                 if staged_import and (
                     "make imports-validate" not in next_action_summary
@@ -4698,6 +4702,8 @@ def holdings_deep_research_cards(
                     if staged_import
                     else command_family_fallback(command, "Review peer path.")
                 )
+                if not staged_import and "runbook-" in command.lower():
+                    fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
                 next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
                 if staged_import and (
                     "make imports-validate" not in next_action_summary
