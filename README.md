@@ -222,10 +222,12 @@ Optional files being missing is not automatically a bug. The app is designed to 
 Run a local-only source check:
 
 ```bash
-python3 -m src.data_sources --check
+make data-sources-check
 python3 -m src.data_sources --check --json
 python3 -m src.data_sources --write-output
 ```
+
+Use `make data-sources-check` for the standard read-only operator path. Keep the raw `--json` / `--write-output` CLI forms for machine-readable inspection or when you explicitly want to write refreshed diagnostics without running the broader workflow.
 
 `--write-output` creates:
 
@@ -543,8 +545,9 @@ This updater:
 Useful flags:
 
 ```bash
+make price-refresh
+make price-refresh TICKERS=NVDA,MSFT,AVGO
 python -m src.data_update --universe-file data/universe.csv --max-tickers 100
-python -m src.data_update --tickers NVDA,MSFT,AVGO
 python -m src.data_update --chunk-size 25 --refresh
 ```
 
@@ -906,12 +909,12 @@ Recommended presets:
 Useful commands:
 
 ```bash
-python3 -m src.universe_builder --validate-sources
 make universe-preview
 make universe-apply
+make data-sources-check
 ```
 
-The default `make universe-preview` / `make universe-apply` path uses the safer `sp500_smh` preset with a capped preview-sized build. If you want a larger CLI-only smoke run:
+The default `make universe-preview` / `make universe-apply` path uses the safer `sp500_smh` preset with a capped preview-sized build. Use `make data-sources-check` when you want the read-only source-health pass first. If you want a larger CLI-only smoke run:
 
 ```bash
 python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50
