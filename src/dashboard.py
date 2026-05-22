@@ -255,6 +255,55 @@ def load_data_source_status_tables(
         needs_refresh = True
     if source_frame is not None and not source_frame.empty and not required_columns.issubset(set(source_frame.columns)):
         needs_refresh = True
+    if not needs_refresh and gap_frame is not None and not gap_frame.empty:
+        for _, row in gap_frame.iterrows():
+            dataset = str(row.get("dataset", "")).strip()
+            ticker = str(row.get("ticker", "")).strip().upper()
+            focus_command = normalize_operator_command(str(row.get("focus_command", "")).strip())
+            example_command = normalize_operator_command(str(row.get("example_command", "")).strip())
+            expected_example = ""
+            if focus_command == "make imports-validate":
+                expected_example = "make imports-preview"
+            elif dataset == "prices" and ticker:
+                expected_example = f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
+            elif dataset == "fundamentals" and ticker:
+                expected_example = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+            elif dataset == "peers" and ticker:
+                expected_example = "make templates"
+            elif dataset == "fundamentals" and focus_command == "make status":
+                expected_example = "make runbook-fundamentals-broader"
+            elif dataset == "peers" and focus_command == "make status":
+                expected_example = "make runbook-peers-broader"
+            elif dataset in {"earnings", "analyst_estimates", "smh_holdings"}:
+                expected_example = "make templates"
+            elif dataset in {"sp500_constituents", "nasdaq_symbols", "universe"} and focus_command == "make universe-preview":
+                expected_example = "make universe-preview"
+            elif dataset == "local_outputs" and focus_command == "make status":
+                expected_example = "make status"
+            if expected_example and example_command != expected_example:
+                needs_refresh = True
+                break
+    if not needs_refresh and source_frame is not None and not source_frame.empty:
+        for _, row in source_frame.iterrows():
+            dataset = str(row.get("dataset", "")).strip()
+            focus_command = normalize_operator_command(str(row.get("focus_command", "")).strip())
+            example_command = normalize_operator_command(str(row.get("example_command", "")).strip())
+            expected_example = ""
+            if focus_command == "make imports-validate":
+                expected_example = "make imports-preview"
+            elif dataset == "fundamentals" and focus_command == "make status":
+                expected_example = "make runbook-fundamentals-broader"
+            elif dataset == "peers" and focus_command == "make status":
+                expected_example = "make runbook-peers-broader"
+            elif dataset in {"earnings", "analyst_estimates", "smh_holdings"}:
+                expected_example = "make templates"
+            elif dataset in {"sp500_constituents", "nasdaq_symbols", "universe"} and focus_command == "make universe-preview":
+                expected_example = "make universe-preview"
+            elif dataset == "local_outputs" and focus_command == "make status":
+                expected_example = "make status"
+            if expected_example and example_command != expected_example:
+                needs_refresh = True
+                break
     if needs_refresh:
         payload = write_data_source_outputs(BASE_DIR, output_dir=outputs_dir)
         tables["data_source_status.csv"] = (pd.DataFrame(payload["data_sources"]), None)
