@@ -5513,6 +5513,29 @@ def test_data_health_command_bundle_runbook_cards_use_staged_command_when_steps_
     assert "no runbook steps available" not in cards[0]["body"].lower()
 
 
+def test_data_health_command_bundle_runbook_cards_use_why_it_matters_when_goal_summary_is_missing():
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Fill peer mappings manually",
+                "command": "data/imports/peers.csv",
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "",
+                "why_it_matters": "These tickers are closest to peer-relative coverage once manually researched mappings are added locally.",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_command_bundle_runbook_cards(runbook)
+
+    assert "closest to peer-relative coverage" in cards[0]["body"].lower()
+    assert "fill peer mappings manually: data/imports/peers.csv" in cards[0]["body"].lower()
+
+
 def test_data_health_price_target_cards_surface_exact_history_targets_safely():
     worklist = pd.DataFrame(
         [
@@ -6980,6 +7003,29 @@ def test_overview_bundle_runbook_cards_use_staged_command_when_steps_are_blank()
     assert cards[0]["command"] == "make imports-validate"
     assert "review staged import: make imports-validate" in cards[0]["body"].lower()
     assert "make imports-preview" in cards[0]["body"].lower()
+
+
+def test_overview_bundle_runbook_cards_use_why_it_matters_when_goal_summary_is_missing():
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Fill peer mappings manually",
+                "command": "data/imports/peers.csv",
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "",
+                "why_it_matters": "These tickers are closest to peer-relative coverage once manually researched mappings are added locally.",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_bundle_runbook_cards(runbook)
+
+    assert "closest to peer-relative coverage" in cards[0]["body"].lower()
+    assert "fill peer mappings manually: data/imports/peers.csv" in cards[0]["body"].lower()
 
 
 def test_overview_bundle_handoff_cards_surface_follow_through_safely():

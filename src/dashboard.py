@@ -2754,6 +2754,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             continue
         bundle_name = format_missing(lane_rows.iloc[0].get("bundle_name"), "Local bundle")
         goal_summary = compact_reason(lane_rows.iloc[0].get("goal_summary"), max_sentences=1, max_chars=110)
+        lane_summary = review_path_fallback(lane)
         target_file = format_missing(lane_rows.iloc[0].get("target_file"), "")
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
@@ -2765,6 +2766,11 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
                     staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
                 else:
                     staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+        body_summary = (
+            goal_summary
+            if goal_summary not in {"", "Not available"}
+            else compact_reason(lane_rows.iloc[0].get("why_it_matters") or staged_summary or lane_summary, max_sentences=1, max_chars=150)
+        )
         target_history_rows = _target_rows_hint(lane_rows.iloc[0].get("target_history_rows"))
         suggested_start_date = format_missing(lane_rows.iloc[0].get("suggested_start_date"), "")
         hint_text = ""
@@ -2800,7 +2806,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
                 "kicker": f"{lane.upper()} RUNBOOK",
                 "title": bundle_name,
                 "body": (
-                    f"{goal_summary}{hint_text}. " if goal_summary not in {"", "Not available"} else (f"{staged_summary}{hint_text}. " if staged_summary not in {"", "Not available"} else "")
+                    f"{body_summary}{hint_text}. " if body_summary not in {"", "Not available"} else ""
                 ) + (" | ".join(steps) if steps else "No runbook steps available."),
                 "badges": [
                     format_missing(lane_rows.iloc[0].get("scope"), "scope").replace("_", " "),
@@ -5604,6 +5610,7 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
         bundle_name = format_missing(lane_rows.iloc[0].get("bundle_name"), "Local bundle")
         tickers = format_missing(lane_rows.iloc[0].get("tickers"), "No tickers")
         goal_summary = compact_reason(lane_rows.iloc[0].get("goal_summary"), max_sentences=1, max_chars=110)
+        lane_summary = review_path_fallback(lane)
         target_file = format_missing(lane_rows.iloc[0].get("target_file"), "")
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
@@ -5615,6 +5622,11 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
                     staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
                 else:
                     staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+        body_summary = (
+            goal_summary
+            if goal_summary not in {"", "Not available"}
+            else compact_reason(lane_rows.iloc[0].get("why_it_matters") or staged_summary or lane_summary, max_sentences=1, max_chars=150)
+        )
         target_history_rows = _target_rows_hint(lane_rows.iloc[0].get("target_history_rows"))
         suggested_start_date = format_missing(lane_rows.iloc[0].get("suggested_start_date"), "")
         hint_text = ""
@@ -5648,7 +5660,7 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
             {
                 "kicker": f"{lane.upper()} LANE",
                 "title": bundle_name,
-                "body": (f"{goal_summary}{hint_text}. " if goal_summary not in {"", "Not available"} else (f"{staged_summary}{hint_text}. " if staged_summary not in {"", "Not available"} else "")) + f"{tickers}. " + " | ".join(steps),
+                "body": (f"{body_summary}{hint_text}. " if body_summary not in {"", "Not available"} else "") + f"{tickers}. " + " | ".join(steps),
                 "badges": [
                     format_missing(lane_rows.iloc[0].get("scope"), "scope").replace("_", " "),
                     "runbook",
