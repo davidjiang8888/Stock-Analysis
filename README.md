@@ -109,11 +109,12 @@ make daily
 SEC and universe helpers:
 
 ```bash
-SEC_USER_AGENT="Your Name your.email@example.com" make sec-stage
-SEC_USER_AGENT="Your Name your.email@example.com" make sec-stage TICKERS=NVDA,MSFT
-make sec-validate
-make sec-preview
-make sec-apply
+export SEC_USER_AGENT="Your Name your.email@example.com"
+make sec-stage
+make sec-stage TICKERS=NVDA,MSFT
+make imports-validate
+make imports-preview
+make imports-apply
 make universe-preview
 make universe-apply
 ```
@@ -904,13 +905,11 @@ Useful commands:
 
 ```bash
 python3 -m src.universe_builder --validate-sources
-python3 -m src.universe_builder --preview --sources sp500,smh,holdings
-python3 -m src.universe_builder --preview --sources sp500,nasdaq,smh,holdings --max-tickers 100
-python3 -m src.universe_builder --write-import --sources sp500,smh,holdings
-python3 -m src.universe_builder --apply-import
+make universe-preview
+make universe-apply
 ```
 
-Safer smoke run for a larger build:
+The default `make universe-preview` / `make universe-apply` path uses the safer `sp500_smh` preset with a capped preview-sized build. If you want a larger CLI-only smoke run:
 
 ```bash
 python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50
@@ -1348,15 +1347,15 @@ Important limits:
 Stage explicit tickers:
 
 ```bash
-python -m src.stock_report --sec-stage-fundamentals --tickers NVDA,MSFT --sec-user-agent "Your Name your.email@example.com"
+export SEC_USER_AGENT="Your Name your.email@example.com"
+make sec-stage TICKERS=NVDA,MSFT
 ```
 
 Stage from the local ticker universe:
 
 ```bash
-python -m src.stock_report --sec-stage-fundamentals --from-local-tickers --sec-user-agent "Your Name your.email@example.com"
-python -m src.stock_report --sec-stage-fundamentals --from-universe --sec-user-agent "Your Name your.email@example.com"
-python -m src.stock_report --sec-stage-fundamentals --from-holdings --sec-user-agent "Your Name your.email@example.com"
+export SEC_USER_AGENT="Your Name your.email@example.com"
+make sec-stage
 ```
 
 Optional flags:
@@ -1369,10 +1368,10 @@ Optional flags:
 
 ```bash
 export SEC_USER_AGENT="Your Name your.email@example.com"
-python -m src.stock_report --sec-stage-fundamentals --tickers NVDA,MSFT
-python -m src.stock_report --validate-imports
-python -m src.stock_report --preview-import-merge
-python -m src.stock_report --apply-import-merge
+make sec-stage TICKERS=NVDA,MSFT
+make imports-validate
+make imports-preview
+make imports-apply
 python -m src.stock_report --validate-local-data
 python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_stock_report.json
 ```
@@ -1385,10 +1384,10 @@ If you want to enrich canonical local fundamentals safely, use the staged SEC + 
 
 ```bash
 export SEC_USER_AGENT="Your Name your.email@example.com"
-python3 -m src.stock_report --sec-stage-fundamentals --from-local-tickers
-python3 -m src.stock_report --validate-imports
-python3 -m src.stock_report --preview-import-merge
-python3 -m src.stock_report --apply-import-merge
+make sec-stage
+make imports-validate
+make imports-preview
+make imports-apply
 python3 -m src.stock_report --validate-local-data
 ```
 
@@ -1401,10 +1400,9 @@ This flow is explicit by design:
 If you also want to expand the screening universe afterward:
 
 ```bash
-python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50
-python3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50
-python3 -m src.universe_builder --apply-import
-python3 -m src.data_update --universe-file data/universe.csv --max-tickers 100
+make universe-preview
+make universe-apply
+make price-refresh
 ```
 
 ## Run tests

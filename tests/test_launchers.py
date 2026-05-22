@@ -120,6 +120,22 @@ def test_makefile_help_documents_key_workflows():
         assert phrase in makefile
 
 
+def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    for phrase in (
+        'export SEC_USER_AGENT="Your Name your.email@example.com"',
+        "make sec-stage TICKERS=NVDA,MSFT",
+        "make imports-validate",
+        "make imports-preview",
+        "make imports-apply",
+        "make universe-preview",
+        "make universe-apply",
+        "make price-refresh",
+    ):
+        assert phrase in readme
+
+
 def test_shell_launchers_anchor_to_repo_root():
     for script_name in ("daily.sh", "dashboard.sh", "validate_all.sh", "smoke_dashboard.sh"):
         script = (Path("scripts") / script_name).read_text(encoding="utf-8")
