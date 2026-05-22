@@ -529,7 +529,7 @@ python -m src.stock_report --ticker NVDA --provider local --output outputs/nvda_
 The project remains CSV-first and works without network access. If you want to refresh `data/prices.csv` from a free daily source before running the screener, you can use:
 
 ```bash
-python -m src.data_update
+make price-refresh
 ```
 
 This updater:
@@ -550,6 +550,8 @@ make price-refresh TICKERS=NVDA,MSFT,AVGO
 python -m src.data_update --universe-file data/universe.csv --max-tickers 100
 python -m src.data_update --chunk-size 25 --refresh
 ```
+
+Use `make price-refresh` for the standard operator path. Keep the raw `src.data_update` flags for narrower scripted refresh control when you explicitly want custom universe-file or chunk-size behavior.
 
 ### Price data fallback workflow
 

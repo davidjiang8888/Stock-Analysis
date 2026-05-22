@@ -166,6 +166,7 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "Validate staged files without mutating canonical data:\n\n```bash\nmake imports-validate" in readme
     assert "Preview what would change:\n\n```bash\nmake imports-preview" in readme
     assert "Apply the merge safely:\n\n```bash\nmake imports-apply" in readme
+    assert "If you want to refresh `data/prices.csv` from a free daily source before running the screener, you can use:\n\n```bash\nmake price-refresh" in readme
     assert "Useful flags:\n\n```bash\nmake price-refresh\nmake price-refresh TICKERS=NVDA,MSFT,AVGO" in readme
 
 
