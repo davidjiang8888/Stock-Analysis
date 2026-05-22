@@ -4800,8 +4800,9 @@ def overview_market_context_cards(
             {
                 "kicker": "MARKET CONTEXT",
                 "title": "No local market direction context yet",
-                "body": "Run the pipeline to surface theme and sector ETF context from local price history.",
+                "body": "Run make pipeline to surface theme and sector ETF context from local price history.",
                 "badges": ["read-only"],
+                "command": "make pipeline",
             }
         ]
 

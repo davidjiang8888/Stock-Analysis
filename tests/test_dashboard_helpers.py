@@ -2627,6 +2627,8 @@ def test_overview_market_context_cards_handle_missing_inputs_gracefully():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "no local market direction context yet" in rendered
+    assert cards[0]["command"] == "make pipeline"
+    assert "make pipeline" in rendered
     assert "buy" not in rendered
 
 
