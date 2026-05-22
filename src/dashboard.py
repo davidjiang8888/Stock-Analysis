@@ -322,6 +322,18 @@ def load_action_queue(
             normalized_actions = price_rows["recommended_action"].astype(str).str.strip().str.lower()
             if not normalized_actions.str.contains("make focus-price").all():
                 needs_refresh = True
+    if not needs_refresh and {"focus_command", "title", "reason"}.issubset(frame.columns):
+        staged_fundamentals_rows = frame.loc[
+            frame["focus_command"].astype(str).str.strip().str.lower().eq("make imports-validate")
+        ]
+        if not staged_fundamentals_rows.empty:
+            normalized_titles = staged_fundamentals_rows["title"].astype(str).str.strip().str.lower()
+            normalized_reasons = staged_fundamentals_rows["reason"].astype(str).str.strip().str.lower()
+            if (
+                normalized_titles.str.contains(r"resolve fundamentals gap").any()
+                or normalized_reasons.str.contains("freshness is file-based only").any()
+            ):
+                needs_refresh = True
     if needs_refresh:
         write_action_queue_output(BASE_DIR, output_dir=outputs_dir)
         return load_output(path)

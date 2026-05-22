@@ -695,6 +695,42 @@ def test_load_action_queue_refreshes_stale_queue_artifact(tmp_path):
     assert price_rows["target_file"].astype(str).str.strip().eq("data/imports/prices.csv").all()
 
 
+def test_load_action_queue_refreshes_stale_staged_fundamentals_queue_artifact(tmp_path):
+    pd.DataFrame(
+        [
+            {
+                "priority": 2,
+                "urgency": "high",
+                "action_type": "fundamentals",
+                "ticker": "",
+                "title": "Resolve fundamentals gap",
+                "status": "partial",
+                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals and DCF inputs.",
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "target_file": "data/imports/fundamentals.csv",
+                "source_file": "data/imports/fundamentals.csv",
+                "source_artifact": "outputs/data_gap_report.csv",
+                "reason": "as_of_date column is unavailable, so freshness is file-based only.",
+            }
+        ]
+    ).to_csv(tmp_path / "research_action_queue.csv", index=False)
+
+    old_base = dashboard.BASE_DIR
+    try:
+        dashboard.BASE_DIR = Path("/Users/yjian070/Documents/New project")
+        frame, message = dashboard.load_action_queue(tmp_path)
+    finally:
+        dashboard.BASE_DIR = old_base
+
+    assert message is None
+    assert frame is not None
+    staged_rows = frame.loc[frame["focus_command"].astype(str).str.strip().eq("make imports-validate")]
+    assert not staged_rows.empty
+    assert staged_rows.iloc[0]["title"] == "Advance staged fundamentals import"
+    assert "data/imports/fundamentals.csv" in str(staged_rows.iloc[0]["reason"])
+
+
 def test_load_research_health_tables_refreshes_stale_wizard_artifact(tmp_path):
     pd.DataFrame(
         [
