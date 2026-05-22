@@ -4199,8 +4199,9 @@ def theme_unlock_cards(
             {
                 "kicker": "THEME FIRST",
                 "title": "No grouped theme unlocks yet",
-                "body": "Theme and sector ETF rows will appear here once local universe context is available.",
+                "body": "Run make universe-preview to stage broader local universe context, then refresh onboarding outputs so grouped theme and sector ETF unlock rows can appear here.",
                 "badges": ["read-only"],
+                "command": "make universe-preview",
             }
         ]
 

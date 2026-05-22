@@ -1928,6 +1928,34 @@ def test_theme_unlock_cards_handle_missing_inputs_gracefully():
     assert "buy" not in rendered
 
 
+def test_theme_unlock_cards_fall_back_to_universe_preview_when_only_holdings_context_exists():
+    summary = pd.DataFrame(
+        [
+            {
+                "group_type": "holdings",
+                "group_name": "Current Holdings",
+                "ticker_count": 2,
+                "holdings_count": 2,
+                "top_priority_stage": "fundamentals",
+                "next_unlock_goal": "Unlock DCF",
+                "recommended_action": "Run make status, then follow the printed fundamentals focus or runbook path for this group.",
+                "focus_command": "make status",
+                "example_command": "make runbook-fundamentals",
+            }
+        ]
+    )
+
+    cards = dashboard.theme_unlock_cards(summary)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert len(cards) == 1
+    assert cards[0]["title"] == "No grouped theme unlocks yet"
+    assert cards[0]["command"] == "make universe-preview"
+    assert "make universe-preview" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_theme_deep_research_cards_surface_sec_and_peer_theme_blockers():
     sec_queue = pd.DataFrame(
         [
