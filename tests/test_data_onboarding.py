@@ -265,6 +265,7 @@ def test_price_worklist_prioritizes_sparse_price_history(tmp_path: Path):
     assert worklist["AMD"]["next_price_goal"] == "Unlock Monthly Picks"
     assert worklist["AMD"]["next_target_history_rows"] == 21
     assert worklist["AMD"]["rows_needed_for_next_goal"] == 20
+    assert worklist["AMD"]["suggested_start_date"]
     assert "more verified rows needed" in worklist["AMD"]["missing_for_momentum"]
     assert worklist["NVDA"]["track_record_ready"] is False
     assert worklist["NVDA"]["next_price_goal"] == "Unlock Track Record"

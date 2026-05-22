@@ -966,11 +966,13 @@ def build_price_import_worklist(
             next_target_history_rows = coverage.price_history_days
         rows_needed_for_next_goal = max(0, next_target_history_rows - coverage.price_history_days)
         suggested_start_date = ""
+        buffer_days = max(30, int(next_target_history_rows * 1.5))
         if latest_local_date:
             latest_ts = pd.to_datetime(latest_local_date, errors="coerce")
             if pd.notna(latest_ts):
-                buffer_days = max(30, int(next_target_history_rows * 1.5))
                 suggested_start_date = str((latest_ts - pd.Timedelta(days=buffer_days)).date())
+        if not suggested_start_date and next_target_history_rows > 0:
+            suggested_start_date = str((pd.Timestamp.today().normalize() - pd.Timedelta(days=buffer_days)).date())
         rows.append(
             PriceWorklistRow(
                 priority=priority,
