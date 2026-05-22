@@ -1892,6 +1892,47 @@ def test_holdings_deep_research_cards_surface_sec_and_peer_blockers():
     assert "sell" not in rendered
 
 
+def test_holdings_deep_research_cards_use_lane_front_doors_when_commands_are_missing():
+    holdings = pd.DataFrame(
+        [
+            {"Ticker": "NVDA", "PrimaryPurpose": "Momentum Leader"},
+            {"Ticker": "TSLA", "PrimaryPurpose": "Speculative Optionality"},
+        ]
+    )
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "theme": "AI",
+                "recommended_action": "Stage or add richer verified fundamentals to close the remaining DCF input gaps.",
+                "focus_command": "",
+                "example_command": "",
+                "price_history_days": 25,
+            }
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "theme": "EV",
+                "recommended_action": "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
+                "focus_command": "",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.holdings_deep_research_cards(holdings, sec_queue, peer_queue, limit=4)
+    dcf_card = next(card for card in cards if card["title"] == "Unlock DCF")
+    peer_card = next(card for card in cards if card["title"] == "Unlock Peer Relative")
+
+    assert dcf_card["command"] == "make focus-fundamentals TICKER=NVDA"
+    assert peer_card["command"] == "make focus-peers TICKER=TSLA"
+
+
 def test_holdings_deep_research_cards_handle_missing_inputs_gracefully():
     cards = dashboard.holdings_deep_research_cards(None, None, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()

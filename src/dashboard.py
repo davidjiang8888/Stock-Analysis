@@ -4153,7 +4153,10 @@ def holdings_deep_research_cards(
                             f"{compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
                         ),
                         "badges": ["fundamentals", format_missing(row.get("theme"), "theme")],
-                        "command": preferred_row_command(row, ""),
+                        "command": preferred_row_command(
+                            row,
+                            ticker_focus_command("fundamentals", row.get("ticker"), "make onboarding"),
+                        ),
                     }
                 )
 
@@ -4175,7 +4178,10 @@ def holdings_deep_research_cards(
                             f"{compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
                         ),
                         "badges": ["peers", format_missing(row.get("theme"), "theme")],
-                        "command": preferred_row_command(row, ""),
+                        "command": preferred_row_command(
+                            row,
+                            ticker_focus_command("peers", row.get("ticker"), "make onboarding"),
+                        ),
                     }
                 )
 
