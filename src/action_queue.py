@@ -25,6 +25,7 @@ ACTION_QUEUE_COLUMNS = [
     "recommended_action",
     "focus_command",
     "example_command",
+    "target_file",
     "source_file",
     "source_artifact",
     "reason",
@@ -72,6 +73,7 @@ class ActionQueueItem:
     recommended_action: str
     focus_command: str
     example_command: str
+    target_file: str
     source_file: str
     source_artifact: str
     reason: str
@@ -398,6 +400,7 @@ def build_action_queue_rows(
                     recommended_action=recommended_action,
                     focus_command=focus_command,
                     example_command=example_command,
+                    target_file=target_file,
                     source_file=target_file,
                     source_artifact="outputs/price_update_status.csv",
                     reason=reason,
@@ -425,6 +428,7 @@ def build_action_queue_rows(
                         recommended_action=recommended_action or "Refresh or manually import prices for this ticker.",
                         focus_command=focus_command,
                         example_command=example_command,
+                        target_file="data/imports/prices.csv",
                         source_file="data/imports/prices.csv",
                         source_artifact="outputs/data_quality_wizard.csv",
                         reason=str(row.get("Reason", "")).strip(),
@@ -452,6 +456,7 @@ def build_action_queue_rows(
                         recommended_action=recommended_action,
                         focus_command=focus_command,
                         example_command=example_command,
+                        target_file=_source_file_for_focus_command(focus_command),
                         source_file=_source_file_for_focus_command(focus_command),
                         source_artifact="outputs/data_quality_wizard.csv",
                         reason=str(row.get("MissingDataFields", "")).strip() or str(row.get("Reason", "")).strip(),
@@ -479,6 +484,7 @@ def build_action_queue_rows(
                     recommended_action=str(row.get("recommended_action", "")).strip(),
                     focus_command=focus_command,
                     example_command=str(row.get("example_command", "")).strip(),
+                    target_file=str(row.get("target_file", "")).strip(),
                     source_file=str(row.get("target_file", "")).strip(),
                     source_artifact="outputs/data_onboarding_actions.csv",
                     reason=str(row.get("reason", "")).strip(),
@@ -519,6 +525,10 @@ def build_action_queue_rows(
                     if dataset in {"fundamentals", "peers", "earnings", "analyst_estimates"}
                     else "make daily"
                 )
+            target_file = (
+                str(row.get("target_file", "")).strip()
+                or _global_gap_source_file(dataset, str(row.get("local_file", "")).strip())
+            )
             items.append(
                 ActionQueueItem(
                     priority=priority,
@@ -530,7 +540,8 @@ def build_action_queue_rows(
                     recommended_action=str(row.get("recommended_action", "")).strip(),
                     focus_command=focus_command,
                     example_command=example_command,
-                    source_file=_global_gap_source_file(dataset, str(row.get("local_file", "")).strip()),
+                    target_file=target_file,
+                    source_file=target_file,
                     source_artifact="outputs/data_gap_report.csv",
                     reason=str(row.get("reason", "")).strip(),
                 )

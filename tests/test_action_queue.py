@@ -116,11 +116,13 @@ def test_action_queue_uses_focus_commands_for_enrichment_rows():
     nvda_row = next(row for row in rows if row.ticker == "NVDA")
     assert nvda_row.focus_command == "make focus-fundamentals TICKER=NVDA"
     assert nvda_row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
+    assert nvda_row.target_file == "data/imports/fundamentals.csv"
     assert nvda_row.source_file == "data/imports/fundamentals.csv"
 
     tsla_row = next(row for row in rows if row.ticker == "TSLA")
     assert tsla_row.focus_command == "make focus-peers TICKER=TSLA"
     assert tsla_row.example_command == "make templates"
+    assert tsla_row.target_file == "data/imports/peers.csv"
     assert tsla_row.source_file == "data/imports/peers.csv"
 
 
@@ -453,16 +455,19 @@ def test_action_queue_uses_runbook_and_template_commands_for_global_gap_rows():
     peers_row = next(row for row in rows if row.action_type == "peers" and not row.ticker)
     assert peers_row.focus_command == "make runbook-peers-broader"
     assert peers_row.example_command == "make runbook-peers-broader"
+    assert peers_row.target_file == "data/imports/peers.csv"
     assert peers_row.source_file == "data/imports/peers.csv"
 
     earnings_row = next(row for row in rows if row.action_type == "earnings" and not row.ticker)
     assert earnings_row.focus_command == "make templates"
     assert earnings_row.example_command == "make templates"
+    assert earnings_row.target_file == "data/imports/earnings.csv"
     assert earnings_row.source_file == "data/imports/earnings.csv"
 
     smh_row = next(row for row in rows if row.action_type == "smh_holdings" and not row.ticker)
     assert smh_row.focus_command == "make templates"
     assert smh_row.example_command == "make templates"
+    assert smh_row.target_file == "data/custom_universe.csv"
     assert smh_row.source_file == "data/custom_universe.csv"
 
     sp500_row = next(row for row in rows if row.action_type == "sp500_constituents" and not row.ticker)

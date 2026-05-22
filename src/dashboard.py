@@ -280,7 +280,8 @@ def load_action_queue(
     if frame is None:
         return frame, message
     needs_refresh = False
-    if "focus_command" not in frame.columns or "example_command" not in frame.columns:
+    required_columns = {"focus_command", "example_command", "target_file"}
+    if not required_columns.issubset(set(frame.columns)):
         needs_refresh = True
     elif {"action_type", "recommended_action"}.issubset(frame.columns):
         price_rows = frame.loc[frame["action_type"].astype(str).str.strip().eq("prices")]

@@ -632,9 +632,11 @@ def test_load_action_queue_refreshes_stale_queue_artifact(tmp_path):
     assert frame is not None
     assert "focus_command" in frame.columns
     assert "example_command" in frame.columns
+    assert "target_file" in frame.columns
     price_rows = frame.loc[frame["action_type"].astype(str).str.strip().eq("prices")]
     assert not price_rows.empty
     assert price_rows["recommended_action"].astype(str).str.contains("make focus-price").all()
+    assert price_rows["target_file"].astype(str).str.strip().eq("data/imports/prices.csv").all()
 
 
 def test_load_research_health_tables_refreshes_stale_wizard_artifact(tmp_path):
