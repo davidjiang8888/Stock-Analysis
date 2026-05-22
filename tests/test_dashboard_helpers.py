@@ -4866,17 +4866,21 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
 
 
 def test_priority_now_falls_back_to_status_first_ready_path():
-    actions: list[tuple[str, str, str, str]] = []
+    class ReadyCatalog:
+        def load_dataframe(self, name: str):
+            if name == "fundamentals":
+                return pd.DataFrame(
+                    [
+                        {"ticker": "NVDA", "free_cash_flow": 10},
+                        {"ticker": "MSFT", "free_cash_flow": 12},
+                    ]
+                )
+            if name == "peers":
+                return pd.DataFrame([{"ticker": "NVDA", "peer_ticker": "MSFT"}])
+            return pd.DataFrame()
 
-    if not actions:
-        actions.append(
-            (
-                "Workflow looks ready",
-                "Core outputs are present. Run make status-check TOP_N=5 to review the operator snapshot, then make dashboard-smoke before deeper dashboard review.",
-                "make status-check TOP_N=5",
-                "neutral",
-            )
-        )
+    payload = {"top_onboarding_actions": []}
+    actions = dashboard.priority_now_fallback_actions(payload, missing_warning_count=0, catalog=ReadyCatalog())
 
     rendered = " ".join(str(item) for row in actions for item in row).lower()
     assert "workflow looks ready" in rendered
@@ -4885,6 +4889,26 @@ def test_priority_now_falls_back_to_status_first_ready_path():
     assert "place_order" not in rendered
     assert "submit_order" not in rendered
     assert "execute_trade" not in rendered
+
+
+def test_priority_now_fallback_actions_use_wizard_and_peer_runbook_front_doors():
+    class StubCatalog:
+        def load_dataframe(self, name: str):
+            if name == "fundamentals":
+                return pd.DataFrame([{"ticker": "NVDA"}, {"ticker": "TSLA"}])
+            if name == "peers":
+                return pd.DataFrame()
+            return pd.DataFrame()
+
+    actions = dashboard.priority_now_fallback_actions(None, missing_warning_count=3, catalog=StubCatalog())
+    rendered = " ".join(str(item) for row in actions for item in row).lower()
+
+    assert any(row[0] == "Data gaps are visible" and row[2] == "make data-wizard TOP_N=10" for row in actions)
+    assert any(row[0] == "Peer context needs local research" and row[2] == "make runbook-peers-broader" for row in actions)
+    assert "make data-wizard top_n=10" in rendered
+    assert "make runbook-peers-broader" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_normalize_operator_command_rewrites_legacy_price_and_universe_commands():

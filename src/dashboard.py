@@ -5864,6 +5864,57 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
     return rows
 
 
+def priority_now_fallback_actions(
+    project_status_payload: dict[str, Any] | None,
+    *,
+    missing_warning_count: int,
+    catalog: pd.DataFrame | None,
+) -> list[tuple[str, str, str, str]]:
+    actions: list[tuple[str, str, str, str]] = project_status_action_cards(project_status_payload)
+    dcf_ready_count = _dcf_ready_count(catalog)
+    peer_ready_count = _peer_ready_count(catalog)
+    only_no_urgent_action = len(actions) == 1 and actions[0][0] == "No urgent onboarding actions"
+    if only_no_urgent_action and missing_warning_count == 0 and dcf_ready_count > 0 and peer_ready_count > 0:
+        actions = []
+    if missing_warning_count:
+        actions.append(
+            (
+                "Data gaps are visible",
+                f"{missing_warning_count} ticker/theme names have missing-data warnings. Start with make data-wizard TOP_N=10, then follow the first focus or runbook path before trusting broader rankings.",
+                "make data-wizard TOP_N=10",
+                "warning",
+            )
+        )
+    if dcf_ready_count == 0:
+        actions.append(
+            (
+                "Valuation coverage is sparse",
+                "DCF-ready count is zero. Stage SEC fundamentals or add verified local fundamentals before leaning on valuation context.",
+                "make focus-fundamentals TICKER=NVDA",
+                "warning",
+            )
+        )
+    if peer_ready_count == 0:
+        actions.append(
+            (
+                "Peer context needs local research",
+                "No peer-ready tickers detected. Run make runbook-peers-broader or make focus-peers TICKER=... first. Add verified mappings only when they are missing, and otherwise follow the staged peer-data blocker.",
+                "make runbook-peers-broader",
+                "neutral",
+            )
+        )
+    if not actions:
+        actions.append(
+            (
+                "Workflow looks ready",
+                "Core outputs are present. Run make status-check TOP_N=5 to review the operator snapshot, then make dashboard-smoke before deeper dashboard review.",
+                "make status-check TOP_N=5",
+                "neutral",
+            )
+        )
+    return actions
+
+
 def clean_display_frame(frame: pd.DataFrame) -> pd.DataFrame:
     def clean_cell(value: object) -> str:
         if isinstance(value, bool):
@@ -6613,43 +6664,11 @@ def render_overview(
         render_section_header("Priority Now", "The fastest way to improve the local research workflow today.")
         render_signal_cards(priority_signals)
     else:
-        actions: list[tuple[str, str, str, str]] = project_status_action_cards(project_status_payload)
-        if missing_warning_count:
-            actions.append(
-                (
-                    "Data gaps are visible",
-                    f"{missing_warning_count} ticker/theme names have missing-data warnings. Start with make status, then follow the first focus or runbook path before trusting broader rankings.",
-                    "make status",
-                    "warning",
-                )
-            )
-        if _dcf_ready_count(catalog) == 0:
-            actions.append(
-                (
-                    "Valuation coverage is sparse",
-                    "DCF-ready count is zero. Stage SEC fundamentals or add verified local fundamentals before leaning on valuation context.",
-                    "make focus-fundamentals TICKER=NVDA",
-                    "warning",
-                )
-            )
-        if _peer_ready_count(catalog) == 0:
-            actions.append(
-                (
-                    "Peer context needs local research",
-                    "No peer-ready tickers detected. Run make status, then use the printed peer focus or runbook path. Add verified mappings only when they are missing, and otherwise follow the staged peer-data blocker.",
-                    "make status",
-                    "neutral",
-                )
-            )
-        if not actions:
-            actions.append(
-                (
-                    "Workflow looks ready",
-                    "Core outputs are present. Run make status-check TOP_N=5 to review the operator snapshot, then make dashboard-smoke before deeper dashboard review.",
-                    "make status-check TOP_N=5",
-                    "neutral",
-                )
-            )
+        actions = priority_now_fallback_actions(
+            project_status_payload,
+            missing_warning_count=missing_warning_count,
+            catalog=catalog,
+        )
         render_action_cards(actions)
 
     output_rows = []
