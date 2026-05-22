@@ -4292,6 +4292,37 @@ def test_stock_report_local_context_cards_use_peer_front_door_when_commands_are_
     assert peer_mapping_card["command"] == "make focus-peers TICKER=NVDA"
 
 
+def test_stock_report_local_context_cards_use_staged_peer_front_door_when_commands_are_missing():
+    coverage = pd.DataFrame(
+        [
+            {
+                "dataset": "peers",
+                "ticker": "NVDA",
+                "ticker_present": True,
+                "validation_status": "valid",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+            }
+        ]
+    )
+    peer_summary = {
+        "peer_dataset_present": False,
+        "peer_count": 2,
+        "peer_fundamentals_available": 0,
+        "peer_market_context_available": 0,
+    }
+
+    cards = dashboard.stock_report_local_context_cards(coverage, peer_summary)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    peer_mapping_card = next(card for card in cards if card["kicker"] == "PEER MAPPING")
+
+    assert peer_mapping_card["title"] == "Staged"
+    assert peer_mapping_card["command"] == "make imports-validate"
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+
+
 def test_stock_report_next_step_cards_prioritize_missing_prices_first():
     payload = {
         "ticker": "NVDA",

@@ -2163,19 +2163,21 @@ def stock_report_local_context_cards(
     if not coverage.empty and "validation_status" in coverage.columns:
         validation_warnings = int(coverage["validation_status"].astype(str).eq("valid_with_warnings").sum())
     peer_count = int(peer_summary.get("peer_count") or 0)
+    peer_target_file = format_missing(peer_row.get("target_file"), "") if peer_row is not None else ""
+    peer_fallback_command = (
+        "make imports-validate"
+        if peer_target_file == "data/imports/peers.csv"
+        else ticker_focus_command("peers", peer_row.get("ticker") if peer_row is not None else "", "make onboarding")
+    )
     peer_focus_command = (
         preferred_row_command(
             peer_row,
-            ticker_focus_command("peers", peer_row.get("ticker") if peer_row is not None else "", "make onboarding"),
+            peer_fallback_command,
         )
         if peer_row is not None
         else "make onboarding"
     )
-    peer_target_file = format_missing(peer_row.get("target_file"), "") if peer_row is not None else ""
-    staged_peer_import = (
-        peer_focus_command == "make imports-validate"
-        and peer_target_file == "data/imports/peers.csv"
-    )
+    staged_peer_import = peer_target_file == "data/imports/peers.csv"
     return [
         {
             "kicker": "LOCAL DATASETS",
