@@ -66,7 +66,7 @@ def test_project_status_prefers_live_price_status_context_for_price_actions(tmp_
                 "fallback_used": True,
                 "recommended_action": "Run make focus-price TICKER=NVDA, or run python3 -m src.data_update --tickers NVDA and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
                 "focus_command": "make focus-price TICKER=NVDA",
-                "example_command": "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual",
+                "example_command": "make onboarding",
                 "target_file": "data/imports/prices.csv",
             }
         ]
@@ -78,6 +78,7 @@ def test_project_status_prefers_live_price_status_context_for_price_actions(tmp_
     assert top_action["ticker"] == "NVDA"
     assert top_action["status"] == "parse_error"
     assert top_action["reason"] == "NVDA: parse failed"
+    assert top_action["example_command"] == "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"
     assert payload["recommended_next_command_rows"][0]["Reason"] == "NVDA: parse failed"
 
 

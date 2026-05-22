@@ -344,6 +344,18 @@ def _recommended_action_needs_refresh(status: str, recommended_action: str, tick
     return False
 
 
+def _example_command_needs_refresh(status: str, example_command: str, ticker: str) -> bool:
+    text = str(example_command or "").strip()
+    if not text:
+        return True
+    expected = _price_example_command(status, ticker)
+    if not expected:
+        return False
+    if text in {"make onboarding", "make status"}:
+        return True
+    return text != expected
+
+
 def _error_message_needs_refresh(status: str, error_message: str, ticker: str) -> bool:
     normalized = str(error_message or "").strip()
     if not normalized:
@@ -388,7 +400,7 @@ def enrich_price_update_status_frame(frame: pd.DataFrame) -> pd.DataFrame:
             enriched.at[index, "recommended_action"] = _price_recommended_action(status, ticker, has_local_data)
         if not str(row.get("focus_command", "")).strip():
             enriched.at[index, "focus_command"] = _price_focus_command(status, ticker)
-        if not str(row.get("example_command", "")).strip():
+        if _example_command_needs_refresh(status, str(row.get("example_command", "")).strip(), ticker):
             enriched.at[index, "example_command"] = _price_example_command(status, ticker)
         if not str(row.get("target_file", "")).strip():
             enriched.at[index, "target_file"] = _price_target_file(status)
