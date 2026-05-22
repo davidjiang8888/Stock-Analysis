@@ -54,6 +54,16 @@ def test_data_source_registry_contains_required_datasets():
     prices_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "prices")
     assert "make status" in prices_entry.fallback_action
     assert "validate/preview/apply" in prices_entry.fallback_action
+    fundamentals_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "fundamentals")
+    assert "make status" in fundamentals_entry.fallback_action
+    assert "runbook path" in fundamentals_entry.fallback_action
+    peers_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "peers")
+    assert "make templates" in peers_entry.fallback_action
+    assert "make status" in peers_entry.fallback_action
+    earnings_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "earnings")
+    assert "make templates" in earnings_entry.fallback_action
+    analyst_entry = next(entry for entry in DATA_SOURCE_REGISTRY if entry.dataset == "analyst_estimates")
+    assert "make templates" in analyst_entry.fallback_action
 
 
 def test_data_source_check_handles_missing_optional_files_without_network(tmp_path: Path):
@@ -67,6 +77,11 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     assert statuses["earnings"] == "manual_only"
     assert statuses["analyst_estimates"] == "manual_only"
     assert any(gap["dataset"] == "prices" and gap["ticker"] == "MSFT" for gap in payload["data_gaps"])
+    gap_lookup = {gap["dataset"]: gap for gap in payload["data_gaps"] if not gap["ticker"]}
+    assert "make status" in gap_lookup["fundamentals"]["recommended_action"]
+    assert "make templates" in gap_lookup["peers"]["recommended_action"]
+    assert "make templates" in gap_lookup["earnings"]["recommended_action"]
+    assert "make templates" in gap_lookup["analyst_estimates"]["recommended_action"]
 
 
 def test_write_data_source_outputs_creates_csvs(tmp_path: Path):

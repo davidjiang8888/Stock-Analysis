@@ -112,7 +112,10 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_user_agent=True,
         requires_api_key=False,
         expected_local_file="data/fundamentals.csv",
-        fallback_action="Run SEC staging for fundamentals, then validate, preview, and apply the staged import.",
+        fallback_action=(
+            "Start with make status, then follow the printed fundamentals focus or runbook path. "
+            "Keep SEC staging staged and review-only through validate/preview/apply."
+        ),
         notes="SEC staging only provides candidate fundamentals; it does not provide prices, peers, earnings, or analyst estimates.",
     ),
     DataSourceRegistryEntry(
@@ -128,7 +131,10 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_user_agent=False,
         requires_api_key=False,
         expected_local_file="data/peers.csv",
-        fallback_action="Add data/imports/peers.csv manually with real peer mappings, then validate and apply imports.",
+        fallback_action=(
+            "Start with make status, then follow the printed peer focus or runbook path. "
+            "Use make templates and fill data/imports/peers.csv manually with researched mappings."
+        ),
         notes="Peer mappings require local research and are never guessed.",
     ),
     DataSourceRegistryEntry(
@@ -144,7 +150,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_user_agent=False,
         requires_api_key=False,
         expected_local_file="data/earnings.csv",
-        fallback_action="Add data/imports/earnings.csv manually if you want local earnings coverage.",
+        fallback_action="Run make templates, then fill data/imports/earnings.csv manually only if you want local earnings coverage.",
         notes="Missing earnings files are expected until the user supplies verified local data.",
     ),
     DataSourceRegistryEntry(
@@ -160,7 +166,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_user_agent=False,
         requires_api_key=False,
         expected_local_file="data/analyst_estimates.csv",
-        fallback_action="Add data/imports/analyst_estimates.csv manually if you want estimate coverage.",
+        fallback_action="Run make templates, then fill data/imports/analyst_estimates.csv manually only if you want estimate coverage.",
         notes="Analyst estimates are not created by SEC staging and are never inferred.",
     ),
     DataSourceRegistryEntry(
