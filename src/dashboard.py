@@ -5982,7 +5982,14 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
         rows.append(
             {
                 "kicker": str(row.get("urgency", "Action")).upper(),
-                "title": format_missing(row.get("title"), "Research action"),
+                "title": preferred_row_command(
+                    row,
+                    ticker_focus_command(
+                        row.get("action_type"),
+                        row.get("ticker"),
+                        "make action-queue-check TOP_N=10",
+                    ),
+                ),
                 "body": compact_reason(body_source, max_sentences=2, max_chars=240),
                 "badges": [
                     f"P{format_missing(row.get('priority'), '-')}",

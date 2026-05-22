@@ -1596,11 +1596,11 @@ def test_top_priority_signals_are_compact_and_sorted():
 
     signals = dashboard.top_priority_signals(queue, limit=2)
 
-    assert signals[0]["title"] == "Repair prices"
+    assert signals[0]["title"] == "make focus-price TICKER=AMD"
     assert "P1" in signals[0]["badges"]
     assert signals[0]["command"] == "make focus-price TICKER=AMD"
     assert "normalize verified downloaded ohlcv rows" in signals[0]["body"].lower()
-    assert signals[1]["title"] == "Improve fundamentals"
+    assert signals[1]["title"] == "make focus-fundamentals TICKER=NVDA"
 
 
 def test_top_priority_signals_use_lane_front_doors_when_commands_are_missing():
@@ -1633,7 +1633,9 @@ def test_top_priority_signals_use_lane_front_doors_when_commands_are_missing():
 
     signals = dashboard.top_priority_signals(queue, limit=2)
 
+    assert signals[0]["title"] == "make focus-peers TICKER=AMD"
     assert signals[0]["command"] == "make focus-peers TICKER=AMD"
+    assert signals[1]["title"] == "make action-queue-check TOP_N=10"
     assert signals[1]["command"] == "make action-queue-check TOP_N=10"
 
 
