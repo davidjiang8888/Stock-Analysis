@@ -6720,6 +6720,32 @@ def test_data_health_command_bundle_runbook_cards_use_price_staged_follow_throug
     assert "review staged import" in cards[0]["body"].lower()
 
 
+def test_data_health_command_bundle_runbook_cards_upgrade_generic_price_staged_note_to_explicit_follow_through():
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Review staged import",
+                "command": "make price-validate",
+                "tickers": "AMD,AVGO",
+                "goal_summary": "",
+                "target_file": "data/imports/prices.csv",
+                "safe_next_step": "Use staged local imports if the free refresh fails.",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_command_bundle_runbook_cards(runbook)
+
+    assert cards[0]["command"] == "make price-validate"
+    assert "make price-preview" in cards[0]["body"].lower()
+    assert "make price-apply" in cards[0]["body"].lower()
+    assert "use staged local imports if the free refresh fails" not in cards[0]["body"].lower()
+
+
 def test_data_health_command_bundle_runbook_cards_use_staged_command_when_steps_are_blank():
     runbook = pd.DataFrame(
         [
@@ -8668,6 +8694,32 @@ def test_overview_bundle_runbook_cards_use_price_staged_follow_through_when_goal
     assert "make price-preview" in cards[0]["body"].lower()
     assert "make price-apply" in cards[0]["body"].lower()
     assert "review staged import" in cards[0]["body"].lower()
+
+
+def test_overview_bundle_runbook_cards_upgrade_generic_price_staged_note_to_explicit_follow_through():
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Review staged import",
+                "command": "make price-validate",
+                "tickers": "AMD,AVGO",
+                "goal_summary": "",
+                "target_file": "data/imports/prices.csv",
+                "safe_next_step": "Use staged local imports if the free refresh fails.",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_bundle_runbook_cards(runbook)
+
+    assert cards[0]["command"] == "make price-validate"
+    assert "make price-preview" in cards[0]["body"].lower()
+    assert "make price-apply" in cards[0]["body"].lower()
+    assert "use staged local imports if the free refresh fails" not in cards[0]["body"].lower()
 
 
 def test_overview_bundle_runbook_cards_use_staged_command_when_steps_are_blank():

@@ -2784,15 +2784,23 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
         goal_summary = compact_reason(lane_rows.iloc[0].get("goal_summary"), max_sentences=1, max_chars=110)
         target_file = format_missing(lane_rows.iloc[0].get("target_file"), "")
         staged_summary = ""
+        default_staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
             staged_summary = compact_reason(lane_rows.iloc[0].get("safe_next_step"), max_sentences=1, max_chars=150)
+            if target_file == "data/imports/fundamentals.csv":
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
+            elif target_file == "data/imports/peers.csv":
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
+            else:
+                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
             if staged_summary == "Not available":
-                if target_file == "data/imports/fundamentals.csv":
-                    staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
-                elif target_file == "data/imports/peers.csv":
-                    staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
-                else:
-                    staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+                staged_summary = default_staged_summary
+            elif target_file == "data/imports/prices.csv" and (
+                "make price-validate" not in staged_summary
+                or "make price-preview" not in staged_summary
+                or "make price-apply" not in staged_summary
+            ):
+                staged_summary = default_staged_summary
         target_history_rows = _target_rows_hint(lane_rows.iloc[0].get("target_history_rows"))
         suggested_start_date = format_missing(lane_rows.iloc[0].get("suggested_start_date"), "")
         hint_text = ""
@@ -5829,15 +5837,23 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
         goal_summary = compact_reason(lane_rows.iloc[0].get("goal_summary"), max_sentences=1, max_chars=110)
         target_file = format_missing(lane_rows.iloc[0].get("target_file"), "")
         staged_summary = ""
+        default_staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
             staged_summary = compact_reason(lane_rows.iloc[0].get("safe_next_step"), max_sentences=1, max_chars=150)
+            if target_file == "data/imports/fundamentals.csv":
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
+            elif target_file == "data/imports/peers.csv":
+                default_staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
+            else:
+                default_staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
             if staged_summary == "Not available":
-                if target_file == "data/imports/fundamentals.csv":
-                    staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged fundamentals import."
-                elif target_file == "data/imports/peers.csv":
-                    staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
-                else:
-                    staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
+                staged_summary = default_staged_summary
+            elif target_file == "data/imports/prices.csv" and (
+                "make price-validate" not in staged_summary
+                or "make price-preview" not in staged_summary
+                or "make price-apply" not in staged_summary
+            ):
+                staged_summary = default_staged_summary
         target_history_rows = _target_rows_hint(lane_rows.iloc[0].get("target_history_rows"))
         suggested_start_date = format_missing(lane_rows.iloc[0].get("suggested_start_date"), "")
         hint_text = ""
