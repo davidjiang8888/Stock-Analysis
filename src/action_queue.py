@@ -100,7 +100,20 @@ def _onboarding_actions_need_refresh(frame: pd.DataFrame) -> bool:
     if core_rows.empty:
         return False
     normalized_reasons = core_rows["reason"].astype(str).str.strip().str.lower()
-    return bool(normalized_reasons.isin(STALE_ONBOARDING_REASONS).any())
+    if normalized_reasons.isin(STALE_ONBOARDING_REASONS).any():
+        return True
+    if "ticker" not in core_rows.columns or "recommended_action" not in core_rows.columns:
+        return True
+    for _, row in core_rows.iterrows():
+        dataset = str(row.get("dataset", "")).strip().lower()
+        ticker = _normalized_ticker(row.get("ticker"))
+        recommended_action = str(row.get("recommended_action", "")).strip()
+        if not ticker or dataset not in {"prices", "fundamentals", "peers"}:
+            continue
+        expected_focus = focus_command_for_ticker(dataset, ticker)
+        if expected_focus and expected_focus not in recommended_action:
+            return True
+    return False
 
 
 def _data_quality_needs_refresh(frame: pd.DataFrame) -> bool:

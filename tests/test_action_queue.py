@@ -229,6 +229,7 @@ def test_action_queue_payload_refreshes_stale_onboarding_actions(tmp_path: Path)
     assert fundamentals_rows
     assert fundamentals_rows[0]["focus_command"] == "make focus-fundamentals TICKER=NVDA"
     assert fundamentals_rows[0]["example_command"] == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
+    assert "make focus-fundamentals TICKER=NVDA" in fundamentals_rows[0]["recommended_action"]
 
 
 def test_action_queue_payload_refreshes_stale_price_actions_from_data_quality(tmp_path: Path):

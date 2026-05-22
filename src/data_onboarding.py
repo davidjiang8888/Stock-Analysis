@@ -852,11 +852,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     dataset="fundamentals",
                     status="missing_or_incomplete",
                     reason=_fundamentals_onboarding_reason(row),
-                    recommended_action=(
-                        "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs."
-                        if not row.has_fundamentals
-                        else "Stage or add richer verified fundamentals to close the remaining DCF input gaps."
-                    ),
+                    recommended_action=_fundamentals_action_text(row.ticker),
                     target_file="data/imports/fundamentals.csv",
                     focus_command=focus_command_for_ticker("fundamentals", row.ticker),
                     example_command=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {row.ticker}",
@@ -870,7 +866,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     dataset="peers",
                     status="manual_input_needed",
                     reason="No local peer mapping is configured for this ticker.",
-                    recommended_action="Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent.",
+                    recommended_action=_peer_action_text(row.ticker, missing_mapping=True),
                     target_file="data/imports/peers.csv",
                     focus_command=focus_command_for_ticker("peers", row.ticker),
                     example_command="python3 -m src.data_onboarding --write-templates",
@@ -884,7 +880,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     dataset="peers",
                     status="partial",
                     reason=_peer_onboarding_reason(row),
-                    recommended_action="Add local fundamentals and prices or market-cap context for mapped peers.",
+                    recommended_action=_peer_action_text(row.ticker, missing_mapping=False),
                     target_file="data/fundamentals.csv, data/prices.csv",
                     focus_command=focus_command_for_ticker("peers", row.ticker),
                     example_command="python3 -m src.stock_report --validate-local-data",
@@ -1152,18 +1148,10 @@ def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> lis
             recommended_action = "Coverage is already sufficient for DCF and peer-relative local research."
         elif not coverage.dcf_ready:
             priority = 1
-            recommended_action = (
-                "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs."
-                if not coverage.has_fundamentals
-                else "Stage or add richer verified fundamentals to close the remaining DCF input gaps."
-            )
+            recommended_action = _fundamentals_action_text(coverage.ticker)
         elif not coverage.has_peer_mapping or not coverage.peer_ready:
             priority = 2
-            recommended_action = (
-                "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent."
-                if not coverage.has_peer_mapping
-                else "Peer mappings exist, but local peer fundamentals or price context are still missing."
-            )
+            recommended_action = _peer_action_text(coverage.ticker, missing_mapping=not coverage.has_peer_mapping)
         else:
             priority = 3
             recommended_action = "Review local fundamentals and peer inputs for completeness."
@@ -1274,11 +1262,7 @@ def build_sec_stage_queue(
             priority = 3
         else:
             priority = 4
-        recommended_action = (
-            "Run SEC staging for fundamentals so DCF assumptions can be reviewed from explicit local inputs."
-            if not coverage.has_fundamentals
-            else "Stage or add richer verified fundamentals to close the remaining DCF input gaps."
-        )
+        recommended_action = _fundamentals_action_text(coverage.ticker)
         rows.append(
             SecStageQueueRow(
                 priority=priority,
@@ -1324,11 +1308,7 @@ def build_peer_mapping_queue(
             priority = 3
         else:
             priority = 4
-        recommended_action = (
-            "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent."
-            if not coverage.has_peer_mapping
-            else "Peer mappings exist, but local peer fundamentals or price context are still missing."
-        )
+        recommended_action = _peer_action_text(coverage.ticker, missing_mapping=not coverage.has_peer_mapping)
         rows.append(
             PeerMappingQueueRow(
                 priority=priority,

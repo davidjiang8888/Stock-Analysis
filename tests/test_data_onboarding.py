@@ -134,8 +134,10 @@ def test_onboarding_actions_prioritize_prices_fundamentals_peers_before_estimate
     )
     assert any(row["dataset"] == "fundamentals" and row["priority"] == 2 for row in amd_actions)
     assert any(row["dataset"] == "fundamentals" and row["focus_command"] == "make focus-fundamentals TICKER=AMD" for row in amd_actions)
+    assert any(row["dataset"] == "fundamentals" and "make focus-fundamentals TICKER=AMD" in row["recommended_action"] for row in amd_actions)
     assert any(row["dataset"] == "peers" and row["priority"] == 3 for row in amd_actions)
     assert any(row["dataset"] == "peers" and row["focus_command"] == "make focus-peers TICKER=AMD" for row in amd_actions)
+    assert any(row["dataset"] == "peers" and "make focus-peers TICKER=AMD" in row["recommended_action"] for row in amd_actions)
     assert any(row["dataset"] == "analyst_estimates" and row["priority"] == 5 for row in amd_actions)
 
 
@@ -437,7 +439,7 @@ def test_sec_stage_queue_prioritizes_holdings_and_price_ready_names(tmp_path: Pa
     assert queue["AMD"]["priority"] == 4
     assert queue["AMD"]["has_fundamentals"] is False
     assert queue["AMD"]["focus_command"] == "make focus-fundamentals TICKER=AMD"
-    assert "Run SEC staging for fundamentals" in queue["AMD"]["recommended_action"]
+    assert "make focus-fundamentals TICKER=AMD" in queue["AMD"]["recommended_action"]
 
 
 def test_fundamentals_peer_worklist_uses_richer_operator_wording(tmp_path: Path):
@@ -446,8 +448,8 @@ def test_fundamentals_peer_worklist_uses_richer_operator_wording(tmp_path: Path)
     payload = build_onboarding_payload(tmp_path)
     worklist = {row["ticker"]: row for row in payload["fundamentals_peer_worklist"]}
 
-    assert "explicit local inputs" in worklist["AMD"]["recommended_action"]
-    assert "peer fundamentals or price context are still missing" in worklist["NVDA"]["recommended_action"].lower()
+    assert "make focus-fundamentals TICKER=AMD" in worklist["AMD"]["recommended_action"]
+    assert "make focus-peers TICKER=NVDA" in worklist["NVDA"]["recommended_action"]
 
 
 def test_onboarding_actions_use_peer_templates_and_transparent_wording(tmp_path: Path):
@@ -461,7 +463,7 @@ def test_onboarding_actions_use_peer_templates_and_transparent_wording(tmp_path:
     }
 
     assert peer_actions["AMD"]["example_command"] == "python3 -m src.data_onboarding --write-templates"
-    assert "peer-relative comparison transparent" in peer_actions["AMD"]["recommended_action"].lower()
+    assert "make focus-peers TICKER=AMD" in peer_actions["AMD"]["recommended_action"]
 
 
 def test_data_onboarding_cli_peer_mapping_queue_json(tmp_path: Path, capsys):
@@ -507,7 +509,7 @@ def test_peer_mapping_queue_prioritizes_dcf_ready_holdings(tmp_path: Path):
     assert queue["NVDA"]["is_holding"] is True
     assert queue["NVDA"]["dcf_ready"] is True
     assert queue["NVDA"]["focus_command"] == "make focus-peers TICKER=NVDA"
-    assert "peer mappings exist" in queue["NVDA"]["recommended_action"].lower()
+    assert "make focus-peers TICKER=NVDA" in queue["NVDA"]["recommended_action"]
 
 
 def test_optional_context_worklist_keeps_optional_gaps_lower_priority(tmp_path: Path):
