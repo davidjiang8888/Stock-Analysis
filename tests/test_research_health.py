@@ -109,6 +109,59 @@ def test_data_quality_wizard_uses_staged_peer_follow_through_when_mappings_alrea
     assert "make imports-apply" in frame.loc[0, "NextBestAction"]
 
 
+def test_data_quality_wizard_normalizes_stale_peer_example_commands():
+    coverage = [
+        {
+            "ticker": "NVDA",
+            "has_prices": True,
+            "price_history_days": 80,
+            "has_fundamentals": True,
+            "dcf_ready": True,
+            "has_peer_mapping": True,
+            "peer_ready": False,
+            "has_earnings": False,
+            "has_analyst_estimates": False,
+            "usable_for_momentum": True,
+            "usable_for_monthly_picks": True,
+            "next_best_action": (
+                "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+                "to confirm the live local peer mappings."
+            ),
+            "focus_command": "make imports-validate",
+            "example_command": "make status",
+        },
+        {
+            "ticker": "AMD",
+            "has_prices": True,
+            "price_history_days": 80,
+            "has_fundamentals": True,
+            "dcf_ready": True,
+            "has_peer_mapping": True,
+            "peer_ready": False,
+            "has_earnings": False,
+            "has_analyst_estimates": False,
+            "usable_for_momentum": True,
+            "usable_for_monthly_picks": True,
+            "next_best_action": (
+                "Run make focus-peers TICKER=AMD, then add peer fundamentals/prices through the staged local import "
+                "workflows so peer-relative valuation can calculate transparently."
+            ),
+            "focus_command": "make focus-peers TICKER=AMD",
+            "example_command": "make onboarding",
+        },
+    ]
+
+    frame = build_data_quality_wizard(coverage)
+
+    nvda = frame.loc[frame["Ticker"] == "NVDA"].iloc[0]
+    amd = frame.loc[frame["Ticker"] == "AMD"].iloc[0]
+
+    assert nvda["FocusCommand"] == "make imports-validate"
+    assert nvda["ExampleCommand"] == "make imports-preview"
+    assert amd["FocusCommand"] == "make focus-peers TICKER=AMD"
+    assert amd["ExampleCommand"] == "make templates"
+
+
 def test_data_quality_wizard_normalizes_stale_enrichment_actions():
     coverage = [
         {

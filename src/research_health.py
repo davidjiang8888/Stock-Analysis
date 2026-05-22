@@ -64,6 +64,16 @@ def _staged_peer_next_best_action() -> str:
         "to confirm the live local peer mappings."
     )
 
+
+def _normalized_peer_example_command(focus_command: str, example_command: str) -> str:
+    focus = str(focus_command or "").strip()
+    example = str(example_command or "").strip()
+    if focus == "make imports-validate":
+        return "make imports-preview"
+    if focus.startswith("make focus-peers"):
+        return "make templates"
+    return example
+
 LIQUIDITY_COLUMNS = [
     "Ticker",
     "LiquidityStatus",
@@ -200,7 +210,10 @@ def build_data_quality_wizard(coverage_rows: list[dict[str, Any]] | pd.DataFrame
         elif not peer_ready:
             if has_peer_mapping:
                 focus_command = str(row.get("focus_command", "") or "").strip() or focus_command_for_ticker("peers", ticker)
-                example_command = str(row.get("example_command", "") or "").strip() or "make templates"
+                example_command = _normalized_peer_example_command(
+                    focus_command,
+                    str(row.get("example_command", "") or "").strip() or "make templates",
+                )
             else:
                 focus_command = focus_command_for_ticker("peers", ticker)
                 example_command = "make templates"

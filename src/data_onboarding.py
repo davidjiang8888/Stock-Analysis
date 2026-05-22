@@ -684,6 +684,16 @@ def _staged_peer_import_action_text() -> str:
     )
 
 
+def _normalized_peer_example_command(focus_command: str, example_command: str) -> str:
+    focus = str(focus_command or "").strip()
+    example = str(example_command or "").strip()
+    if focus == "make imports-validate":
+        return "make imports-preview"
+    if focus.startswith("make focus-peers"):
+        return "make templates"
+    return example
+
+
 def _peer_support_follow_through(
     ticker: str,
     peers: pd.DataFrame,
@@ -1129,7 +1139,10 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                 recommended_action = row.next_best_action or recommended_action
                 target_file = row.target_file or target_file
                 focus_command = row.focus_command or focus_command
-                example_command = row.example_command or example_command
+                example_command = _normalized_peer_example_command(
+                    focus_command,
+                    row.example_command or example_command,
+                )
             if focus_command == "make imports-validate":
                 safe_next_step = "Validate staged peer mappings before preview so schema and duplicate-key issues surface before merge."
             elif row.has_peer_mapping:

@@ -211,6 +211,70 @@ def test_staged_peer_imports_surface_validate_flow_in_coverage_and_wizard(tmp_pa
     assert "make imports-apply" in peer_wizard_rows[0]["recommended_action"]
 
 
+def test_data_coverage_wizard_normalizes_stale_peer_example_commands():
+    coverage = [
+        TickerCoverage(
+            ticker="NVDA",
+            has_prices=True,
+            price_history_days=80,
+            has_fundamentals=True,
+            dcf_ready=True,
+            has_peer_mapping=True,
+            peer_ready=False,
+            has_earnings=False,
+            has_analyst_estimates=False,
+            usable_for_momentum=True,
+            usable_for_monthly_picks=True,
+            usable_for_dcf=True,
+            usable_for_peer_relative=False,
+            missing_required_for_momentum="",
+            missing_required_for_dcf="",
+            missing_required_for_peer_relative="validate/preview/apply pending",
+            next_best_action=(
+                "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+                "to confirm the live local peer mappings."
+            ),
+            target_file="data/imports/peers.csv",
+            focus_command="make imports-validate",
+            example_command="make status",
+        ),
+        TickerCoverage(
+            ticker="AMD",
+            has_prices=True,
+            price_history_days=80,
+            has_fundamentals=True,
+            dcf_ready=True,
+            has_peer_mapping=True,
+            peer_ready=False,
+            has_earnings=False,
+            has_analyst_estimates=False,
+            usable_for_momentum=True,
+            usable_for_monthly_picks=True,
+            usable_for_dcf=True,
+            usable_for_peer_relative=False,
+            missing_required_for_momentum="",
+            missing_required_for_dcf="",
+            missing_required_for_peer_relative="peer support data incomplete",
+            next_best_action=(
+                "Run make focus-peers TICKER=AMD, then add peer fundamentals/prices through the staged local import "
+                "workflows so peer-relative valuation can calculate transparently."
+            ),
+            target_file="data/imports/fundamentals.csv, data/imports/prices.csv",
+            focus_command="make focus-peers TICKER=AMD",
+            example_command="make onboarding",
+        ),
+    ]
+
+    rows = build_data_coverage_wizard(coverage)
+    nvda_peer_row = next(row for row in rows if row.ticker == "NVDA" and row.blocking_dataset == "peers")
+    amd_peer_row = next(row for row in rows if row.ticker == "AMD" and row.blocking_dataset == "peers")
+
+    assert nvda_peer_row.focus_command == "make imports-validate"
+    assert nvda_peer_row.example_command == "make imports-preview"
+    assert amd_peer_row.focus_command == "make focus-peers TICKER=AMD"
+    assert amd_peer_row.example_command == "make templates"
+
+
 def test_optional_context_worklist_surfaces_template_focus_command(tmp_path: Path):
     _write_fixture(tmp_path)
 
