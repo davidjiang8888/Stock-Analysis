@@ -4596,7 +4596,8 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert any(row["Label"] == "Research Ready" for row in status_rows)
     assert any("price history" in row["Dashboard Label"].lower() for row in missing_rows)
     assert any(row["Command"] == "make help" for row in workflow_rows)
-    assert any(row["Command"] == "make status" for row in workflow_rows)
+    assert any(row["Command"] == "make status-check TOP_N=5" for row in workflow_rows)
+    assert any(row["Command"] == "make data-wizard TOP_N=5" for row in workflow_rows)
     assert any(row["Command"] == "make focus-price TICKER=NVDA" for row in workflow_rows)
     assert any(row["Command"] == "make focus-fundamentals TICKER=NVDA" for row in workflow_rows)
     assert any(row["Command"] == "make focus-peers TICKER=NVDA" for row in workflow_rows)
@@ -4608,6 +4609,8 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert "verified ohlcv files before relying on momentum or track-record context" in rendered
     assert "overview tab" in nav_rendered
     assert "monthly picks tab" in nav_rendered
+    assert "make status-check top_n=5" in rendered
+    assert "make data-wizard top_n=5" in rendered
     assert "data health tab" in nav_rendered
     assert "make status" in empty_rendered
     assert "make focus-price" in empty_rendered

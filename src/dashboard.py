@@ -3620,7 +3620,7 @@ def missing_data_guide_rows() -> list[dict[str, str]]:
 def workflow_command_rows() -> list[dict[str, str]]:
     return [
         {"Step": "Command menu", "Command": "make help"},
-        {"Step": "Read-only status", "Command": "make status"},
+        {"Step": "Read-only status", "Command": "make status-check TOP_N=5"},
         {"Step": "Single-name price fix", "Command": "make focus-price TICKER=NVDA"},
         {"Step": "Single-name fundamentals fix", "Command": "make focus-fundamentals TICKER=NVDA"},
         {"Step": "Single-name peers fix", "Command": "make focus-peers TICKER=NVDA"},
@@ -3629,7 +3629,7 @@ def workflow_command_rows() -> list[dict[str, str]]:
         {"Step": "Extended validation", "Command": "make validate-all"},
         {"Step": "Dashboard smoke check", "Command": "make dashboard-smoke"},
         {"Step": "Optional broader pipeline", "Command": "make daily"},
-        {"Step": "Data coverage", "Command": "make status"},
+        {"Step": "Data coverage", "Command": "make data-wizard TOP_N=5"},
         {"Step": "Manual price normalization", "Command": "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"},
         {"Step": "Price import safety", "Command": "make price-validate && make price-preview && make price-apply"},
         {"Step": "SEC fundamentals staging", "Command": "make focus-fundamentals TICKER=NVDA"},
@@ -7927,9 +7927,9 @@ with st.sidebar:
         tone="success",
     )
     render_action_cards(dashboard_navigation_cards())
-    render_context_note("Safe local commands.", "These commands are read-only or preview-first by default.")
+    render_context_note("Safe local commands.", "These commands are read-only, verification, or preview-first by default.")
     st.code(
-        "make help\nmake status\nmake focus-price TICKER=AMD\nmake runbook-prices-broader\nmake verify\nmake dashboard-smoke\nmake dashboard",
+        "make help\nmake status-check TOP_N=5\nmake data-wizard TOP_N=5\nmake focus-price TICKER=AMD\nmake runbook-prices-broader\nmake verify\nmake dashboard-smoke\nmake dashboard",
         language="bash",
     )
     render_context_note("Safety note.", "CLI-only applies remain the safest path for staged imports and universe changes.", tone="warning")
