@@ -6176,7 +6176,7 @@ def overview_workflow_path_cards(
                     body = "Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
             elif "runbook-" in lowered:
                 badges = ["today", "staged flow"] if index == 1 else ["staged flow", "workflow"]
-                body = reason if has_reason else "Use the staged local workflow next so validation and preview safeguards stay in place."
+                body = reason if has_reason else "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
             cards.append(
                 {
                     "kicker": f"STEP {index}",
@@ -6214,8 +6214,11 @@ def overview_workflow_path_cards(
     elif "bundle-" in lowered_first:
         first_body = "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
         first_badges = ["today", "bundle first"]
-    elif "runbook-" in lowered_first or "imports-" in lowered_first:
+    elif "imports-" in lowered_first:
         first_body = "Use the staged local workflow next so validation and preview safeguards stay in place."
+        first_badges = ["today", "staged flow"]
+    elif "runbook-" in lowered_first:
+        first_body = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
         first_badges = ["today", "staged flow"]
     if top_signal:
         signal_body = compact_reason(top_signal[0].get("body"), max_sentences=2, max_chars=240)
@@ -6854,6 +6857,8 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
         recommended_action = normalize_operator_copy(row.get("recommended_action"))
         target_file = format_missing(row.get("target_file"), "")
         body_source = command_family_fallback(command, review_path_fallback(row.get("action_type")))
+        if "runbook-" in command.lower():
+            body_source = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
         if recommended_action and recommended_action != reason:
             body_source = f"{reason} {recommended_action}".strip() if reason else recommended_action
         elif reason and reason != "Not available":

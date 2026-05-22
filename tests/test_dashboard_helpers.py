@@ -4859,7 +4859,7 @@ def test_overview_workflow_path_cards_use_runbook_fallback_when_action_queue_dri
 
     assert cards[0]["title"] == "make runbook-peers"
     assert "staged flow" in [badge.lower() for badge in cards[0]["badges"]]
-    assert "use the staged local workflow next" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
@@ -5085,7 +5085,7 @@ def test_overview_workflow_path_cards_use_runbook_fallback_when_reason_is_missin
 
     assert cards[0]["title"] == "make runbook-peers"
     assert "staged flow" in [badge.lower() for badge in cards[0]["badges"]]
-    assert "use the staged local workflow next" in cards[0]["body"].lower()
+    assert "ordered lane runbook" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
 
 
