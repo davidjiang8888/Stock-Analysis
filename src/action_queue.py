@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -43,6 +44,9 @@ STALE_ONBOARDING_REASONS = {
     "shares_outstanding",
     "peer mapping",
     "peer fundamentals or peer price/market-cap context",
+}
+STALE_DATA_QUALITY_PRICE_ACTIONS = {
+    "refresh or import prices.",
 }
 
 
@@ -86,6 +90,24 @@ def _onboarding_actions_need_refresh(frame: pd.DataFrame) -> bool:
         return False
     normalized_reasons = core_rows["reason"].astype(str).str.strip().str.lower()
     return bool(normalized_reasons.isin(STALE_ONBOARDING_REASONS).any())
+
+
+def _data_quality_needs_refresh(frame: pd.DataFrame) -> bool:
+    if frame.empty:
+        return True
+    if "ReadinessStatus" not in frame.columns or "NextBestAction" not in frame.columns:
+        return True
+
+    stale_price_rows = frame.loc[frame["ReadinessStatus"].astype(str).str.strip() == "Needs Price Data"]
+    if not stale_price_rows.empty:
+        normalized_actions = stale_price_rows["NextBestAction"].astype(str).str.strip().str.lower()
+        if normalized_actions.isin(STALE_DATA_QUALITY_PRICE_ACTIONS).any():
+            return True
+
+    enrichment_rows = frame.loc[frame["ReadinessStatus"].astype(str).str.strip().isin({"Needs Enrichment", "Partial Coverage"})]
+    if enrichment_rows.empty:
+        return False
+    return not enrichment_rows["NextBestAction"].astype(str).str.contains(r"make focus-(?:fundamentals|peers|price)\s+TICKER=", regex=True).all()
 
 
 def _onboarding_title(dataset: str, ticker: str, status: str) -> str:
@@ -132,6 +154,38 @@ def _price_normalize_command(ticker: str) -> str:
     if not ticker:
         return "make status"
     return f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
+
+
+def _focus_command_from_action_text(action_text: str, ticker: str) -> str:
+    ticker = _normalized_ticker(ticker)
+    text = str(action_text or "").strip()
+    if not ticker or not text:
+        return ""
+    match = re.search(rf"\bmake focus-(price|fundamentals|peers) TICKER={re.escape(ticker)}\b", text)
+    return match.group(0) if match else ""
+
+
+def _example_command_for_focus_command(focus_command: str, ticker: str) -> str:
+    ticker = _normalized_ticker(ticker)
+    normalized_focus = str(focus_command or "").strip().lower()
+    if normalized_focus.startswith("make focus-price") and ticker:
+        return _price_normalize_command(ticker)
+    if normalized_focus.startswith("make focus-fundamentals") and ticker:
+        return f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+    if normalized_focus.startswith("make focus-peers"):
+        return "python3 -m src.data_onboarding --write-templates"
+    return ""
+
+
+def _source_file_for_focus_command(focus_command: str) -> str:
+    normalized_focus = str(focus_command or "").strip().lower()
+    if normalized_focus.startswith("make focus-price"):
+        return "data/imports/prices.csv"
+    if normalized_focus.startswith("make focus-fundamentals"):
+        return "data/imports/fundamentals.csv"
+    if normalized_focus.startswith("make focus-peers"):
+        return "data/imports/peers.csv"
+    return "outputs/data_quality_wizard.csv"
 
 
 def _dedupe(items: list[ActionQueueItem]) -> list[ActionQueueItem]:
@@ -225,6 +279,12 @@ def build_action_queue_rows(
                     )
                 )
             elif status in {"Needs Enrichment", "Partial Coverage"} and ticker:
+                recommended_action = (
+                    str(row.get("NextBestAction", "")).strip()
+                    or "Review the local missing-data fields and enrich what matters most."
+                )
+                focus_command = _focus_command_from_action_text(recommended_action, ticker)
+                example_command = _example_command_for_focus_command(focus_command, ticker) or "make onboarding"
                 items.append(
                     ActionQueueItem(
                         priority=2,
@@ -233,10 +293,10 @@ def build_action_queue_rows(
                         ticker=ticker,
                         title=f"Improve research coverage for {ticker}",
                         status=status,
-                        recommended_action=str(row.get("NextBestAction", "")).strip() or "Review the local missing-data fields and enrich what matters most.",
-                        focus_command="",
-                        example_command="make onboarding",
-                        source_file="outputs/data_quality_wizard.csv",
+                        recommended_action=recommended_action,
+                        focus_command=focus_command,
+                        example_command=example_command,
+                        source_file=_source_file_for_focus_command(focus_command),
                         source_artifact="outputs/data_quality_wizard.csv",
                         reason=str(row.get("MissingDataFields", "")).strip() or str(row.get("Reason", "")).strip(),
                     )
@@ -332,7 +392,7 @@ def build_action_queue_payload(
         price_worklist = pd.DataFrame(onboarding_payload["price_import_worklist"])
     if data_gaps.empty:
         data_gaps = pd.DataFrame(build_data_source_payload(root, data_dir=data_path, output_dir=output_path)["data_gaps"])
-    if data_quality.empty:
+    if _data_quality_needs_refresh(data_quality):
         run_research_health(root, data_dir=data_path, output_dir=output_path)
         data_quality = _load_csv(output_path / "data_quality_wizard.csv")
 

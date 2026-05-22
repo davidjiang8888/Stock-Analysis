@@ -72,6 +72,49 @@ def test_action_queue_uses_research_health_when_price_data_is_missing():
     assert rows[0].example_command == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
 
 
+def test_action_queue_uses_focus_commands_for_enrichment_rows():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(),
+        data_gaps=pd.DataFrame(),
+        data_quality=pd.DataFrame(
+            [
+                {
+                    "Ticker": "NVDA",
+                    "ReadinessStatus": "Needs Enrichment",
+                    "NextBestAction": (
+                        "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with "
+                        "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA."
+                    ),
+                    "MissingDataFields": "DCF inputs, peer mapping",
+                    "Reason": "Missing DCF and peer coverage.",
+                },
+                {
+                    "Ticker": "TSLA",
+                    "ReadinessStatus": "Partial Coverage",
+                    "NextBestAction": (
+                        "Run make focus-peers TICKER=TSLA, or write templates and fill data/imports/peers.csv "
+                        "manually with transparent peer mappings."
+                    ),
+                    "MissingDataFields": "peer mapping",
+                    "Reason": "Missing peer mapping.",
+                },
+            ]
+        ),
+    )
+
+    nvda_row = next(row for row in rows if row.ticker == "NVDA")
+    assert nvda_row.focus_command == "make focus-fundamentals TICKER=NVDA"
+    assert nvda_row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
+    assert nvda_row.source_file == "data/imports/fundamentals.csv"
+
+    tsla_row = next(row for row in rows if row.ticker == "TSLA")
+    assert tsla_row.focus_command == "make focus-peers TICKER=TSLA"
+    assert tsla_row.example_command == "python3 -m src.data_onboarding --write-templates"
+    assert tsla_row.source_file == "data/imports/peers.csv"
+
+
 def test_action_queue_uses_operator_friendly_onboarding_titles():
     rows = build_action_queue_rows(
         price_status=pd.DataFrame(),
@@ -151,17 +194,38 @@ def test_action_queue_payload_refreshes_stale_onboarding_actions(tmp_path: Path)
         "dataset,ticker,status,reason,required_for,recommended_action,local_file,source_name\n",
         encoding="utf-8",
     )
-    (outputs_dir / "data_quality_wizard.csv").write_text(
-        "Ticker,DataQualityScore,ReadinessStatus,MomentumReady,MonthlyPicksReady,DCFReady,PeerReady,EarningsAvailable,AnalystEstimatesAvailable,PriceHistoryDays,MissingDataFields,NextBestAction,Reason\n"
-        "NVDA,20,Needs Enrichment,true,true,false,false,false,false,2,DCF inputs;peer mapping,Run SEC staging,Missing DCF and peer coverage.\n",
-        encoding="utf-8",
-    )
+    pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "DataQualityScore": 20,
+                "ReadinessStatus": "Needs Enrichment",
+                "MomentumReady": True,
+                "MonthlyPicksReady": True,
+                "DCFReady": False,
+                "PeerReady": False,
+                "EarningsAvailable": False,
+                "AnalystEstimatesAvailable": False,
+                "PriceHistoryDays": 2,
+                "MissingDataFields": "DCF inputs;peer mapping",
+                "NextBestAction": (
+                    "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with "
+                    "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA."
+                ),
+                "Reason": "Missing DCF and peer coverage.",
+            }
+        ]
+    ).to_csv(outputs_dir / "data_quality_wizard.csv", index=False)
 
     payload = build_action_queue_payload(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
 
     price_rows = [row for row in payload["action_queue"] if row["action_type"] == "prices"]
     assert price_rows
     assert any("at least 21 are needed" in row["reason"].lower() for row in price_rows)
+    coverage_rows = [row for row in payload["action_queue"] if row["action_type"] == "coverage" and row["ticker"] == "NVDA"]
+    assert coverage_rows
+    assert coverage_rows[0]["focus_command"] == "make focus-fundamentals TICKER=NVDA"
+    assert coverage_rows[0]["example_command"] == "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA"
 
 
 def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_rows():
@@ -258,11 +322,28 @@ def test_action_queue_write_output_creates_csv_from_existing_outputs(tmp_path: P
         "peers,NVDA,manual_only,No peers configured,peer-relative valuation,Add peers manually,data/peers.csv,Manual local peer mappings\n",
         encoding="utf-8",
     )
-    (outputs_dir / "data_quality_wizard.csv").write_text(
-        "Ticker,DataQualityScore,ReadinessStatus,MomentumReady,MonthlyPicksReady,DCFReady,PeerReady,EarningsAvailable,AnalystEstimatesAvailable,PriceHistoryDays,MissingDataFields,NextBestAction,Reason\n"
-        "NVDA,20,Needs Enrichment,true,true,false,false,false,false,40,DCF inputs;peer mapping,Run SEC staging,Missing DCF and peer coverage.\n",
-        encoding="utf-8",
-    )
+    pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "DataQualityScore": 20,
+                "ReadinessStatus": "Needs Enrichment",
+                "MomentumReady": True,
+                "MonthlyPicksReady": True,
+                "DCFReady": False,
+                "PeerReady": False,
+                "EarningsAvailable": False,
+                "AnalystEstimatesAvailable": False,
+                "PriceHistoryDays": 40,
+                "MissingDataFields": "DCF inputs;peer mapping",
+                "NextBestAction": (
+                    "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with "
+                    "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA."
+                ),
+                "Reason": "Missing DCF and peer coverage.",
+            }
+        ]
+    ).to_csv(outputs_dir / "data_quality_wizard.csv", index=False)
 
     payload = write_action_queue_output(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
 
