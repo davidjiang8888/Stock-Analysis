@@ -59,7 +59,7 @@ def test_data_quality_wizard_scores_readiness_and_reasons():
             "usable_for_monthly_picks": False,
             "next_best_action": (
                 "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and "
-                "normalize verified downloaded OHLCV rows into data/imports/prices.csv."
+                "normalize verified downloaded OHLCV files into data/imports/prices.csv."
             ),
         },
     ]

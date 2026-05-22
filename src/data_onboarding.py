@@ -630,7 +630,7 @@ def _missing_join(items: list[str]) -> str:
 def _price_action_text(ticker: str) -> str:
     return (
         f"Run make focus-price TICKER={ticker}, or run python3 -m src.data_update --tickers {ticker} and "
-        "normalize verified downloaded OHLCV rows into data/imports/prices.csv."
+        "normalize verified downloaded OHLCV files into data/imports/prices.csv."
     )
 
 
@@ -838,10 +838,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     dataset="prices",
                     status="missing" if not row.has_prices else "insufficient_history",
                     reason=_price_onboarding_reason(row),
-                    recommended_action=(
-                        f"Run python3 -m src.data_update --tickers {row.ticker}, or normalize verified downloaded "
-                        "OHLCV files into data/imports/prices.csv."
-                    ),
+                    recommended_action=_price_action_text(row.ticker),
                     target_file="data/imports/prices.csv",
                     focus_command=focus_command_for_ticker("prices", row.ticker),
                     example_command=f"make price-normalize INPUT=data/raw/prices/{row.ticker}.csv TICKER={row.ticker} SOURCE=yahoo_manual",
@@ -1137,9 +1134,7 @@ def build_price_import_worklist(
                 missing_for_momentum=missing_for_momentum,
                 missing_for_track_record=missing_for_track_record,
                 missing_for_preferred_history=missing_for_preferred_history,
-                recommended_action=(
-                    f"Run python3 -m src.data_update --tickers {coverage.ticker}, or normalize verified downloaded OHLCV files into data/imports/prices.csv."
-                ),
+                recommended_action=_price_action_text(coverage.ticker),
                 target_file="data/imports/prices.csv",
                 focus_command=focus_command_for_ticker("prices", coverage.ticker),
                 example_command=f"make price-normalize INPUT=data/raw/prices/{coverage.ticker}.csv TICKER={coverage.ticker} SOURCE=yahoo_manual",
