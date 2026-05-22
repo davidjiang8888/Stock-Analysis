@@ -5589,6 +5589,48 @@ def test_data_health_deep_research_target_cards_use_peer_review_fallback_when_ac
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_data_health_deep_research_target_cards_keep_staged_import_paths_when_commands_are_missing():
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "is_holding": True,
+                "theme": "AI Semis",
+                "price_history_days": 63,
+                "missing_required_for_dcf": "staged fundamentals still need validate/preview/apply",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            }
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "is_holding": True,
+                "theme": "EV",
+                "dcf_ready": True,
+                "missing_required_for_peer_relative": "staged peers still need validate/preview/apply",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_deep_research_target_cards(sec_queue, peer_queue)
+
+    assert cards[0]["command"] == "make imports-validate"
+    assert "staged fundamentals import" in cards[0]["body"].lower()
+    assert cards[1]["command"] == "make imports-validate"
+    assert "staged peer import" in cards[1]["body"].lower()
+
+
 def test_overview_price_target_cards_surface_exact_history_targets_safely():
     worklist = pd.DataFrame(
         [
@@ -5737,6 +5779,48 @@ def test_overview_deep_research_target_cards_use_peer_review_fallback_when_actio
 
     assert "review peer path." in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
+
+
+def test_overview_deep_research_target_cards_keep_staged_import_paths_when_commands_are_missing():
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "is_holding": True,
+                "theme": "AI Semis",
+                "price_history_days": 63,
+                "missing_required_for_dcf": "staged fundamentals still need validate/preview/apply",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            }
+        ]
+    )
+    peer_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "TSLA",
+                "is_holding": True,
+                "theme": "EV",
+                "dcf_ready": True,
+                "missing_required_for_peer_relative": "staged peers still need validate/preview/apply",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_target_cards(sec_queue, peer_queue)
+
+    assert cards[0]["command"] == "make imports-validate"
+    assert "staged fundamentals import" in cards[0]["body"].lower()
+    assert cards[1]["command"] == "make imports-validate"
+    assert "staged peer import" in cards[1]["body"].lower()
 
 
 def test_deep_research_target_fallback_cards_use_onboarding_refresh():

@@ -2848,21 +2848,32 @@ def data_health_deep_research_target_cards(
             sec_rows["priority"] = pd.to_numeric(sec_rows["priority"], errors="coerce")
             sec_rows = sec_rows.sort_values(["priority", "price_history_days", "ticker"], ascending=[True, False, True], kind="stable")
         for _, row in sec_rows.head(limit_per_lane).iterrows():
-            row_focus_command = format_missing(row.get("focus_command"), "")
+            target_file = format_missing(row.get("target_file"), "")
+            staged_fundamentals_import = target_file == "data/imports/fundamentals.csv"
             command = (
                 preferred_row_command(
                     row,
-                    ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), "")),
+                    (
+                        "make imports-validate"
+                        if staged_fundamentals_import
+                        else ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
+                    ),
                 )
-                if row_focus_command
+                if staged_fundamentals_import or format_missing(row.get("focus_command"), "")
                 else ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
+            )
+            fallback_action = (
+                f"Staged fundamentals import is waiting in {target_file}. "
+                "Run make imports-validate, then make imports-preview, then make imports-apply."
+                if staged_fundamentals_import
+                else "Review fundamentals path."
             )
             cards.append(
                 {
                     "kicker": "DCF TARGET",
                     "title": format_missing(row.get("ticker"), "Ticker"),
                     "body": (
-                        f"{compact_reason(row.get('recommended_action') or 'Review fundamentals path.', max_sentences=1, max_chars=150)} "
+                        f"{compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)} "
                         f"Missing: {format_missing(row.get('missing_required_for_dcf'), 'Not specified')}."
                     ),
                     "badges": [
@@ -2879,19 +2890,31 @@ def data_health_deep_research_target_cards(
             peer_rows["priority"] = pd.to_numeric(peer_rows["priority"], errors="coerce")
             peer_rows = peer_rows.sort_values(["priority", "ticker"], kind="stable")
         for _, row in peer_rows.head(limit_per_lane).iterrows():
+            target_file = format_missing(row.get("target_file"), "")
+            staged_peer_import = target_file == "data/imports/peers.csv"
+            fallback_action = (
+                f"Staged peer import is waiting in {target_file}. "
+                "Run make imports-validate, then make imports-preview, then make imports-apply."
+                if staged_peer_import
+                else "Review peer path."
+            )
             cards.append(
                 {
                     "kicker": "PEER TARGET",
                     "title": format_missing(row.get("ticker"), "Ticker"),
                     "body": (
-                        f"{compact_reason(row.get('recommended_action') or 'Review peer path.', max_sentences=1, max_chars=150)} "
+                        f"{compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=150)} "
                         f"Missing: {format_missing(row.get('missing_required_for_peer_relative'), 'Not specified')}."
                     ),
                     "badges": [
                         "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
                         "dcf ready" if str(row.get("dcf_ready", "")).lower() in {"true", "1"} else "dcf blocked",
                     ],
-                    "command": ticker_focus_command("peers", row.get("ticker"), fallback=format_missing(row.get("example_command"), "")),
+                    "command": (
+                        preferred_row_command(row, "make imports-validate")
+                        if staged_peer_import
+                        else ticker_focus_command("peers", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
+                    ),
                 }
             )
 
@@ -2921,14 +2944,25 @@ def overview_deep_research_target_cards(
             sec_rows["priority"] = pd.to_numeric(sec_rows["priority"], errors="coerce")
             sec_rows = sec_rows.sort_values(["priority", "price_history_days", "ticker"], ascending=[True, False, True], kind="stable")
         for _, row in sec_rows.head(limit_per_lane).iterrows():
-            row_focus_command = format_missing(row.get("focus_command"), "")
+            target_file = format_missing(row.get("target_file"), "")
+            staged_fundamentals_import = target_file == "data/imports/fundamentals.csv"
             command = (
                 preferred_row_command(
                     row,
-                    ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), "")),
+                    (
+                        "make imports-validate"
+                        if staged_fundamentals_import
+                        else ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
+                    ),
                 )
-                if row_focus_command
+                if staged_fundamentals_import or format_missing(row.get("focus_command"), "")
                 else ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
+            )
+            fallback_action = (
+                f"Staged fundamentals import is waiting in {target_file}. "
+                "Run make imports-validate, then make imports-preview, then make imports-apply."
+                if staged_fundamentals_import
+                else "Review fundamentals path."
             )
             cards.append(
                 {
@@ -2936,7 +2970,7 @@ def overview_deep_research_target_cards(
                     "title": format_missing(row.get("ticker"), "Ticker"),
                     "body": (
                         f"{format_missing(row.get('missing_required_for_dcf'), 'Not specified')}. "
-                        f"{compact_reason(row.get('recommended_action') or 'Review fundamentals path.', max_sentences=1, max_chars=140)}"
+                        f"{compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=140)}"
                     ),
                     "badges": [
                         "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
@@ -2952,19 +2986,31 @@ def overview_deep_research_target_cards(
             peer_rows["priority"] = pd.to_numeric(peer_rows["priority"], errors="coerce")
             peer_rows = peer_rows.sort_values(["priority", "ticker"], kind="stable")
         for _, row in peer_rows.head(limit_per_lane).iterrows():
+            target_file = format_missing(row.get("target_file"), "")
+            staged_peer_import = target_file == "data/imports/peers.csv"
+            fallback_action = (
+                f"Staged peer import is waiting in {target_file}. "
+                "Run make imports-validate, then make imports-preview, then make imports-apply."
+                if staged_peer_import
+                else "Review peer path."
+            )
             cards.append(
                 {
                     "kicker": "UNLOCK PEERS",
                     "title": format_missing(row.get("ticker"), "Ticker"),
                     "body": (
                         f"{format_missing(row.get('missing_required_for_peer_relative'), 'Not specified')}. "
-                        f"{compact_reason(row.get('recommended_action') or 'Review peer path.', max_sentences=1, max_chars=140)}"
+                        f"{compact_reason(row.get('recommended_action') or fallback_action, max_sentences=1, max_chars=140)}"
                     ),
                     "badges": [
                         "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
                         "dcf ready" if str(row.get("dcf_ready", "")).lower() in {"true", "1"} else "dcf blocked",
                     ],
-                    "command": ticker_focus_command("peers", row.get("ticker"), fallback=format_missing(row.get("example_command"), "")),
+                    "command": (
+                        preferred_row_command(row, "make imports-validate")
+                        if staged_peer_import
+                        else ticker_focus_command("peers", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
+                    ),
                 }
             )
 
