@@ -1200,6 +1200,7 @@ def test_holdings_unlock_cards_handle_missing_inputs_gracefully():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "no holdings unlock board yet" in rendered
+    assert "make status" in rendered
     assert "buy" not in rendered
 
 
@@ -1250,6 +1251,7 @@ def test_holdings_deep_research_cards_handle_missing_inputs_gracefully():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "no holdings deep-research board yet" in rendered
+    assert "make status" in rendered
     assert "buy" not in rendered
 
 

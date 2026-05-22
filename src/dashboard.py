@@ -3591,7 +3591,7 @@ def holdings_unlock_cards(
             {
                 "kicker": "HOLDINGS FIRST",
                 "title": "No holdings unlock board yet",
-                "body": "Add holdings rows and generate onboarding outputs to surface blocked portfolio names before broader universe work.",
+                "body": "Add holdings rows, then run make status to refresh onboarding outputs and surface blocked portfolio names before broader universe work.",
                 "badges": ["read-only"],
             }
         ]
@@ -3672,7 +3672,7 @@ def holdings_deep_research_cards(
             {
                 "kicker": "HOLDINGS DCF / PEERS",
                 "title": "No holdings deep-research board yet",
-                "body": "Add holdings rows and generate onboarding outputs to see which portfolio names next benefit from SEC staging or manual peer research.",
+                "body": "Add holdings rows, then run make status to refresh onboarding outputs and see which portfolio names next benefit from SEC staging or manual peer research.",
                 "badges": ["read-only"],
             }
         ]
@@ -6736,8 +6736,8 @@ def render_data_health(provider) -> None:
     else:
         render_notice_card(
             "Local validation is not available yet",
-            "Generate local validation rows to confirm which CSV datasets are present, partial, or missing before relying on broader outputs.",
-            "python3 -m src.stock_report --validate-local-data",
+            "Run make verify to refresh local validation rows and confirm which CSV datasets are present, partial, or missing before relying on broader outputs.",
+            "make verify",
             tone="warning",
         )
 
@@ -6757,8 +6757,8 @@ def render_data_health(provider) -> None:
         if action_queue_frame is None:
             render_notice_card(
                 "Action queue is not available yet",
-                action_queue_message or "Generate the research action queue to surface priority price, fundamentals, peer, and onboarding tasks.",
-                "python3 -m src.action_queue --write-output",
+                action_queue_message or "Run make status to refresh the research action queue and surface priority price, fundamentals, peer, and onboarding tasks.",
+                "make status",
                 tone="warning",
             )
         else:
@@ -6797,8 +6797,7 @@ def render_data_health(provider) -> None:
         )
         if data_quality_frame is None and liquidity_frame is None and correlation_frame is None:
             st.info(
-                "Research health outputs have not been generated yet. Run "
-                "`python3 -m src.research_health --write-output` or `python3 -m src.report_generator`."
+                "Research health outputs are not available yet. Run `make status` to refresh operator artifacts, or `make verify` for the broader local validation pass."
             )
         else:
             health_summary = summarize_research_health_tables(data_quality_frame, liquidity_frame, correlation_frame)
@@ -7088,8 +7087,8 @@ def render_data_health(provider) -> None:
         if status_frame is None and gap_frame is None:
             render_notice_card(
                 "Data source status is not generated yet",
-                "Build the local source registry so this tab can show what is available, partial, manual-only, or missing.",
-                "python3 -m src.data_sources --write-output",
+                "Run make status to refresh the local source registry so this tab can show what is available, partial, manual-only, or missing.",
+                "make status",
                 tone="warning",
             )
         else:
@@ -7102,8 +7101,8 @@ def render_data_health(provider) -> None:
             else:
                 render_notice_card(
                     "No data source status rows are available",
-                    status_message or "Generate the local source registry to inspect dataset availability and fallback actions.",
-                    "python3 -m src.data_sources --write-output",
+                    status_message or "Run make status to refresh the local source registry and inspect dataset availability plus fallback actions.",
+                    "make status",
                     tone="warning",
                 )
             if gap_frame is not None and not gap_frame.empty:
@@ -7134,7 +7133,7 @@ def render_data_health(provider) -> None:
                 render_notice_card(
                     "No data gaps were reported",
                     gap_message or "Either the local gap report has not been generated yet or there are currently no explicit source-gap rows to show.",
-                    "python3 -m src.data_sources --write-output",
+                    "make status",
                 )
 
     with health_tabs[3]:
