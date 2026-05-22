@@ -18,8 +18,10 @@ from src.data_onboarding import (
     TICKER_UNLOCK_LADDER_COLUMNS,
     UNLOCK_PRIORITY_SUMMARY_COLUMNS,
     WIZARD_COLUMNS,
+    build_onboarding_actions,
     build_onboarding_payload,
     build_data_coverage_wizard,
+    build_ticker_coverage,
     main,
     write_onboarding_outputs,
     write_onboarding_templates,
@@ -129,6 +131,17 @@ def test_onboarding_actions_prioritize_prices_fundamentals_peers_before_estimate
     assert any(row["dataset"] == "peers" and row["priority"] == 3 for row in amd_actions)
     assert any(row["dataset"] == "peers" and row["focus_command"] == "make focus-peers TICKER=AMD" for row in amd_actions)
     assert any(row["dataset"] == "analyst_estimates" and row["priority"] == 5 for row in amd_actions)
+
+
+def test_build_onboarding_actions_uses_normalize_first_price_workflow(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    coverage = build_ticker_coverage(tmp_path)
+    actions = build_onboarding_actions(coverage)
+    amd_price_action = next(action for action in actions if action.ticker == "AMD" and action.dataset == "prices")
+
+    assert "normalize verified downloaded OHLCV files into data/imports/prices.csv" in amd_price_action.recommended_action
+    assert amd_price_action.example_command == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
 
 
 def test_data_coverage_wizard_ranks_core_unlocks_before_optional_context(tmp_path: Path):

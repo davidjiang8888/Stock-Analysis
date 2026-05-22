@@ -839,12 +839,12 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     status="missing" if not row.has_prices else "insufficient_history",
                     reason=_price_onboarding_reason(row),
                     recommended_action=(
-                        f"Run python3 -m src.data_update --tickers {row.ticker}, or add verified rows to "
-                        "data/imports/prices.csv and run validate/preview/apply."
+                        f"Run python3 -m src.data_update --tickers {row.ticker}, or normalize verified downloaded "
+                        "OHLCV files into data/imports/prices.csv."
                     ),
                     target_file="data/imports/prices.csv",
                     focus_command=focus_command_for_ticker("prices", row.ticker),
-                    example_command=f"python3 -m src.data_update --tickers {row.ticker}",
+                    example_command=f"make price-normalize INPUT=data/raw/prices/{row.ticker}.csv TICKER={row.ticker} SOURCE=yahoo_manual",
                 )
             )
         if not row.dcf_ready:
