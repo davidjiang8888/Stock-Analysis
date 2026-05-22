@@ -202,6 +202,43 @@ def test_action_queue_uses_operator_friendly_onboarding_titles():
     assert any(row.title == "Add peer mappings for TSLA" for row in rows)
 
 
+def test_action_queue_uses_staged_import_titles_for_global_gap_rows():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(),
+        data_gaps=pd.DataFrame(
+            [
+                {
+                    "dataset": "fundamentals",
+                    "ticker": "",
+                    "status": "partial",
+                    "reason": (
+                        "SEC staging only provides candidate fundamentals; it does not provide prices, peers, earnings, "
+                        "or analyst estimates. Staged import rows are present in data/imports/fundamentals.csv; "
+                        "validate, preview, apply, then refresh status before relying on canonical local data."
+                    ),
+                    "recommended_action": (
+                        "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+                        "to confirm the live local fundamentals and DCF inputs."
+                    ),
+                    "focus_command": "make imports-validate",
+                    "example_command": "make imports-preview",
+                    "target_file": "data/imports/fundamentals.csv",
+                    "local_file": "data/fundamentals.csv",
+                    "source_name": "Local fundamentals CSV / SEC Companyfacts staging",
+                }
+            ]
+        ),
+        data_quality=pd.DataFrame(),
+    )
+
+    row = rows[0]
+    assert row.title == "Advance staged fundamentals import"
+    assert row.focus_command == "make imports-validate"
+    assert "data/imports/fundamentals.csv" in row.reason
+
+
 def test_action_queue_payload_refreshes_stale_onboarding_actions(tmp_path: Path):
     outputs_dir = tmp_path / "outputs"
     data_dir = tmp_path / "data"
@@ -314,6 +351,107 @@ def test_action_queue_payload_refreshes_stale_price_actions_from_data_quality(tm
     assert amd_row["focus_command"] == "make focus-price TICKER=AMD"
     assert "normalize verified downloaded OHLCV files into data/imports/prices.csv" in amd_row["recommended_action"]
     assert amd_row["example_command"] == "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual"
+
+
+def test_action_queue_payload_refreshes_stale_staged_fundamentals_gap_reason(tmp_path: Path):
+    outputs_dir = tmp_path / "outputs"
+    data_dir = tmp_path / "data"
+    imports_dir = data_dir / "imports"
+    outputs_dir.mkdir()
+    data_dir.mkdir()
+    imports_dir.mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "date": "2026-01-01", "open": 10, "high": 11, "low": 9, "close": 10, "volume": 1000},
+            {"ticker": "NVDA", "date": "2026-01-02", "open": 10, "high": 12, "low": 9, "close": 11, "volume": 1100},
+        ]
+    ).to_csv(data_dir / "prices.csv", index=False)
+    pd.DataFrame([{"ticker": "NVDA", "theme": "AI", "sectoretf": "SMH", "defaultpurpose": "Momentum Leader"}]).to_csv(
+        data_dir / "universe.csv",
+        index=False,
+    )
+    pd.DataFrame([{"ticker": "NVDA", "shares": 1, "primarypurpose": "Momentum Leader"}]).to_csv(
+        data_dir / "holdings.csv",
+        index=False,
+    )
+    pd.DataFrame([{"ticker": "NVDA", "theme": "AI"}]).to_csv(data_dir / "fundamentals.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "ticker": "AMD",
+                "theme": "AI",
+                "sector": "Semis",
+                "revenue": 100,
+                "revenue_growth": 0.2,
+                "eps": 1.0,
+                "free_cash_flow": 10,
+                "fcf": 10,
+                "fcf_margin": 0.1,
+                "profit_margin": 0.2,
+                "operating_margin": 0.15,
+                "gross_margin": 0.3,
+                "ebitda": 15,
+                "cash": 20,
+                "debt": 5,
+                "net_debt": -15,
+                "shares_outstanding": 100,
+                "pe_ratio": 25,
+                "trailing_pe": 24,
+                "forward_pe": 22,
+                "price_to_book": 3,
+                "market_cap": 1000,
+                "enterprise_value": 1020,
+                "debt_to_equity": 0.4,
+                "source": "sec_companyfacts",
+                "as_of_date": "2025-12-31",
+                "sec_cik": "1",
+                "sec_form": "10-K",
+                "sec_filed_date": "2026-02-01",
+                "sec_accession": "0001",
+                "sec_fact_warnings": "",
+                "sec_entity_name": "AMD INC",
+            }
+        ]
+    ).to_csv(imports_dir / "fundamentals.csv", index=False)
+    (outputs_dir / "data_onboarding_actions.csv").write_text(
+        "priority,ticker,dataset,status,reason,recommended_action,target_file,focus_command,example_command\n",
+        encoding="utf-8",
+    )
+    (outputs_dir / "data_quality_wizard.csv").write_text(
+        "Ticker,ReadinessStatus,NextBestAction,Reason\n",
+        encoding="utf-8",
+    )
+    pd.DataFrame(
+        [
+            {
+                "dataset": "fundamentals",
+                "ticker": "",
+                "status": "partial",
+                "reason": "as_of_date column is unavailable, so freshness is file-based only.",
+                "required_for": "valuation",
+                "recommended_action": (
+                    "Run make imports-validate, then make imports-preview, then make imports-apply, "
+                    "then make status to confirm the live local fundamentals and DCF inputs."
+                ),
+                "target_file": "data/imports/fundamentals.csv",
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "local_file": "data/fundamentals.csv",
+                "source_name": "Local fundamentals CSV / SEC Companyfacts staging",
+            }
+        ]
+    ).to_csv(outputs_dir / "data_gap_report.csv", index=False)
+
+    payload = build_action_queue_payload(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
+
+    staged_row = next(
+        row
+        for row in payload["action_queue"]
+        if row["focus_command"] == "make imports-validate" and row["title"] == "Advance staged fundamentals import"
+    )
+    assert staged_row["title"] == "Advance staged fundamentals import"
+    assert "data/imports/fundamentals.csv" in staged_row["reason"]
 
 
 def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_rows():

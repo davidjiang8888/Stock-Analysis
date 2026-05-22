@@ -154,6 +154,8 @@ def _data_gaps_need_refresh(frame: pd.DataFrame) -> bool:
         return True
     if "dataset" not in frame.columns or "recommended_action" not in frame.columns:
         return True
+    if "focus_command" not in frame.columns:
+        return True
 
     for dataset, stale_actions in STALE_DATA_GAP_ACTIONS.items():
         dataset_rows = frame.loc[frame["dataset"].astype(str).str.strip() == dataset]
@@ -162,6 +164,12 @@ def _data_gaps_need_refresh(frame: pd.DataFrame) -> bool:
         normalized_actions = dataset_rows["recommended_action"].astype(str).str.strip().str.lower()
         if normalized_actions.isin(stale_actions).any():
             return True
+    if "reason" in frame.columns:
+        staged_rows = frame.loc[frame["focus_command"].astype(str).str.strip().str.lower() == "make imports-validate"]
+        if not staged_rows.empty:
+            staged_reasons = staged_rows["reason"].astype(str).str.strip().str.lower()
+            if staged_reasons.str.contains("freshness is file-based only").any():
+                return True
     return False
 
 
@@ -308,6 +316,17 @@ def _global_gap_source_file(dataset: str, source_file: str) -> str:
     if dataset == "smh_holdings":
         return "data/custom_universe.csv"
     return source_file
+
+
+def _global_gap_title(dataset: str, focus_command: str, ticker: str) -> str:
+    if ticker:
+        return f"Resolve {dataset} gap for {ticker}".strip()
+    normalized_focus = str(focus_command or "").strip().lower()
+    if dataset == "fundamentals" and normalized_focus == "make imports-validate":
+        return "Advance staged fundamentals import"
+    if dataset == "peers" and normalized_focus == "make imports-validate":
+        return "Advance staged peer import"
+    return f"Resolve {dataset} gap".strip()
 
 
 def _dedupe(items: list[ActionQueueItem]) -> list[ActionQueueItem]:
@@ -536,7 +555,7 @@ def build_action_queue_rows(
                     urgency="critical" if priority == 1 else "high" if priority <= 3 else "medium",
                     action_type=dataset or "data_gap",
                     ticker=ticker,
-                    title=f"Resolve {dataset} gap for {ticker}".strip() if ticker else f"Resolve {dataset} gap".strip(),
+                    title=_global_gap_title(dataset, focus_command, ticker),
                     status=status or "gap",
                     recommended_action=str(row.get("recommended_action", "")).strip(),
                     focus_command=focus_command,

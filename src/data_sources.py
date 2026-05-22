@@ -594,12 +594,15 @@ def build_data_gap_report(
     for row in statuses:
         if row.availability_status == "available":
             continue
+        reason = row.validation_warnings or row.notes
+        if str(row.focus_command).strip() == "make imports-validate":
+            reason = row.notes or row.validation_warnings
         gaps.append(
             DataGap(
                 dataset=row.dataset,
                 ticker="",
                 status=row.availability_status,
-                reason=row.validation_warnings or row.notes,
+                reason=reason,
                 required_for=row.required_for,
                 recommended_action=row.fallback_action,
                 target_file=row.target_file,

@@ -280,6 +280,7 @@ def test_staged_fundamentals_import_changes_data_source_status_and_gap_flow(tmp_
     assert fundamentals_gap["focus_command"] == "make imports-validate"
     assert fundamentals_gap["example_command"] == "make imports-preview"
     assert "make imports-apply" in fundamentals_gap["recommended_action"]
+    assert "data/imports/fundamentals.csv" in fundamentals_gap["reason"]
 
 
 def test_data_sources_cli_check_json(tmp_path: Path, capsys):
