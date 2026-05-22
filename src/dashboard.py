@@ -242,7 +242,8 @@ def load_price_update_status(
     if not path.exists():
         return None, (
             "`price_update_status.csv` has not been generated yet. Run "
-            "`python3 -m src.data_update --universe-file data/universe.csv` or `make price-refresh`."
+            "`make status` first, then follow the printed price focus or runbook path. "
+            "For downloaded files, use `make price-normalize` before validate/preview/apply."
         )
     return load_output(path)
 
@@ -5796,8 +5797,8 @@ def render_overview(
             actions.append(
                 (
                     "Data gaps are visible",
-                    f"{missing_warning_count} ticker/theme names have missing-data warnings. Use onboarding before trusting broader rankings.",
-                    "make onboarding",
+                    f"{missing_warning_count} ticker/theme names have missing-data warnings. Start with make status, then follow the first focus or runbook path before trusting broader rankings.",
+                    "make status",
                     "warning",
                 )
             )
@@ -5806,7 +5807,7 @@ def render_overview(
                 (
                     "Valuation coverage is sparse",
                     "DCF-ready count is zero. Stage SEC fundamentals or add verified local fundamentals before leaning on valuation context.",
-                    "make sec-stage TICKERS=NVDA,MSFT",
+                    "make focus-fundamentals TICKER=NVDA",
                     "warning",
                 )
             )
