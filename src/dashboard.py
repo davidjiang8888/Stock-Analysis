@@ -5412,6 +5412,8 @@ def overview_best_local_research_path_cards(
     command_text = format_missing(next_command.get("title"), "make status")
     tab_text = format_missing(next_tab.get("title"), "Data Health")
     ready_command_text = format_missing(ready_cards[1].get("title"), "")
+    if tab_text == "Monthly Picks" and command_text in {"make status", "make onboarding"}:
+        command_text = "make monthly"
     if command_text == ready_command_text:
         command_reason = compact_reason(ready_cards[1].get("command_reason"), max_sentences=2, max_chars=220)
     else:

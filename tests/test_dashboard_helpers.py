@@ -3033,6 +3033,38 @@ def test_overview_best_local_research_path_cards_stitch_name_command_and_tab():
     assert "sell" not in rendered
 
 
+def test_overview_best_local_research_path_cards_use_monthly_front_door_for_monthly_tab():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "TSLA", "usable_for_momentum": True, "dcf_ready": False, "peer_ready": False},
+            {"ticker": "AMD", "usable_for_momentum": False, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "high",
+                "action_type": "fundamentals",
+                "ticker": "TSLA",
+                "title": "Refresh onboarding",
+                "reason": "Need richer local context.",
+                "example_command": "make onboarding",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_best_local_research_path_cards(coverage, None, None, queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "TSLA"
+    assert cards[1]["title"] == "make monthly"
+    assert cards[2]["title"] == "Monthly Picks"
+    assert "make monthly" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_best_local_research_path_cards_fall_back_gracefully():
     cards = dashboard.overview_best_local_research_path_cards(None, None, None, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
