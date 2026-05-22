@@ -5137,6 +5137,29 @@ def test_data_health_fix_first_cards_normalize_legacy_status_copy():
     assert "make status-check TOP_N=5" in cards[0][1]
 
 
+def test_data_health_fix_first_cards_use_staged_flow_fallback_when_row_copy_is_missing():
+    actions = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "dataset": "fundamentals",
+                "ticker": "NVDA",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_fix_first_cards(actions)
+
+    assert cards[0][0] == "P1 fundamentals - NVDA"
+    assert cards[0][2] == "make imports-validate"
+    assert "staged local workflow next" in cards[0][1].lower()
+    assert "not available" not in cards[0][1].lower()
+
+
 def test_data_health_action_path_cards_surface_best_and_lane_commands():
     actions = pd.DataFrame(
         [

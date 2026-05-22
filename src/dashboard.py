@@ -3257,16 +3257,16 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
         ticker = format_missing(row.get("ticker"), fallback="")
         title = f"P{priority} {dataset}" + (f" - {ticker}" if ticker else "")
         reason = compact_reason(row.get("reason"), max_sentences=1, max_chars=150)
-        action = compact_reason(
-            row.get("recommended_action") or "Review local data coverage.",
-            max_sentences=1,
-            max_chars=150,
-        )
         command = preferred_row_command(
             row,
             ticker_focus_command(row.get("dataset"), row.get("ticker"), "make data-wizard TOP_N=10"),
         )
-        body = f"{reason} {action}".strip()
+        action = compact_reason(
+            row.get("recommended_action") or command_family_fallback(command, "Review local data coverage."),
+            max_sentences=1,
+            max_chars=150,
+        )
+        body = action if not reason or reason == "Not available" else f"{reason} {action}".strip()
         tone = "danger" if priority <= 1 else "warning" if priority <= 2 else "neutral"
         cards.append((title, body, command, tone))
     return cards
