@@ -3800,7 +3800,7 @@ def project_status_command_rows(payload: dict[str, Any] | None) -> list[dict[str
         for row in command_rows:
             command = normalize_operator_command(row.get("Command"))
             if not command:
-                continue
+                command = "make status-check TOP_N=5"
             rows.append(
                 {
                     "Step": format_missing(row.get("Step"), "Next"),
@@ -5293,7 +5293,7 @@ def overview_workflow_path_cards(
     if structured_rows and command_rows:
         cards: list[dict[str, object]] = []
         for index, row in enumerate(command_rows[:3], start=1):
-            command = format_missing(row.get("Command"), "make status")
+            command = format_missing(row.get("Command"), "make status-check TOP_N=5")
             reason = compact_reason(row.get("Reason"), max_sentences=2, max_chars=220)
             body = reason or "Repo-native next step from the current local workflow snapshot."
             badges = ["workflow", "command"]

@@ -1740,6 +1740,24 @@ def test_project_status_command_rows_prefer_structured_rows():
     assert rows[1]["Command"] == "make runbook-prices-broader"
 
 
+def test_project_status_command_rows_use_status_check_when_structured_command_is_missing():
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Read-only status snapshot",
+                "Command": "",
+                "Reason": "Rebuild the local status snapshot before choosing a deeper workflow path.",
+            }
+        ]
+    }
+
+    rows = dashboard.project_status_command_rows(payload)
+
+    assert rows[0]["Step"] == "Read-only status snapshot"
+    assert rows[0]["Command"] == "make status-check TOP_N=5"
+    assert rows[0]["Reason"] == "Rebuild the local status snapshot before choosing a deeper workflow path."
+
+
 def test_overview_landing_cards_surface_workflow_and_gap_context():
     payload = {
         "summary": {
@@ -2994,6 +3012,24 @@ def test_overview_workflow_path_cards_use_structured_project_status_steps():
     assert "data/imports/fundamentals.csv" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_overview_workflow_path_cards_use_status_check_when_structured_command_is_missing():
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Read-only status snapshot",
+                "Command": "",
+                "Reason": "Rebuild the local status snapshot before choosing a deeper workflow path.",
+            }
+        ]
+    }
+
+    cards = dashboard.overview_workflow_path_cards(payload, None)
+
+    assert cards[0]["title"] == "make status-check TOP_N=5"
+    assert cards[0]["command"] == "make status-check TOP_N=5"
+    assert "local status snapshot" in cards[0]["body"].lower()
 
 
 def test_overview_workflow_path_cards_fall_back_to_safe_defaults():
