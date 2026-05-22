@@ -651,6 +651,31 @@ def test_project_status_cockpit_is_readable_and_research_safe():
     assert "sell" not in html.lower()
 
 
+def test_project_status_command_rows_prefer_structured_rows():
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Fix top prices blocker (NVDA)",
+                "Command": "make focus-price TICKER=NVDA",
+                "Reason": "Short local price history still blocks downstream work.",
+            },
+            {
+                "Step": "Run Price Coverage Bundle (Broader Queue)",
+                "Command": "make runbook-prices-broader",
+                "Reason": "Advance broader local price coverage next.",
+            },
+        ],
+        "recommended_next_commands": ["make onboarding", "make verify"],
+    }
+
+    rows = dashboard.project_status_command_rows(payload)
+
+    assert rows[0]["Step"] == "Fix top prices blocker (NVDA)"
+    assert rows[0]["Command"] == "make focus-price TICKER=NVDA"
+    assert rows[0]["Reason"] == "Short local price history still blocks downstream work."
+    assert rows[1]["Command"] == "make runbook-prices-broader"
+
+
 def test_overview_landing_cards_surface_workflow_and_gap_context():
     payload = {
         "summary": {
@@ -1409,6 +1434,39 @@ def test_overview_next_command_cards_prioritize_project_status_commands():
     assert cards[0]["title"] == "make onboarding"
     assert "make verify" in rendered
     assert "make dashboard" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_next_command_cards_use_structured_project_status_rows():
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Fix top prices blocker (NVDA)",
+                "Command": "make focus-price TICKER=NVDA",
+                "Reason": "Short local price history still blocks downstream work.",
+            },
+            {
+                "Step": "Run Price Coverage Bundle (Broader Queue)",
+                "Command": "make runbook-prices-broader",
+                "Reason": "Advance broader local price coverage next.",
+            },
+            {
+                "Step": "Deterministic verification",
+                "Command": "make verify",
+                "Reason": "Confirm local outputs still pass.",
+            },
+        ]
+    }
+
+    cards = dashboard.overview_next_command_cards(payload, None, limit=3)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "make focus-price TICKER=NVDA"
+    assert cards[0]["kicker"] == "Fix top prices blocker (NVDA)"
+    assert cards[1]["title"] == "make runbook-prices-broader"
+    assert "short local price history" in rendered
+    assert "advance broader local price coverage" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

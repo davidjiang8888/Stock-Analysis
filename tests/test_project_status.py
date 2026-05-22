@@ -39,6 +39,8 @@ def test_project_status_payload_is_read_only_and_summarizes_local_gaps(tmp_path:
     assert payload["summary"]["tickers_with_prices"] == 1
     assert len(payload["top_onboarding_actions"]) <= 3
     assert payload["top_onboarding_actions"][0]["focus_command"] == "make focus-price TICKER=NVDA"
+    assert payload["recommended_next_command_rows"][0]["Command"] == "make focus-price TICKER=NVDA"
+    assert "make runbook-prices" in payload["recommended_next_commands"]
     assert "make verify" in payload["recommended_next_commands"]
     assert not (tmp_path / "outputs" / "project_status.csv").exists()
 
@@ -57,3 +59,5 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
     assert "top onboarding actions" in output
     assert "focus: make focus-fundamentals ticker=nvda" in output
     assert "command: python3 -m src.stock_report --sec-stage-fundamentals --tickers nvda" in output
+    assert "fix top prices blocker (nvda): make focus-price ticker=nvda" in output
+    assert "run price coverage bundle: make runbook-prices" in output

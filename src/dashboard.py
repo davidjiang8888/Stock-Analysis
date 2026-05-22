@@ -3122,7 +3122,27 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
 
 
 def project_status_command_rows(payload: dict[str, Any] | None) -> list[dict[str, str]]:
-    commands = [] if not payload else payload.get("recommended_next_commands", [])
+    if not payload:
+        return []
+
+    command_rows = payload.get("recommended_next_command_rows", [])
+    if command_rows:
+        rows: list[dict[str, str]] = []
+        for row in command_rows:
+            command = format_missing(row.get("Command"), "")
+            if not command:
+                continue
+            rows.append(
+                {
+                    "Step": format_missing(row.get("Step"), "Next"),
+                    "Command": command,
+                    "Reason": format_missing(row.get("Reason"), ""),
+                }
+            )
+        if rows:
+            return rows
+
+    commands = payload.get("recommended_next_commands", [])
     return [{"Step": f"Next {index}", "Command": str(command)} for index, command in enumerate(commands, start=1)]
 
 
@@ -4190,6 +4210,7 @@ def overview_next_command_cards(
         for row in commands[:limit]:
             command = format_missing(row.get("Command"), "")
             title = command if command else "Recommended command"
+            reason = compact_reason(row.get("Reason"), max_sentences=1, max_chars=160)
             body = (
                 "Repo-native next step from the current read-only project status snapshot."
                 if command
@@ -4197,7 +4218,13 @@ def overview_next_command_cards(
             )
             badges = ["command", "research only"]
             lowered = command.lower()
-            if "onboarding" in lowered:
+            if "focus-" in lowered:
+                body = reason or "Use the current single-name shortcut first to unblock the highest-leverage local data gap."
+                badges = ["single name", "command"]
+            elif "runbook-" in lowered:
+                body = reason or "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+                badges = ["runbook", "command"]
+            elif "onboarding" in lowered:
                 body = "Refresh local data coverage, onboarding outputs, and action guidance before broader research work."
                 badges = ["data moat", "command"]
             elif "verify" in lowered:

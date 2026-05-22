@@ -17,6 +17,68 @@ def _count_true(rows: list[dict[str, Any]], field: str) -> int:
     return sum(1 for row in rows if bool(row.get(field)))
 
 
+def _first_non_empty(*values: object) -> str:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return ""
+
+
+def _recommended_next_command_rows(onboarding_payload: dict[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    actions = onboarding_payload.get("onboarding_actions", [])
+    bundles = onboarding_payload.get("command_bundles", [])
+
+    if actions:
+        top_action = actions[0]
+        command = _first_non_empty(top_action.get("focus_command"), top_action.get("example_command"))
+        if command:
+            dataset = str(top_action.get("dataset") or "data").replace("_", " ")
+            ticker = _first_non_empty(top_action.get("ticker"))
+            step = f"Fix top {dataset} blocker" + (f" ({ticker})" if ticker else "")
+            reason = _first_non_empty(top_action.get("reason"), top_action.get("recommended_action"))
+            rows.append({"Step": step, "Command": command, "Reason": reason})
+
+    if bundles:
+        top_bundle = bundles[0]
+        command = _first_non_empty(
+            top_bundle.get("runbook_shortcut_command"),
+            top_bundle.get("detail_shortcut_command"),
+            top_bundle.get("bundle_shortcut_command"),
+            top_bundle.get("primary_command"),
+        )
+        if command:
+            bundle_name = _first_non_empty(top_bundle.get("bundle_name"), "Top bundle")
+            reason = _first_non_empty(top_bundle.get("goal_summary"), top_bundle.get("why_it_matters"))
+            rows.append({"Step": f"Run {bundle_name}", "Command": command, "Reason": reason})
+
+    rows.extend(
+        [
+            {
+                "Step": "Deterministic verification",
+                "Command": "make verify",
+                "Reason": "Confirm the local CSV outputs and dashboard helpers still pass deterministic checks.",
+            },
+            {
+                "Step": "Dashboard smoke check",
+                "Command": "make dashboard-smoke",
+                "Reason": "Confirm the Streamlit surface still boots cleanly after the local data and workflow updates.",
+            },
+        ]
+    )
+
+    deduped: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for row in rows:
+        command = str(row.get("Command") or "").strip()
+        if not command or command in seen:
+            continue
+        seen.add(command)
+        deduped.append(row)
+    return deduped
+
+
 def build_project_status_payload(
     project_root: Path | str | None = None,
     *,
@@ -50,6 +112,7 @@ def build_project_status_payload(
         "onboarding_actions": len(actions),
         "critical_actions": sum(1 for row in actions if int(row.get("priority") or 999) <= 1),
     }
+    command_rows = _recommended_next_command_rows(onboarding_payload)
     return {
         "project_root": str(root),
         "data_dir": str(data_path),
@@ -58,12 +121,8 @@ def build_project_status_payload(
         "data_sources_needing_attention": problem_sources[:top_n],
         "top_data_gaps": gaps[:top_n],
         "top_onboarding_actions": actions[:top_n],
-        "recommended_next_commands": [
-            "make onboarding",
-            "make verify",
-            "make dashboard-smoke",
-            "make dashboard",
-        ],
+        "recommended_next_command_rows": command_rows,
+        "recommended_next_commands": [row["Command"] for row in command_rows],
     }
 
 
@@ -87,8 +146,14 @@ def _print_human(payload: dict[str, Any]) -> None:
         if row.get("example_command"):
             print(f"  command: {row['example_command']}")
     print("Recommended next commands:")
-    for command in payload["recommended_next_commands"]:
-        print(f"- {command}")
+    command_rows = payload.get("recommended_next_command_rows") or [
+        {"Step": f"Next {index}", "Command": command}
+        for index, command in enumerate(payload.get("recommended_next_commands", []), start=1)
+    ]
+    for row in command_rows:
+        print(f"- {row.get('Step', 'Next')}: {row.get('Command', '')}")
+        if row.get("Reason"):
+            print(f"  why: {row['Reason']}")
 
 
 def main() -> None:
