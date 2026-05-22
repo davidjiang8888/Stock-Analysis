@@ -3177,6 +3177,87 @@ def test_dashboard_column_labels_cover_bundle_goal_fields():
     assert dashboard.COLUMN_LABELS["ExampleCommand"] == "Example Command"
 
 
+def test_unlock_table_helpers_surface_command_columns():
+    ladder = pd.DataFrame(
+        [
+            {
+                "ticker": "AMD",
+                "current_unlock_stage": "prices",
+                "next_unlock_goal": "Unlock Monthly Picks",
+                "price_stage_status": "missing_prices",
+                "dcf_stage_status": "dcf_blocked",
+                "peer_stage_status": "peer_mapping_missing",
+                "optional_context_status": "missing_optional_context",
+                "recommended_action": "Run make focus-price TICKER=AMD.",
+                "focus_command": "make focus-price TICKER=AMD",
+                "example_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                "target_file": "data/imports/prices.csv",
+            }
+        ]
+    )
+    summary = pd.DataFrame(
+        [
+            {
+                "group_type": "holdings",
+                "group_name": "Current Holdings",
+                "ticker_count": 3,
+                "holdings_count": 3,
+                "top_priority_stage": "prices",
+                "next_unlock_goal": "Unlock Monthly Picks",
+                "representative_tickers": "META, NVDA, TSLA",
+                "recommended_action": "Run make status, then follow the printed price focus or runbook path for this group.",
+                "focus_command": "make status",
+                "example_command": "make runbook-prices",
+            }
+        ]
+    )
+
+    assert dashboard.unlock_ladder_table_columns(ladder, include_statuses=True) == [
+        "ticker",
+        "current_unlock_stage",
+        "next_unlock_goal",
+        "price_stage_status",
+        "dcf_stage_status",
+        "peer_stage_status",
+        "optional_context_status",
+        "recommended_action",
+        "focus_command",
+        "example_command",
+        "target_file",
+    ]
+    assert dashboard.unlock_ladder_table_columns(ladder, include_statuses=False) == [
+        "ticker",
+        "current_unlock_stage",
+        "next_unlock_goal",
+        "recommended_action",
+        "focus_command",
+        "example_command",
+        "target_file",
+    ]
+    assert dashboard.unlock_priority_summary_table_columns(summary) == [
+        "group_type",
+        "group_name",
+        "ticker_count",
+        "holdings_count",
+        "top_priority_stage",
+        "next_unlock_goal",
+        "representative_tickers",
+        "recommended_action",
+        "focus_command",
+        "example_command",
+    ]
+
+
+def test_price_refresh_fallback_message_uses_status_and_normalize_flow():
+    plain = dashboard.price_refresh_fallback_message()
+    warned = dashboard.price_refresh_fallback_message(include_remote_failure_prefix=True)
+
+    assert "make status" in plain
+    assert "make price-normalize" in plain
+    assert "make price-validate" in plain
+    assert warned.startswith("Remote price refresh had source issues.")
+
+
 def test_overview_command_bundle_cards_surface_bundle_commands_safely():
     bundles = pd.DataFrame(
         [

@@ -1206,6 +1206,57 @@ def preferred_bundle_command(row: pd.Series | dict[str, object], fallback: str =
     return fallback
 
 
+def unlock_ladder_table_columns(frame: pd.DataFrame | None, *, include_statuses: bool = True) -> list[str]:
+    if frame is None:
+        return []
+    columns = [
+        "ticker",
+        "current_unlock_stage",
+        "next_unlock_goal",
+        "recommended_action",
+        "focus_command",
+        "example_command",
+        "target_file",
+    ]
+    if include_statuses:
+        columns[3:3] = [
+            "price_stage_status",
+            "dcf_stage_status",
+            "peer_stage_status",
+            "optional_context_status",
+        ]
+    return [column for column in columns if column in frame.columns]
+
+
+def unlock_priority_summary_table_columns(frame: pd.DataFrame | None) -> list[str]:
+    if frame is None:
+        return []
+    columns = [
+        "group_type",
+        "group_name",
+        "ticker_count",
+        "holdings_count",
+        "top_priority_stage",
+        "next_unlock_goal",
+        "representative_tickers",
+        "recommended_action",
+        "focus_command",
+        "example_command",
+    ]
+    return [column for column in columns if column in frame.columns]
+
+
+def price_refresh_fallback_message(include_remote_failure_prefix: bool = False) -> str:
+    body = (
+        "Use `make status`, then follow the printed price focus or runbook path. "
+        "For downloaded OHLCV files, run `make price-normalize INPUT=data/raw/prices/NVDA.csv "
+        "TICKER=NVDA SOURCE=yahoo_manual`, then `make price-validate`, `make price-preview`, and `make price-apply`."
+    )
+    if include_remote_failure_prefix:
+        return f"Remote price refresh had source issues. {body}"
+    return body
+
+
 def format_value(value: object, fallback: str = "Not available") -> str:
     text = format_missing(value, fallback=fallback)
     if text == fallback:
@@ -6840,37 +6891,11 @@ def render_data_health(provider) -> None:
                 st.info(peer_mapping_queue_message)
             if ticker_unlock_ladder_frame is not None and not ticker_unlock_ladder_frame.empty:
                 with st.expander("Ticker Unlock Ladder", expanded=False):
-                    ladder_columns = [
-                        column
-                        for column in [
-                            "ticker",
-                            "current_unlock_stage",
-                            "next_unlock_goal",
-                            "price_stage_status",
-                            "dcf_stage_status",
-                            "peer_stage_status",
-                            "optional_context_status",
-                            "example_command",
-                        ]
-                        if column in ticker_unlock_ladder_frame.columns
-                    ]
+                    ladder_columns = unlock_ladder_table_columns(ticker_unlock_ladder_frame, include_statuses=True)
                     st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(20)), width="stretch", hide_index=True)
             if unlock_priority_summary_frame is not None and not unlock_priority_summary_frame.empty:
                 with st.expander("Unlock Priority Summary", expanded=False):
-                    summary_columns = [
-                        column
-                        for column in [
-                            "group_type",
-                            "group_name",
-                            "ticker_count",
-                            "holdings_count",
-                            "top_priority_stage",
-                            "next_unlock_goal",
-                            "representative_tickers",
-                            "recommended_action",
-                        ]
-                        if column in unlock_priority_summary_frame.columns
-                    ]
+                    summary_columns = unlock_priority_summary_table_columns(unlock_priority_summary_frame)
                     st.dataframe(clean_display_frame(unlock_priority_summary_frame[summary_columns].head(20)), width="stretch", hide_index=True)
 
     with health_tabs[2]:
@@ -6942,11 +6967,7 @@ def render_data_health(provider) -> None:
             )
         )
         if price_status_frame is None:
-            st.info(
-                (price_status_message or "Price update status is unavailable.")
-                + " If the remote source fails, add verified rows to `data/imports/prices.csv`, then run "
-                "`make price-validate`, `make price-preview`, and `make price-apply`."
-            )
+            st.info((price_status_message or "Price update status is unavailable.") + " " + price_refresh_fallback_message())
         else:
             status_counts = summarize_price_update_status(price_status_frame)
             if status_counts:
@@ -6973,14 +6994,10 @@ def render_data_health(provider) -> None:
             st.dataframe(clean_display_frame(price_status_frame[display_columns]), width="stretch", hide_index=True)
             problematic_statuses = {"parse_error", "source_unavailable", "network_error", "failed"}
             if "status" in price_status_frame.columns and price_status_frame["status"].astype(str).str.lower().isin(problematic_statuses).any():
-                st.warning(
-                    "Remote price refresh had source issues. Use `data/raw/prices/` for downloaded CSVs, then run "
-                    "`make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual`, "
-                    "`make price-validate`, `make price-preview`, and `make price-apply`."
-                )
+                st.warning(price_refresh_fallback_message(include_remote_failure_prefix=True))
             render_context_note(
                 "Manual fallback.",
-                "CLI-only: fill data/imports/prices.csv with verified OHLCV rows, then run make price-validate, make price-preview, and make price-apply.",
+                "CLI-only: start with make status, follow the printed price focus or runbook path, and use make price-normalize before price-validate/preview/apply for downloaded files.",
                 tone="warning",
             )
         if price_worklist_frame is not None and not price_worklist_frame.empty:
@@ -7073,18 +7090,7 @@ def render_data_health(provider) -> None:
                 "Ticker unlock ladder.",
                 "This single table combines prices, DCF, peer-relative, and optional context into one next-step ladder per ticker.",
             )
-            ladder_columns = [
-                column
-                for column in [
-                    "ticker",
-                    "current_unlock_stage",
-                    "next_unlock_goal",
-                    "recommended_action",
-                    "target_file",
-                    "example_command",
-                ]
-                if column in ticker_unlock_ladder_frame.columns
-            ]
+            ladder_columns = unlock_ladder_table_columns(ticker_unlock_ladder_frame, include_statuses=False)
             st.dataframe(clean_display_frame(ticker_unlock_ladder_frame[ladder_columns].head(15)), width="stretch", hide_index=True)
         else:
             render_notice_card(
@@ -7099,19 +7105,7 @@ def render_data_health(provider) -> None:
                 "Unlock priority summary.",
                 "This grouped summary rolls the ticker ladders up by holdings, theme, and sector ETF so you can unlock the most research value first.",
             )
-            summary_columns = [
-                column
-                for column in [
-                    "group_type",
-                    "group_name",
-                    "ticker_count",
-                    "holdings_count",
-                    "top_priority_stage",
-                    "next_unlock_goal",
-                    "representative_tickers",
-                ]
-                if column in unlock_priority_summary_frame.columns
-            ]
+            summary_columns = unlock_priority_summary_table_columns(unlock_priority_summary_frame)
             st.dataframe(clean_display_frame(unlock_priority_summary_frame[summary_columns].head(15)), width="stretch", hide_index=True)
         else:
             render_notice_card(
