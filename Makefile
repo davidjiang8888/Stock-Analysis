@@ -270,6 +270,9 @@ else
 endif
 
 price-normalize:
+ifndef INPUT
+	$(error INPUT is required, for example: make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual)
+endif
 ifdef TICKER
 	python3 -m src.price_import_normalizer --input $(INPUT) --ticker $(TICKER) --source $(or $(SOURCE),generic_manual)
 else
