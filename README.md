@@ -271,6 +271,13 @@ make coverage TICKERS=NVDA,MSFT,AMD,AVGO
 make data-wizard TICKERS=NVDA,MSFT,AMD,AVGO
 ```
 
+If you want either read-only onboarding view to stay shorter in the terminal, add `TOP_N=...`, for example:
+
+```bash
+make coverage TOP_N=5
+make data-wizard TICKERS=NVDA,MSFT,AMD,AVGO TOP_N=5
+```
+
 Keep the raw CLI only when you explicitly want the lower-level writer paths outside the broader operator workflow:
 
 ```bash
@@ -652,6 +659,8 @@ If you want to narrow that pass to a specific local ticker slice without leaving
 make price-worklist TICKERS=NVDA,MSFT
 ```
 
+To keep that price gap list shorter in the terminal, add `TOP_N=...`, for example `make price-worklist TOP_N=5`.
+
 For DCF and peer-relative blockers, use:
 
 ```bash
@@ -667,6 +676,8 @@ make fundamentals-peer-worklist TICKERS=NVDA,MSFT
 make sec-stage-queue TICKERS=NVDA,MSFT
 make peer-mapping-queue TICKERS=NVDA,MSFT
 ```
+
+Those read-only blocker views also accept `TOP_N=...`, for example `make fundamentals-peer-worklist TOP_N=5` or `make sec-stage-queue TICKERS=NVDA,MSFT TOP_N=5`.
 
 This prints which tickers still need:
 
@@ -690,6 +701,8 @@ To focus that optional-context pass on a smaller local ticker slice, use:
 ```bash
 make optional-context-worklist TICKERS=NVDA,MSFT
 ```
+
+You can also keep that optional-context summary shorter with `make optional-context-worklist TOP_N=5`.
 
 This keeps non-blocking enrichment explicit without treating it like a core pipeline failure. The output shows which tickers still have optional local context gaps and points back to `data/imports/earnings.csv` or `data/imports/analyst_estimates.csv` only when you have trusted local data.
 
@@ -1213,6 +1226,8 @@ make onboarding
 
 Use the raw `--wizard --json` form only when you want a machine-readable snapshot of the ladder itself. Use `make onboarding` when you want to refresh the full local operator artifact set.
 
+Most of the read-only onboarding views also accept `TOP_N=...` when you want a shorter terminal summary without changing the underlying CSV outputs or JSON payloads.
+
 `make onboarding` refreshes:
 
 - `outputs/ticker_data_coverage.csv`
@@ -1243,6 +1258,8 @@ To narrow that unlock ladder to a specific local ticker slice without leaving th
 make unlock-ladder TICKERS=NVDA,MSFT
 ```
 
+To keep that one-row-per-ticker ladder shorter in the terminal, add `TOP_N=...`, for example `make unlock-ladder TOP_N=5`.
+
 This combines the current next-step stage for each ticker in order:
 
 1. prices
@@ -1263,6 +1280,8 @@ To focus that grouped unlock summary on a smaller local ticker slice, use:
 ```bash
 make unlock-summary TICKERS=NVDA,MSFT
 ```
+
+You can also cap the grouped summary with `make unlock-summary TOP_N=5` when you only want the first few holdings/theme/sector rows.
 
 This grouped summary is useful when you want to decide whether the next best local work should focus on:
 
@@ -1287,6 +1306,8 @@ make command-bundles TICKERS=NVDA,MSFT
 make command-bundle-details TICKERS=NVDA,MSFT
 make command-bundle-runbook TICKERS=NVDA,MSFT
 ```
+
+Those bundle views also accept `TOP_N=...`, so you can use `make command-bundles TOP_N=3` or `make command-bundle-runbook TICKERS=NVDA,MSFT TOP_N=6` when you want a shorter read-only pass.
 
 Use the raw CLI only when you explicitly want machine-readable bundle output:
 

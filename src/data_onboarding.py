@@ -2471,24 +2471,31 @@ def _parse_tickers(value: str | None) -> list[str] | None:
     return [ticker.strip().upper() for ticker in value.split(",") if ticker.strip()]
 
 
-def _print_coverage(payload: dict[str, Any]) -> None:
+def _limited_rows(rows: list[dict[str, Any]], *, top_n: int | None = None, default: int | None = None) -> list[dict[str, Any]]:
+    limit = top_n if top_n is not None else default
+    if limit is None:
+        return rows
+    return rows[:limit]
+
+
+def _print_coverage(payload: dict[str, Any], *, top_n: int | None = None) -> None:
     print("Ticker coverage:")
-    for row in payload["ticker_coverage"]:
+    for row in _limited_rows(payload["ticker_coverage"], top_n=top_n):
         print(
             f"- {row['ticker']}: prices={row['has_prices']} days={row['price_history_days']} "
             f"dcf_ready={row['dcf_ready']} peer_ready={row['peer_ready']} next={row['next_best_action']}"
         )
     print(f"Onboarding actions: {len(payload['onboarding_actions'])}")
-    for row in payload["onboarding_actions"][:20]:
+    for row in _limited_rows(payload["onboarding_actions"], top_n=top_n, default=20):
         ticker = f" {row['ticker']}" if row["ticker"] else ""
         print(f"- P{row['priority']} {row['dataset']}{ticker}: {row['recommended_action']}")
         print(f"  focus: {row.get('focus_command') or '-'}")
         print(f"  command: {row['example_command']}")
 
 
-def _print_wizard(payload: dict[str, Any]) -> None:
+def _print_wizard(payload: dict[str, Any], *, top_n: int | None = None) -> None:
     print("Data coverage wizard:")
-    for row in payload["data_coverage_wizard"][:30]:
+    for row in _limited_rows(payload["data_coverage_wizard"], top_n=top_n, default=30):
         ticker = f" {row['ticker']}" if row["ticker"] else ""
         print(
             f"- P{row['priority']} {row['unlock_goal']}{ticker}: "
@@ -2499,9 +2506,9 @@ def _print_wizard(payload: dict[str, Any]) -> None:
     print(f"Wizard rows: {len(payload['data_coverage_wizard'])}")
 
 
-def _print_price_worklist(payload: dict[str, Any]) -> None:
+def _print_price_worklist(payload: dict[str, Any], *, top_n: int | None = None) -> None:
     print("Price import worklist:")
-    for row in payload["price_import_worklist"][:30]:
+    for row in _limited_rows(payload["price_import_worklist"], top_n=top_n, default=30):
         print(
             f"- P{row['priority']} {row['ticker']}: {row['price_history_days']} rows, "
             f"momentum_ready={row['momentum_ready']} track_record_ready={row['track_record_ready']} "
@@ -2515,9 +2522,9 @@ def _print_price_worklist(payload: dict[str, Any]) -> None:
     print(f"Price worklist rows: {len(payload['price_import_worklist'])}")
 
 
-def _print_fundamentals_peer_worklist(payload: dict[str, Any]) -> None:
+def _print_fundamentals_peer_worklist(payload: dict[str, Any], *, top_n: int | None = None) -> None:
     print("Fundamentals and peer worklist:")
-    for row in payload["fundamentals_peer_worklist"][:30]:
+    for row in _limited_rows(payload["fundamentals_peer_worklist"], top_n=top_n, default=30):
         print(
             f"- P{row['priority']} {row['ticker']}: dcf_ready={row['dcf_ready']} "
             f"peer_ready={row['peer_ready']} missing_dcf={row['missing_required_for_dcf'] or '-'} "
@@ -2529,9 +2536,9 @@ def _print_fundamentals_peer_worklist(payload: dict[str, Any]) -> None:
     print(f"Fundamentals/peer worklist rows: {len(payload['fundamentals_peer_worklist'])}")
 
 
-def _print_optional_context_worklist(payload: dict[str, Any]) -> None:
+def _print_optional_context_worklist(payload: dict[str, Any], *, top_n: int | None = None) -> None:
     print("Optional context worklist:")
-    for row in payload["optional_context_worklist"][:30]:
+    for row in _limited_rows(payload["optional_context_worklist"], top_n=top_n, default=30):
         print(
             f"- P{row['priority']} {row['ticker']}: earnings={row['has_earnings']} "
             f"estimates={row['has_analyst_estimates']} missing={row['missing_optional_context'] or '-'}"
@@ -2540,9 +2547,9 @@ def _print_optional_context_worklist(payload: dict[str, Any]) -> None:
     print(f"Optional context worklist rows: {len(payload['optional_context_worklist'])}")
 
 
-def _print_sec_stage_queue(payload: dict[str, Any]) -> None:
+def _print_sec_stage_queue(payload: dict[str, Any], *, top_n: int | None = None) -> None:
     print("SEC stage queue:")
-    for row in payload["sec_stage_queue"][:30]:
+    for row in _limited_rows(payload["sec_stage_queue"], top_n=top_n, default=30):
         print(
             f"- P{row['priority']} {row['ticker']}: holding={row['is_holding']} "
             f"days={row['price_history_days']} has_fundamentals={row['has_fundamentals']} "
@@ -2555,9 +2562,9 @@ def _print_sec_stage_queue(payload: dict[str, Any]) -> None:
     print(f"SEC stage queue rows: {len(payload['sec_stage_queue'])}")
 
 
-def _print_peer_mapping_queue(payload: dict[str, Any]) -> None:
+def _print_peer_mapping_queue(payload: dict[str, Any], *, top_n: int | None = None) -> None:
     print("Peer mapping queue:")
-    for row in payload["peer_mapping_queue"][:30]:
+    for row in _limited_rows(payload["peer_mapping_queue"], top_n=top_n, default=30):
         print(
             f"- P{row['priority']} {row['ticker']}: holding={row['is_holding']} "
             f"dcf_ready={row['dcf_ready']} has_peer_mapping={row['has_peer_mapping']} "
@@ -2570,9 +2577,9 @@ def _print_peer_mapping_queue(payload: dict[str, Any]) -> None:
     print(f"Peer mapping queue rows: {len(payload['peer_mapping_queue'])}")
 
 
-def _print_ticker_unlock_ladder(payload: dict[str, Any]) -> None:
+def _print_ticker_unlock_ladder(payload: dict[str, Any], *, top_n: int | None = None) -> None:
     print("Ticker unlock ladder:")
-    for row in payload["ticker_unlock_ladder"][:30]:
+    for row in _limited_rows(payload["ticker_unlock_ladder"], top_n=top_n, default=30):
         print(
             f"- {row['ticker']}: stage={row['current_unlock_stage']} "
             f"goal={row['next_unlock_goal']} price={row['price_stage_status']} "
@@ -2584,9 +2591,9 @@ def _print_ticker_unlock_ladder(payload: dict[str, Any]) -> None:
     print(f"Ticker unlock ladder rows: {len(payload['ticker_unlock_ladder'])}")
 
 
-def _print_unlock_priority_summary(payload: dict[str, Any]) -> None:
+def _print_unlock_priority_summary(payload: dict[str, Any], *, top_n: int | None = None) -> None:
     print("Unlock priority summary:")
-    for row in payload["unlock_priority_summary"][:30]:
+    for row in _limited_rows(payload["unlock_priority_summary"], top_n=top_n, default=30):
         print(
             f"- {row['group_type']} {row['group_name']}: top_stage={row['top_priority_stage']} "
             f"goal={row['next_unlock_goal']} tickers={row['ticker_count']} holdings={row['holdings_count']}"
@@ -2597,8 +2604,8 @@ def _print_unlock_priority_summary(payload: dict[str, Any]) -> None:
     print(f"Unlock priority summary rows: {len(payload['unlock_priority_summary'])}")
 
 
-def _print_command_bundles(payload: dict[str, Any]) -> None:
-    for row in payload["command_bundles"]:
+def _print_command_bundles(payload: dict[str, Any], *, top_n: int | None = None) -> None:
+    for row in _limited_rows(payload["command_bundles"], top_n=top_n):
         print(
             f"{row['bundle_name']}: lane={row['lane']} scope={row['scope']} "
             f"tickers={row['tickers']} count={row['ticker_count']}"
@@ -2621,8 +2628,8 @@ def _print_command_bundles(payload: dict[str, Any]) -> None:
     print(f"Command bundle rows: {len(payload['command_bundles'])}")
 
 
-def _print_command_bundle_details(payload: dict[str, Any]) -> None:
-    for row in payload["command_bundle_details"][:30]:
+def _print_command_bundle_details(payload: dict[str, Any], *, top_n: int | None = None) -> None:
+    for row in _limited_rows(payload["command_bundle_details"], top_n=top_n, default=30):
         print(
             f"{row['bundle_name']}: lane={row['lane']} ticker={row['ticker']} "
             f"holding={row['is_holding']} stage={row['current_unlock_stage']} "
@@ -2637,8 +2644,8 @@ def _print_command_bundle_details(payload: dict[str, Any]) -> None:
     print(f"Command bundle detail rows: {len(payload['command_bundle_details'])}")
 
 
-def _print_command_bundle_runbook(payload: dict[str, Any]) -> None:
-    for row in payload["command_bundle_runbook"][:60]:
+def _print_command_bundle_runbook(payload: dict[str, Any], *, top_n: int | None = None) -> None:
+    for row in _limited_rows(payload["command_bundle_runbook"], top_n=top_n, default=60):
         print(
             f"{row['bundle_name']}: lane={row['lane']} step={row['step_order']} "
             f"{row['step_label']} -> {row['command']}"
@@ -2779,11 +2786,14 @@ def main() -> None:
     parser.add_argument("--write-output", action="store_true", help="Write ticker coverage and onboarding action CSVs.")
     parser.add_argument("--write-templates", action="store_true", help="Write header-only onboarding templates under data/templates.")
     parser.add_argument("--tickers", help="Comma-separated tickers to inspect. Defaults to universe and holdings tickers.")
+    parser.add_argument("--top-n", type=int, help="Optional cap for human-readable terminal rows across read-only summary views.")
     parser.add_argument("--json", action="store_true", help="Print JSON output.")
     parser.add_argument("--project-root", help="Project root for default data/output directories.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
     args = parser.parse_args()
+    if args.top_n is not None and args.top_n <= 0:
+        parser.error("--top-n must be a positive integer")
 
     root = resolve_project_root(args.project_root)
     data_path = resolve_data_dir(args.data_dir, root)
@@ -2837,29 +2847,29 @@ def main() -> None:
 
     print(format_path_context(root, data_path, output_path))
     if args.command_bundle_runbook and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary and not args.command_bundles and not args.command_bundle_details:
-        _print_command_bundle_runbook(payload)
+        _print_command_bundle_runbook(payload, top_n=args.top_n)
     elif args.command_bundle_details and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary and not args.command_bundles:
-        _print_command_bundle_details(payload)
+        _print_command_bundle_details(payload, top_n=args.top_n)
     elif args.command_bundles and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary:
-        _print_command_bundles(payload)
+        _print_command_bundles(payload, top_n=args.top_n)
     elif args.unlock_summary and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder:
-        _print_unlock_priority_summary(payload)
+        _print_unlock_priority_summary(payload, top_n=args.top_n)
     elif args.unlock_ladder and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue:
-        _print_ticker_unlock_ladder(payload)
+        _print_ticker_unlock_ladder(payload, top_n=args.top_n)
     elif args.peer_mapping_queue and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue:
-        _print_peer_mapping_queue(payload)
+        _print_peer_mapping_queue(payload, top_n=args.top_n)
     elif args.sec_stage_queue and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist:
-        _print_sec_stage_queue(payload)
+        _print_sec_stage_queue(payload, top_n=args.top_n)
     elif args.optional_context_worklist and not args.coverage and not args.wizard and not args.price_worklist and not args.fundamentals_peer_worklist and not args.sec_stage_queue and not args.peer_mapping_queue:
-        _print_optional_context_worklist(payload)
+        _print_optional_context_worklist(payload, top_n=args.top_n)
     elif args.fundamentals_peer_worklist and not args.coverage and not args.wizard and not args.price_worklist and not args.sec_stage_queue and not args.peer_mapping_queue:
-        _print_fundamentals_peer_worklist(payload)
+        _print_fundamentals_peer_worklist(payload, top_n=args.top_n)
     elif args.price_worklist and not args.coverage and not args.wizard and not args.sec_stage_queue and not args.peer_mapping_queue:
-        _print_price_worklist(payload)
+        _print_price_worklist(payload, top_n=args.top_n)
     elif args.wizard and not args.coverage:
-        _print_wizard(payload)
+        _print_wizard(payload, top_n=args.top_n)
     else:
-        _print_coverage(payload)
+        _print_coverage(payload, top_n=args.top_n)
     if args.write_output:
         print(f"Wrote: {payload['coverage_path']}")
         print(f"Wrote: {payload['actions_path']}")

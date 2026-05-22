@@ -63,6 +63,7 @@ help:
 	@echo "  make optional-context-worklist [TICKERS=NVDA,MSFT] Show optional earnings and estimate gaps"
 	@echo "  make sec-stage-queue [TICKERS=NVDA,MSFT] Show prioritized SEC fundamentals staging candidates"
 	@echo "  make peer-mapping-queue [TICKERS=NVDA,MSFT] Show prioritized manual peer-mapping candidates"
+	@echo "  Most read-only onboarding views also accept TOP_N=10 for a shorter terminal summary"
 	@echo "  make templates        Write local CSV templates for peers, earnings, estimates, and manual fallbacks"
 	@echo "  make import-staging   Write header-only staging CSV files under data/imports"
 	@echo "  make validate-data    Validate local CSV datasets"
@@ -139,79 +140,79 @@ validate-all:
 	scripts/validate_all.sh
 
 coverage:
-	python3 -m src.data_onboarding --coverage $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --coverage $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 data-wizard:
-	python3 -m src.data_onboarding --wizard $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --wizard $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 unlock-ladder:
-	python3 -m src.data_onboarding --unlock-ladder $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --unlock-ladder $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 unlock-summary:
-	python3 -m src.data_onboarding --unlock-summary $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --unlock-summary $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 command-bundles:
-	python3 -m src.data_onboarding --command-bundles $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundles $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 command-bundle-details:
-	python3 -m src.data_onboarding --command-bundle-details $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundle-details $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 command-bundle-runbook:
-	python3 -m src.data_onboarding --command-bundle-runbook $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundle-runbook $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 bundle-prices:
-	python3 -m src.data_onboarding --command-bundles --lane prices --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundles --lane prices --holdings-only $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 bundle-fundamentals:
-	python3 -m src.data_onboarding --command-bundles --lane fundamentals --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundles --lane fundamentals --holdings-only $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 bundle-peers:
-	python3 -m src.data_onboarding --command-bundles --lane peers --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundles --lane peers --holdings-only $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 bundle-prices-broader:
-	python3 -m src.data_onboarding --command-bundles --lane prices --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundles --lane prices --scope broader_queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 bundle-fundamentals-broader:
-	python3 -m src.data_onboarding --command-bundles --lane fundamentals --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundles --lane fundamentals --scope broader_queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 bundle-peers-broader:
-	python3 -m src.data_onboarding --command-bundles --lane peers --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundles --lane peers --scope broader_queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 detail-prices:
-	python3 -m src.data_onboarding --command-bundle-details --lane prices --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundle-details --lane prices --holdings-only $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 detail-fundamentals:
-	python3 -m src.data_onboarding --command-bundle-details --lane fundamentals --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundle-details --lane fundamentals --holdings-only $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 detail-peers:
-	python3 -m src.data_onboarding --command-bundle-details --lane peers --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundle-details --lane peers --holdings-only $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 detail-prices-broader:
-	python3 -m src.data_onboarding --command-bundle-details --lane prices --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundle-details --lane prices --scope broader_queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 detail-fundamentals-broader:
-	python3 -m src.data_onboarding --command-bundle-details --lane fundamentals --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundle-details --lane fundamentals --scope broader_queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 detail-peers-broader:
-	python3 -m src.data_onboarding --command-bundle-details --lane peers --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundle-details --lane peers --scope broader_queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 runbook-prices:
-	python3 -m src.data_onboarding --command-bundle-runbook --lane prices --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundle-runbook --lane prices --holdings-only $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 runbook-fundamentals:
-	python3 -m src.data_onboarding --command-bundle-runbook --lane fundamentals --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundle-runbook --lane fundamentals --holdings-only $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 runbook-peers:
-	python3 -m src.data_onboarding --command-bundle-runbook --lane peers --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundle-runbook --lane peers --holdings-only $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 runbook-prices-broader:
-	python3 -m src.data_onboarding --command-bundle-runbook --lane prices --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundle-runbook --lane prices --scope broader_queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 runbook-fundamentals-broader:
-	python3 -m src.data_onboarding --command-bundle-runbook --lane fundamentals --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundle-runbook --lane fundamentals --scope broader_queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 runbook-peers-broader:
-	python3 -m src.data_onboarding --command-bundle-runbook --lane peers --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --command-bundle-runbook --lane peers --scope broader_queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 focus-price:
 ifndef TICKER
@@ -251,19 +252,19 @@ price-status:
 	python3 -m src.data_update --price-status
 
 price-worklist:
-	python3 -m src.data_onboarding --price-worklist $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --price-worklist $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 fundamentals-peer-worklist:
-	python3 -m src.data_onboarding --fundamentals-peer-worklist $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --fundamentals-peer-worklist $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 optional-context-worklist:
-	python3 -m src.data_onboarding --optional-context-worklist $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --optional-context-worklist $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 sec-stage-queue:
-	python3 -m src.data_onboarding --sec-stage-queue $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --sec-stage-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 peer-mapping-queue:
-	python3 -m src.data_onboarding --peer-mapping-queue $(if $(TICKERS),--tickers $(TICKERS),)
+	python3 -m src.data_onboarding --peer-mapping-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 price-validate:
 	python3 -m src.data_update --validate-price-imports

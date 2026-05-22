@@ -128,6 +128,7 @@ def test_makefile_help_documents_key_workflows():
         "make optional-context-worklist [TICKERS=NVDA,MSFT]",
         "make sec-stage-queue [TICKERS=NVDA,MSFT]",
         "make peer-mapping-queue [TICKERS=NVDA,MSFT]",
+        "Most read-only onboarding views also accept TOP_N=10 for a shorter terminal summary",
         "make import-staging",
         "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual",
         "export SEC_USER_AGENT='Name email@example.com'",
@@ -178,13 +179,18 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "## Run the dashboard\n\n```bash\nmake dashboard" in readme
     assert "```bash\nmake coverage\nmake data-wizard\nmake command-bundles\nmake templates" in readme
     assert "If you want a narrower targeted coverage pass without leaving the make-based operator path, use:\n\n```bash\nmake coverage TICKERS=NVDA,MSFT,AMD,AVGO\nmake data-wizard TICKERS=NVDA,MSFT,AMD,AVGO" in readme
+    assert "If you want either read-only onboarding view to stay shorter in the terminal, add `TOP_N=...`, for example:\n\n```bash\nmake coverage TOP_N=5\nmake data-wizard TICKERS=NVDA,MSFT,AMD,AVGO TOP_N=5" in readme
     assert "Generate it with:\n\n```bash\nmake status\nmake data-wizard" in readme
+    assert "Most of the read-only onboarding views also accept `TOP_N=...` when you want a shorter terminal summary without changing the underlying CSV outputs or JSON payloads." in readme
     assert "If you want one row per ticker instead of several queue outputs, use:\n\n```bash\nmake unlock-ladder" in readme
     assert "To narrow that unlock ladder to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake unlock-ladder TICKERS=NVDA,MSFT" in readme
+    assert "To keep that one-row-per-ticker ladder shorter in the terminal, add `TOP_N=...`, for example `make unlock-ladder TOP_N=5`." in readme
     assert "If you want to see where local data gaps are most concentrated by holdings, theme, or sector ETF, use:\n\n```bash\nmake unlock-summary" in readme
     assert "To focus that grouped unlock summary on a smaller local ticker slice, use:\n\n```bash\nmake unlock-summary TICKERS=NVDA,MSFT" in readme
+    assert "You can also cap the grouped summary with `make unlock-summary TOP_N=5` when you only want the first few holdings/theme/sector rows." in readme
     assert "```bash\nmake command-bundles\nmake command-bundle-details\nmake command-bundle-runbook" in readme
     assert "If you want to narrow those bundle views to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake command-bundles TICKERS=NVDA,MSFT\nmake command-bundle-details TICKERS=NVDA,MSFT\nmake command-bundle-runbook TICKERS=NVDA,MSFT" in readme
+    assert "Those bundle views also accept `TOP_N=...`, so you can use `make command-bundles TOP_N=3` or `make command-bundle-runbook TICKERS=NVDA,MSFT TOP_N=6` when you want a shorter read-only pass." in readme
     assert "If you only want one lane at a time, use:\n\n```bash\nmake bundle-prices\nmake bundle-fundamentals\nmake bundle-peers" in readme
     assert "To narrow one of those lane-specific views to a smaller local ticker slice, use:\n\n```bash\nmake bundle-fundamentals TICKERS=NVDA,MSFT\nmake detail-peers TICKERS=NVDA,MSFT\nmake runbook-prices TICKERS=NVDA,MSFT" in readme
     assert "make runbook-prices\nmake runbook-fundamentals\nmake runbook-peers" in readme
@@ -205,8 +211,11 @@ def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
     assert "If you want to refresh `data/prices.csv` from a free daily source before running the screener, you can use:\n\n```bash\nmake price-refresh" in readme
     assert "Useful flags:\n\n```bash\nmake price-refresh\nmake price-refresh TICKERS=NVDA,MSFT,AVGO" in readme
     assert "If you want to narrow that pass to a specific local ticker slice without leaving the make-based operator path, use:\n\n```bash\nmake price-worklist TICKERS=NVDA,MSFT" in readme
+    assert "To keep that price gap list shorter in the terminal, add `TOP_N=...`, for example `make price-worklist TOP_N=5`." in readme
     assert "If you want to narrow those blocker queues to a specific local ticker slice, use:\n\n```bash\nmake fundamentals-peer-worklist TICKERS=NVDA,MSFT\nmake sec-stage-queue TICKERS=NVDA,MSFT\nmake peer-mapping-queue TICKERS=NVDA,MSFT" in readme
+    assert "Those read-only blocker views also accept `TOP_N=...`, for example `make fundamentals-peer-worklist TOP_N=5` or `make sec-stage-queue TICKERS=NVDA,MSFT TOP_N=5`." in readme
     assert "To focus that optional-context pass on a smaller local ticker slice, use:\n\n```bash\nmake optional-context-worklist TICKERS=NVDA,MSFT" in readme
+    assert "You can also keep that optional-context summary shorter with `make optional-context-worklist TOP_N=5`." in readme
     assert "Generic OHLCV CSVs are also supported when they include `date`, `ticker`, `open`, `high`, `low`, `close`, and `volume` columns:\n\n```bash\nmake price-normalize INPUT=data/raw/prices/prices.csv SOURCE=generic_manual" in readme
     assert "If you explicitly need lower-level CLI control for unusual exports, map columns directly:" in readme
     assert "If you want a larger CLI-only smoke run:\n\n```bash\nmake universe-preview\nmake universe-apply" in readme
@@ -292,21 +301,21 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
 
     assert "status:\n\tpython3 -m src.project_status --refresh-artifacts --top-n $(or $(TOP_N),5)" in makefile
     assert "status-check:\n\tpython3 -m src.project_status --top-n $(or $(TOP_N),5)" in makefile
-    assert "coverage:\n\tpython3 -m src.data_onboarding --coverage $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "data-wizard:\n\tpython3 -m src.data_onboarding --wizard $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "unlock-ladder:\n\tpython3 -m src.data_onboarding --unlock-ladder $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "unlock-summary:\n\tpython3 -m src.data_onboarding --unlock-summary $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "command-bundles:\n\tpython3 -m src.data_onboarding --command-bundles $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "command-bundle-details:\n\tpython3 -m src.data_onboarding --command-bundle-details $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "command-bundle-runbook:\n\tpython3 -m src.data_onboarding --command-bundle-runbook $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "bundle-fundamentals:\n\tpython3 -m src.data_onboarding --command-bundles --lane fundamentals --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "detail-peers:\n\tpython3 -m src.data_onboarding --command-bundle-details --lane peers --holdings-only $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "runbook-prices-broader:\n\tpython3 -m src.data_onboarding --command-bundle-runbook --lane prices --scope broader_queue $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "price-worklist:\n\tpython3 -m src.data_onboarding --price-worklist $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "fundamentals-peer-worklist:\n\tpython3 -m src.data_onboarding --fundamentals-peer-worklist $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "optional-context-worklist:\n\tpython3 -m src.data_onboarding --optional-context-worklist $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "sec-stage-queue:\n\tpython3 -m src.data_onboarding --sec-stage-queue $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "peer-mapping-queue:\n\tpython3 -m src.data_onboarding --peer-mapping-queue $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "coverage:\n\tpython3 -m src.data_onboarding --coverage $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "data-wizard:\n\tpython3 -m src.data_onboarding --wizard $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "unlock-ladder:\n\tpython3 -m src.data_onboarding --unlock-ladder $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "unlock-summary:\n\tpython3 -m src.data_onboarding --unlock-summary $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "command-bundles:\n\tpython3 -m src.data_onboarding --command-bundles $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "command-bundle-details:\n\tpython3 -m src.data_onboarding --command-bundle-details $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "command-bundle-runbook:\n\tpython3 -m src.data_onboarding --command-bundle-runbook $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "bundle-fundamentals:\n\tpython3 -m src.data_onboarding --command-bundles --lane fundamentals --holdings-only $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "detail-peers:\n\tpython3 -m src.data_onboarding --command-bundle-details --lane peers --holdings-only $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "runbook-prices-broader:\n\tpython3 -m src.data_onboarding --command-bundle-runbook --lane prices --scope broader_queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "price-worklist:\n\tpython3 -m src.data_onboarding --price-worklist $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "fundamentals-peer-worklist:\n\tpython3 -m src.data_onboarding --fundamentals-peer-worklist $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "optional-context-worklist:\n\tpython3 -m src.data_onboarding --optional-context-worklist $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "sec-stage-queue:\n\tpython3 -m src.data_onboarding --sec-stage-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
+    assert "peer-mapping-queue:\n\tpython3 -m src.data_onboarding --peer-mapping-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "price-normalize:\nifndef INPUT\n\t$(error INPUT is required, for example: make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual)\nendif" in makefile
     assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),)" in makefile
     assert "local-tickers:\n\tpython3 -m src.stock_report --list-local-tickers" in makefile

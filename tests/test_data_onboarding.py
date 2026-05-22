@@ -714,6 +714,22 @@ def test_data_onboarding_cli_price_worklist_text_surfaces_goal_and_command(tmp_p
     assert "make price-normalize" in output
 
 
+def test_data_onboarding_cli_price_worklist_text_respects_top_n(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--price-worklist", "--top-n", "1"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = previous_argv
+
+    assert "price import worklist" in output
+    assert output.count("- p") == 1
+    assert "amd" in output
+    assert "nvda" not in output
+
+
 def test_price_worklist_prioritizes_sparse_price_history(tmp_path: Path):
     _write_fixture(tmp_path)
 
@@ -1091,6 +1107,20 @@ def test_data_onboarding_cli_command_bundles_text_surfaces_goal_summary(tmp_path
     assert "target_history_rows:" in output
     assert "suggested_start_date:" in output
     assert "fallback:" not in output
+
+
+def test_data_onboarding_cli_command_bundles_text_respects_top_n(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = ["python", "--project-root", str(tmp_path), "--command-bundles", "--top-n", "1"]
+    try:
+        main()
+        output = capsys.readouterr().out.lower()
+    finally:
+        sys.argv = previous_argv
+
+    assert output.count("bundle: lane=") == 1
+    assert "command bundle rows: 4" in output
 
 
 def test_data_onboarding_cli_command_bundles_can_filter_by_lane_and_holdings(tmp_path: Path, capsys):
