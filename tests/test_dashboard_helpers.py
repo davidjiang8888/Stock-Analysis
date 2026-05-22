@@ -5711,6 +5711,54 @@ def test_data_health_overview_cards_without_price_status_use_runbook_first_guida
     assert "sell" not in rendered
 
 
+def test_data_health_overview_cards_surface_healthy_price_status_command_paths():
+    validation = pd.DataFrame({"validation_status": ["valid", "valid_with_warnings"]})
+    price_status = pd.DataFrame({"status": ["fetched", "skipped_fresh"]})
+    action_queue = pd.DataFrame({"urgency": ["high", "medium"]})
+    coverage = pd.DataFrame(
+        {
+            "usable_for_momentum": [True, True],
+            "dcf_ready": [True, False],
+            "peer_ready": [True, False],
+            "has_earnings": [False, False],
+            "has_analyst_estimates": [False, False],
+            "missing_required_for_momentum": ["", ""],
+            "missing_required_for_dcf": ["", "fundamentals"],
+            "missing_required_for_peer_relative": ["", "peer mapping"],
+        }
+    )
+
+    cards = dashboard.data_health_overview_cards(validation, price_status, action_queue, coverage)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["command"] == "make validate-data"
+    assert cards[1]["command"] == "make price-status TOP_N=10"
+    assert cards[2]["command"] == "make action-queue-check TOP_N=10"
+    assert cards[3]["command"] == "make data-wizard TOP_N=10"
+    assert "latest price refresh did not report blocking source errors" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_data_health_overview_cards_handle_empty_validation_rows():
+    validation = pd.DataFrame({"validation_status": []})
+    price_status = pd.DataFrame({"status": ["fetched"]})
+    action_queue = pd.DataFrame({"urgency": ["medium"]})
+    coverage = pd.DataFrame({"usable_for_momentum": [False]})
+
+    cards = dashboard.data_health_overview_cards(validation, price_status, action_queue, coverage)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "No validation rows"
+    assert cards[0]["command"] == "make validate-data"
+    assert cards[1]["command"] == "make price-status TOP_N=10"
+    assert cards[2]["command"] == "make action-queue-check TOP_N=10"
+    assert cards[3]["command"] == "make data-wizard TOP_N=10"
+    assert "run local validation to inspect configured csv datasets" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_tab_summary_cards_cover_price_and_staged_imports():
     validation = pd.DataFrame({"validation_status": ["valid", "missing_file"]})
     coverage = pd.DataFrame(
