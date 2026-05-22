@@ -241,7 +241,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceRegistryEntry, ...] = (
         requires_user_agent=False,
         requires_api_key=False,
         expected_local_file="data/prices.csv",
-        fallback_action="Start with make status, then follow the printed price focus or runbook path. For downloaded files, normalize verified local OHLCV rows before validate/preview/apply.",
+        fallback_action="Start with make status, then follow the printed price focus or runbook path. For downloaded files, normalize verified local OHLCV files before validate/preview/apply.",
         notes="The app never fabricates missing price history; short history reduces long-horizon metrics.",
     ),
     DataSourceRegistryEntry(

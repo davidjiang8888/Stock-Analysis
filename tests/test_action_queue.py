@@ -74,6 +74,7 @@ def test_action_queue_uses_status_first_fallback_for_price_failures_without_tick
     assert row.example_command == "make status"
     assert "run make status" in row.recommended_action.lower()
     assert "data/imports/prices.csv" in row.recommended_action
+    assert "ohlcv files" in row.recommended_action.lower()
 
 
 def test_action_queue_uses_research_health_when_price_data_is_missing():

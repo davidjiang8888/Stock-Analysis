@@ -227,7 +227,7 @@ def _price_focus_recommended_action(ticker: str) -> str:
     if not ticker:
         return (
             "Run make status, then follow the printed price focus or runbook path. "
-            "If you are using downloaded files, normalize verified OHLCV rows into data/imports/prices.csv."
+            "If you are using downloaded files, normalize verified OHLCV files into data/imports/prices.csv."
         )
     return (
         f"Run make focus-price TICKER={ticker}, or run python3 -m src.data_update --tickers {ticker} and "

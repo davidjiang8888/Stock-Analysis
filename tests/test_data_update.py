@@ -243,7 +243,7 @@ def test_show_price_update_status_enriches_legacy_rows_with_commands(tmp_path: P
                 "error_category": "parse_error",
                 "error_message": "AMD: parse failed",
                 "fallback_used": True,
-                "recommended_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV rows into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=AMD, or run python3 -m src.data_update --tickers AMD and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
             }
         ]
     ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)
@@ -274,7 +274,7 @@ def test_enrich_price_update_status_frame_refreshes_stale_price_actions():
     enriched = enrich_price_update_status_frame(frame)
 
     assert enriched.iloc[0]["recommended_action"].startswith("Run make focus-price TICKER=QQQ")
-    assert "normalize verified downloaded OHLCV rows into data/imports/prices.csv" in enriched.iloc[0]["recommended_action"]
+    assert "normalize verified downloaded OHLCV files into data/imports/prices.csv" in enriched.iloc[0]["recommended_action"]
 
 
 def test_enrich_price_update_status_frame_normalizes_parse_error_messages():
@@ -284,7 +284,7 @@ def test_enrich_price_update_status_frame_normalizes_parse_error_messages():
                 "ticker": "META",
                 "status": "parse_error",
                 "error_message": "META: update failed (Error tokenizing data. C error: Expected 1 fields in line 6, saw 2\n)",
-                "recommended_action": "Run make focus-price TICKER=META, or run python3 -m src.data_update --tickers META and normalize verified downloaded OHLCV rows into data/imports/prices.csv.",
+                "recommended_action": "Run make focus-price TICKER=META, or run python3 -m src.data_update --tickers META and normalize verified downloaded OHLCV files into data/imports/prices.csv.",
             }
         ]
     )
@@ -292,6 +292,7 @@ def test_enrich_price_update_status_frame_normalizes_parse_error_messages():
     enriched = enrich_price_update_status_frame(frame)
 
     assert enriched.iloc[0]["error_message"] == "META: provider rows could not be parsed cleanly (Expected 1 fields in line 6, saw 2)"
+    assert "normalize verified downloaded OHLCV files into data/imports/prices.csv" in enriched.iloc[0]["recommended_action"]
 
 
 def test_refresh_price_update_status_output_rewrites_legacy_file(tmp_path: Path):
@@ -352,6 +353,7 @@ def test_refresh_price_update_status_output_rewrites_legacy_parse_error_message(
 
     refreshed = pd.read_csv(path)
     assert refreshed.iloc[0]["error_message"] == "META: provider rows could not be parsed cleanly (Expected 1 fields in line 6, saw 2)"
+    assert "normalize verified downloaded OHLCV files into data/imports/prices.csv" in refreshed.iloc[0]["recommended_action"]
 
 
 class FlakyPriceSource(FakePriceSource):
@@ -428,7 +430,7 @@ def test_update_local_price_data_writes_status_when_remote_parse_errors(tmp_path
     status = pd.read_csv(result.status_path)
     assert status.iloc[0]["status"] == "parse_error"
     assert status.iloc[0]["fallback_used"] in {True, "True", "true"}
-    assert "normalize verified downloaded ohlcv rows into data/imports/prices.csv" in status.iloc[0]["recommended_action"].lower()
+    assert "normalize verified downloaded ohlcv files into data/imports/prices.csv" in status.iloc[0]["recommended_action"].lower()
     assert status.iloc[0]["focus_command"] == "make focus-price TICKER=SPY"
     assert status.iloc[0]["example_command"] == "make price-normalize INPUT=data/raw/prices/SPY.csv TICKER=SPY SOURCE=yahoo_manual"
     assert status.iloc[0]["target_file"] == "data/imports/prices.csv"
