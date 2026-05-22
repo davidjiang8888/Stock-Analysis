@@ -2768,7 +2768,6 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             continue
         bundle_name = format_missing(lane_rows.iloc[0].get("bundle_name"), "Local bundle")
         goal_summary = compact_reason(lane_rows.iloc[0].get("goal_summary"), max_sentences=1, max_chars=110)
-        lane_summary = review_path_fallback(lane)
         target_file = format_missing(lane_rows.iloc[0].get("target_file"), "")
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
@@ -2780,11 +2779,6 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
                     staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
                 else:
                     staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
-        body_summary = (
-            goal_summary
-            if goal_summary not in {"", "Not available"}
-            else compact_reason(lane_rows.iloc[0].get("why_it_matters") or staged_summary or lane_summary, max_sentences=1, max_chars=150)
-        )
         target_history_rows = _target_rows_hint(lane_rows.iloc[0].get("target_history_rows"))
         suggested_start_date = format_missing(lane_rows.iloc[0].get("suggested_start_date"), "")
         hint_text = ""
@@ -2804,6 +2798,15 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
             fallback_first_command = "make imports-validate"
         elif target_file == "data/imports/prices.csv":
             fallback_first_command = "make price-validate"
+        lane_summary = command_family_fallback(
+            normalize_operator_command(format_missing(lane_rows.iloc[0].get("command"), "")) or fallback_first_command,
+            review_path_fallback(lane),
+        )
+        body_summary = (
+            goal_summary
+            if goal_summary not in {"", "Not available"}
+            else compact_reason(lane_rows.iloc[0].get("why_it_matters") or staged_summary or lane_summary, max_sentences=1, max_chars=150)
+        )
         max_steps = 7 if lane == "prices" else 5
         for _, row in lane_rows.head(max_steps).iterrows():
             step_label = format_missing(row.get("step_label"), "Step")
@@ -5640,7 +5643,6 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
         bundle_name = format_missing(lane_rows.iloc[0].get("bundle_name"), "Local bundle")
         tickers = format_missing(lane_rows.iloc[0].get("tickers"), "No tickers")
         goal_summary = compact_reason(lane_rows.iloc[0].get("goal_summary"), max_sentences=1, max_chars=110)
-        lane_summary = review_path_fallback(lane)
         target_file = format_missing(lane_rows.iloc[0].get("target_file"), "")
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
@@ -5652,11 +5654,6 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
                     staged_summary = "Run make imports-validate, make imports-preview, and make imports-apply for the staged peer import."
                 else:
                     staged_summary = "Run make price-validate, make price-preview, and make price-apply for the staged price import."
-        body_summary = (
-            goal_summary
-            if goal_summary not in {"", "Not available"}
-            else compact_reason(lane_rows.iloc[0].get("why_it_matters") or staged_summary or lane_summary, max_sentences=1, max_chars=150)
-        )
         target_history_rows = _target_rows_hint(lane_rows.iloc[0].get("target_history_rows"))
         suggested_start_date = format_missing(lane_rows.iloc[0].get("suggested_start_date"), "")
         hint_text = ""
@@ -5676,6 +5673,15 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
             fallback_first_command = "make imports-validate"
         elif target_file == "data/imports/prices.csv":
             fallback_first_command = "make price-validate"
+        lane_summary = command_family_fallback(
+            normalize_operator_command(format_missing(lane_rows.iloc[0].get("command"), "")) or fallback_first_command,
+            review_path_fallback(lane),
+        )
+        body_summary = (
+            goal_summary
+            if goal_summary not in {"", "Not available"}
+            else compact_reason(lane_rows.iloc[0].get("why_it_matters") or staged_summary or lane_summary, max_sentences=1, max_chars=150)
+        )
         for _, row in lane_rows.head(2).iterrows():
             step_label = format_missing(row.get("step_label"), "Step")
             command = format_missing(row.get("command"), "")

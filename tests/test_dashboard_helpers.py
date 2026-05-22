@@ -5735,6 +5735,30 @@ def test_data_health_command_bundle_runbook_cards_use_why_it_matters_when_goal_s
     assert "fill peer mappings manually: data/imports/peers.csv" in cards[0]["body"].lower()
 
 
+def test_data_health_command_bundle_runbook_cards_use_runbook_fallback_when_summaries_are_missing():
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Open peer runbook",
+                "command": "make runbook-peers",
+                "tickers": "TSLA",
+                "goal_summary": "",
+                "why_it_matters": "",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_command_bundle_runbook_cards(runbook)
+
+    assert cards[0]["command"] == "make runbook-peers"
+    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
+
+
 def test_data_health_price_target_cards_surface_exact_history_targets_safely():
     worklist = pd.DataFrame(
         [
@@ -7251,6 +7275,30 @@ def test_overview_bundle_runbook_cards_use_why_it_matters_when_goal_summary_is_m
 
     assert "closest to peer-relative coverage" in cards[0]["body"].lower()
     assert "fill peer mappings manually: data/imports/peers.csv" in cards[0]["body"].lower()
+
+
+def test_overview_bundle_runbook_cards_use_runbook_fallback_when_summaries_are_missing():
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "Peer Mapping Bundle",
+                "lane": "peers",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Open peer runbook",
+                "command": "make runbook-peers",
+                "tickers": "TSLA",
+                "goal_summary": "",
+                "why_it_matters": "",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_bundle_runbook_cards(runbook)
+
+    assert cards[0]["command"] == "make runbook-peers"
+    assert "staged local workflow next" in cards[0]["body"].lower()
+    assert "not available" not in cards[0]["body"].lower()
 
 
 def test_overview_bundle_handoff_cards_surface_follow_through_safely():
