@@ -5137,10 +5137,10 @@ def overview_next_command_cards(
         cards.append(
             {
                 "kicker": "NEXT COMMAND",
-                "title": "make help",
-                "body": "Start with the local command map if no project-status or action-queue guidance is available yet.",
-                "badges": ["safe default"],
-                "command": "make help",
+                "title": "make onboarding",
+                "body": "Run make onboarding to refresh local coverage, onboarding outputs, and operator guidance before broader research work.",
+                "badges": ["data moat", "command"],
+                "command": "make onboarding",
             }
         )
 

@@ -3148,6 +3148,17 @@ def test_overview_next_command_cards_fall_back_to_action_queue():
     assert "buy" not in rendered
 
 
+def test_overview_next_command_cards_use_onboarding_front_door_without_guidance():
+    cards = dashboard.overview_next_command_cards(None, None, limit=1)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "make onboarding"
+    assert cards[0]["command"] == "make onboarding"
+    assert "refresh local coverage, onboarding outputs, and operator guidance" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_workflow_path_cards_use_action_queue_then_verify_then_dashboard():
     queue = pd.DataFrame(
         [
