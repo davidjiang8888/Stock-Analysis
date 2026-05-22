@@ -627,17 +627,18 @@ def _missing_join(items: list[str]) -> str:
     return ", ".join(items)
 
 
+def _price_action_text(ticker: str) -> str:
+    return (
+        f"Run python3 -m src.data_update --tickers {ticker}, or normalize verified downloaded OHLCV rows into "
+        "data/imports/prices.csv."
+    )
+
+
 def _action_for_coverage(row: TickerCoverage) -> str:
     if not row.has_prices:
-        return (
-            f"Run python3 -m src.data_update --tickers {row.ticker}, or add verified rows to "
-            "data/imports/prices.csv and run validate/preview/apply."
-        )
+        return _price_action_text(row.ticker)
     if row.price_history_days < 21:
-        return (
-            f"Run python3 -m src.data_update --tickers {row.ticker}, or add more verified local price rows "
-            "to data/imports/prices.csv."
-        )
+        return _price_action_text(row.ticker)
     if not row.has_fundamentals or not row.dcf_ready:
         return f"Run SEC staging for fundamentals: python3 -m src.stock_report --sec-stage-fundamentals --tickers {row.ticker}"
     if not row.has_peer_mapping:
