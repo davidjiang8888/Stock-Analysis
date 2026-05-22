@@ -3428,6 +3428,8 @@ def test_overview_ready_blocked_cards_surface_usable_and_blocked_names():
     assert len(cards) == 2
     assert cards[0]["kicker"] == "READY NOW"
     assert cards[1]["kicker"] == "BLOCKED NOW"
+    assert cards[0]["command"] == "make monthly"
+    assert cards[1]["command"] == "make runbook-prices-broader"
     assert "nvda" in rendered
     assert "amd" in rendered
     assert "usable names" in rendered

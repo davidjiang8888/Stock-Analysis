@@ -5115,6 +5115,9 @@ def overview_ready_blocked_cards(
 
     ready_names = ", ".join(ready_rows["ticker"].head(limit).tolist()) or "Not available"
     blocked_names = ", ".join(blocked_rows["ticker"].head(limit).tolist()) or "Not available"
+    blocked_command = "make onboarding"
+    if not blocked_rows.empty:
+        blocked_command = unlock_stage_command(blocked_rows.iloc[0].get("current_unlock_stage"), "make onboarding")
 
     return [
         {
@@ -5125,6 +5128,7 @@ def overview_ready_blocked_cards(
                 f"Start with: {ready_names}."
             ),
             "badges": ["usable today", "local data"],
+            "command": "make monthly",
         },
         {
             "kicker": "BLOCKED NOW",
@@ -5134,6 +5138,7 @@ def overview_ready_blocked_cards(
                 f"Start with: {blocked_names}."
             ),
             "badges": ["needs data", "prioritize"],
+            "command": blocked_command,
         },
     ]
 
