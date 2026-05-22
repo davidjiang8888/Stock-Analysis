@@ -2549,8 +2549,10 @@ def test_overview_deep_research_handoff_cards_fall_back_to_safe_command():
 
     assert len(cards) == 3
     assert cards[0]["title"] == "No deep-research shortlist yet"
-    assert cards[1]["title"] == "make help"
+    assert cards[1]["title"] == "make onboarding"
     assert cards[2]["title"] == "Data Health"
+    assert "refresh the onboarding outputs" in rendered
+    assert "sec stage and peer-mapping queues" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

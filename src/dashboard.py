@@ -4695,6 +4695,7 @@ def overview_deep_research_handoff_cards(
     next_tab = next((card for card in handoff_tabs if card.get("title") == "Data Health"), handoff_tabs[0])
 
     ticker = format_missing(top_priority.get("kicker"), "Not available")
+    empty_shortlist = ticker == "DEEP RESEARCH PRIORITIES"
     if ticker == "DEEP RESEARCH PRIORITIES":
         ticker = format_missing(top_priority.get("title"), "Not available")
     lane = format_missing(top_priority.get("title"), "Deep research")
@@ -4718,7 +4719,9 @@ def overview_deep_research_handoff_cards(
             "kicker": "DEEP RESEARCH NAME",
             "title": ticker,
             "body": (
-                f"{ticker} is the clearest current name for {lane.lower()} based on the local SEC and peer queues."
+                "Deep-research queues are not available yet. Refresh the onboarding outputs before ranking the next SEC or peer-research lane."
+                if empty_shortlist
+                else f"{ticker} is the clearest current name for {lane.lower()} based on the local SEC and peer queues."
             ),
             "badges": [str(item) for item in top_priority.get("badges", [])][:2] or ["research only"],
         },
@@ -4735,6 +4738,8 @@ def overview_deep_research_handoff_cards(
             "body": (
                 f"Use {next_tab.get('title', 'Data Health')} to confirm the queue status for {ticker}, "
                 f"then return to Stock Report Beta once the local {lane.lower()} step is complete."
+                if not empty_shortlist
+                else "Use Data Health after onboarding refresh to confirm the SEC stage and peer-mapping queues before deeper interpretation."
             ),
             "badges": [str(item) for item in next_tab.get("badges", [])][:2] or ["coverage", "read-only"],
         },
