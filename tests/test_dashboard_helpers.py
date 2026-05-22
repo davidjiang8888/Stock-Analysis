@@ -7023,6 +7023,7 @@ def test_data_coverage_wizard_cards_handle_missing_output():
     rendered = " ".join(str(value) for card in cards for value in card.values())
 
     assert "Not generated" in rendered
+    assert cards[0]["command"] == "make data-wizard TOP_N=10"
     assert "make data-wizard" in rendered
 
 

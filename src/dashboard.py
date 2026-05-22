@@ -3336,6 +3336,7 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
                 "title": "Not generated",
                 "body": "Run the local data wizard to see which verified CSV inputs unlock the most value next.",
                 "badges": ["make data-wizard"],
+                "command": "make data-wizard TOP_N=10",
             }
         ]
     cards: list[dict[str, object]] = []
