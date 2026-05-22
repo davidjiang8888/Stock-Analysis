@@ -235,6 +235,31 @@ def _price_focus_recommended_action(ticker: str) -> str:
     )
 
 
+def _fundamentals_focus_recommended_action(ticker: str) -> str:
+    ticker = _normalized_ticker(ticker)
+    if not ticker:
+        return "Run make status, then follow the printed fundamentals focus or runbook path."
+    return (
+        f"Run make focus-fundamentals TICKER={ticker}, or stage explicit local fundamentals with "
+        f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}."
+    )
+
+
+def _peer_focus_recommended_action(ticker: str, *, missing_mapping: bool) -> str:
+    ticker = _normalized_ticker(ticker)
+    if not ticker:
+        return "Run make status, then follow the printed peer focus or runbook path."
+    if missing_mapping:
+        return (
+            f"Run make focus-peers TICKER={ticker}, or write templates and fill data/imports/peers.csv manually "
+            "with transparent peer mappings."
+        )
+    return (
+        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through the staged local import "
+        "workflows so peer-relative valuation can calculate transparently."
+    )
+
+
 def _focus_command_from_action_text(action_text: str, ticker: str) -> str:
     ticker = _normalized_ticker(ticker)
     text = str(action_text or "").strip()
@@ -254,6 +279,24 @@ def _example_command_for_focus_command(focus_command: str, ticker: str) -> str:
     if normalized_focus.startswith("make focus-peers"):
         return "make templates"
     return ""
+
+
+def _normalize_onboarding_recommended_action(
+    dataset: str,
+    ticker: str,
+    status: str,
+    focus_command: str,
+    recommended_action: str,
+) -> str:
+    text = str(recommended_action or "").strip()
+    normalized_focus = str(focus_command or "").strip().lower()
+    if dataset == "prices" and ticker and "make focus-price" not in text:
+        return _price_focus_recommended_action(ticker)
+    if dataset == "fundamentals" and ticker and "make focus-fundamentals" not in text:
+        return _fundamentals_focus_recommended_action(ticker)
+    if dataset == "peers" and ticker and normalized_focus.startswith("make focus-peers") and "make focus-peers" not in text:
+        return _peer_focus_recommended_action(ticker, missing_mapping=status == "manual_input_needed")
+    return text
 
 
 def _source_file_for_focus_command(focus_command: str) -> str:
@@ -495,6 +538,13 @@ def build_action_queue_rows(
             focus_command = str(row.get("focus_command", "")).strip()
             if not focus_command and ticker and dataset in {"prices", "fundamentals", "peers"}:
                 focus_command = focus_command_for_ticker(dataset, ticker)
+            recommended_action = _normalize_onboarding_recommended_action(
+                dataset,
+                ticker,
+                status,
+                focus_command,
+                str(row.get("recommended_action", "")).strip(),
+            )
             items.append(
                 ActionQueueItem(
                     priority=priority_value,
@@ -503,7 +553,7 @@ def build_action_queue_rows(
                     ticker=ticker,
                     title=_onboarding_title(dataset, ticker, status),
                     status=status,
-                    recommended_action=str(row.get("recommended_action", "")).strip(),
+                    recommended_action=recommended_action,
                     focus_command=focus_command,
                     example_command=str(row.get("example_command", "")).strip(),
                     target_file=str(row.get("target_file", "")).strip(),

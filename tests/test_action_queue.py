@@ -491,6 +491,11 @@ def test_action_queue_prefers_specific_onboarding_rows_over_broader_data_gap_row
 
     fundamentals_row = next(row for row in rows if row.action_type == "fundamentals" and row.ticker == "AMD")
     assert fundamentals_row.title == "Stage fundamentals for AMD"
+    assert fundamentals_row.recommended_action == (
+        "Run make focus-fundamentals TICKER=AMD, or stage explicit local fundamentals with "
+        "python3 -m src.stock_report --sec-stage-fundamentals --tickers AMD."
+    )
+    assert fundamentals_row.focus_command == "make focus-fundamentals TICKER=AMD"
     assert fundamentals_row.example_command == "python3 -m src.stock_report --sec-stage-fundamentals --tickers AMD"
     assert fundamentals_row.source_artifact == "outputs/data_onboarding_actions.csv"
 
