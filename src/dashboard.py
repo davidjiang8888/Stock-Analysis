@@ -2510,7 +2510,7 @@ def data_health_overview_cards(
     queue_summary = action_queue_summary(action_queue_frame)
     action_title = f"{queue_summary['critical']} critical actions"
     action_body = f"{queue_summary['high']} high-priority and {queue_summary['medium']} medium-priority remediation rows are queued."
-    action_badges = ["make action-queue", "read-only dashboard"]
+    action_badges = ["make action-queue-check TOP_N=10", "read-only dashboard"]
 
     coverage_summary = summarize_ticker_coverage(coverage_frame)
     coverage_title = f"{coverage_summary['usable_price_tickers']} price-ready tickers"
