@@ -3568,6 +3568,38 @@ def test_overview_ready_name_handoff_cards_handle_missing_inputs_gracefully():
     assert cards[0]["title"] == "No current ready names yet"
     assert cards[1]["title"] == "make onboarding"
     assert cards[2]["title"] == "Data Health"
+    assert "no locally ready name yet" in cards[0]["body"].lower()
+    assert "clear blockers before treating any name as ready" in cards[0]["body"].lower()
+    assert "refresh local coverage and onboarding outputs" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_overview_ready_name_handoff_cards_use_runbook_fallback_when_no_ready_name_exists():
+    coverage = pd.DataFrame(
+        [
+            {"ticker": "TSLA", "usable_for_momentum": False, "dcf_ready": False, "peer_ready": False},
+            {"ticker": "AMD", "usable_for_momentum": False, "dcf_ready": False, "peer_ready": False},
+        ]
+    )
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Open peer runbook",
+                "Command": "make runbook-peers",
+                "Reason": "",
+            }
+        ]
+    }
+
+    cards = dashboard.overview_ready_name_handoff_cards(coverage, None, payload, None)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "No current ready names yet"
+    assert cards[1]["title"] == "make onboarding"
+    assert cards[2]["title"] == "Data Health"
+    assert "no locally ready name yet" in cards[0]["body"].lower()
+    assert "clear blockers before treating any name as ready" in cards[0]["body"].lower()
     assert "refresh local coverage and onboarding outputs" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

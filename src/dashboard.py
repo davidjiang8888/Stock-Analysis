@@ -6090,7 +6090,12 @@ def overview_ready_name_handoff_cards(
             "kicker": "READY NAME",
             "title": ticker,
             "body": (
-                f"{ticker} is the strongest currently usable local name and is best reviewed next through {surface}."
+                (
+                    f"No locally ready name yet. Use {str(next_tab.get('title', 'Data Health'))} next "
+                    "to clear blockers before treating any name as ready."
+                )
+                if ticker == "No current ready names yet"
+                else f"{ticker} is the strongest currently usable local name and is best reviewed next through {surface}."
             ),
             "badges": [str(item) for item in best_name.get("badges", [])][:2] or ["local coverage"],
         },
