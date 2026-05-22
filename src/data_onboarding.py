@@ -665,6 +665,13 @@ def _fundamentals_action_text(ticker: str) -> str:
     )
 
 
+def _staged_fundamentals_action_text() -> str:
+    return (
+        "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+        "to confirm the live local fundamentals and DCF inputs."
+    )
+
+
 def _peer_action_text(ticker: str, *, missing_mapping: bool) -> str:
     if missing_mapping:
         return (
@@ -692,6 +699,20 @@ def _normalized_peer_example_command(focus_command: str, example_command: str) -
     if focus.startswith("make focus-peers"):
         return "make templates"
     return example
+
+
+def _normalized_fundamentals_example_command(focus_command: str, example_command: str, ticker: str) -> str:
+    focus = str(focus_command or "").strip()
+    example = str(example_command or "").strip()
+    if focus == "make imports-validate":
+        return "make imports-preview"
+    if focus.startswith("make focus-fundamentals"):
+        return f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+    return example
+
+
+def _has_staged_fundamentals_follow_through(row: TickerCoverage) -> bool:
+    return (not row.dcf_ready) and str(row.focus_command or "").strip() == "make imports-validate"
 
 
 def _peer_support_follow_through(
@@ -752,6 +773,8 @@ def _action_for_coverage(row: TickerCoverage) -> str:
         return _price_action_text(row.ticker)
     if row.price_history_days < 21:
         return _price_action_text(row.ticker)
+    if "staged fundamentals still need validate/preview/apply" in str(row.missing_required_for_dcf or ""):
+        return _staged_fundamentals_action_text()
     if not row.has_fundamentals or not row.dcf_ready:
         return _fundamentals_action_text(row.ticker)
     if not row.has_peer_mapping:
@@ -775,6 +798,8 @@ def _price_onboarding_reason(row: TickerCoverage) -> str:
 
 
 def _fundamentals_onboarding_reason(row: TickerCoverage) -> str:
+    if _has_staged_fundamentals_follow_through(row):
+        return "Staged fundamentals are present but still need validate/preview/apply before DCF inputs are live."
     if not row.has_fundamentals:
         return "No local fundamentals row is present for this ticker yet."
     if row.missing_required_for_dcf:
@@ -850,6 +875,7 @@ def build_ticker_coverage(
     catalog = LocalDataCatalog(root, data_dir=data_path, outputs_dir=output_path)
     prices = _load_frame(catalog, "prices")
     fundamentals = _load_frame(catalog, "fundamentals")
+    staged_fundamentals = _load_staged_import_frame(data_path, "fundamentals.csv")
     peers = _load_frame(catalog, "peers")
     staged_peers = _load_staged_import_frame(data_path, "peers.csv")
     earnings = _load_frame(catalog, "earnings")
@@ -872,6 +898,8 @@ def build_ticker_coverage(
         has_fundamentals = ticker in fundamental_tickers
         financial_row = _select_row(fundamentals, ticker)
         dcf_ready = _dcf_ready(financial_row)
+        staged_financial_row = _select_row(staged_fundamentals, ticker)
+        has_staged_fundamentals = not staged_financial_row.empty and _dcf_ready(staged_financial_row) and not dcf_ready
         has_canonical_peer_mapping = ticker in peer_subject_tickers
         has_staged_peer_mapping = ticker in staged_peer_subject_tickers and not has_canonical_peer_mapping
         has_peer_mapping = has_canonical_peer_mapping or has_staged_peer_mapping
@@ -890,11 +918,15 @@ def build_ticker_coverage(
             missing_momentum.append("at least 21 price rows")
 
         missing_dcf = []
-        if not has_fundamentals:
+        if has_staged_fundamentals:
+            missing_dcf.append("staged fundamentals still need validate/preview/apply")
+        elif not has_fundamentals:
             missing_dcf.append("fundamentals row")
-        if has_fundamentals and not (_has_number(financial_row, "free_cash_flow", "fcf") or (_has_number(financial_row, "revenue") and _has_number(financial_row, "fcf_margin"))):
+        if has_fundamentals and not has_staged_fundamentals and not (
+            _has_number(financial_row, "free_cash_flow", "fcf") or (_has_number(financial_row, "revenue") and _has_number(financial_row, "fcf_margin"))
+        ):
             missing_dcf.append("free_cash_flow or revenue plus fcf_margin")
-        if has_fundamentals and not _has_number(financial_row, "shares_outstanding"):
+        if has_fundamentals and not has_staged_fundamentals and not _has_number(financial_row, "shares_outstanding"):
             missing_dcf.append("shares_outstanding")
 
         missing_peer = []
@@ -936,6 +968,11 @@ def build_ticker_coverage(
                 f"make price-normalize INPUT=data/raw/prices/{provisional.ticker}.csv "
                 f"TICKER={provisional.ticker} SOURCE=yahoo_manual"
             )
+        elif has_staged_fundamentals:
+            provisional.next_best_action = _staged_fundamentals_action_text()
+            provisional.target_file = "data/imports/fundamentals.csv"
+            provisional.focus_command = "make imports-validate"
+            provisional.example_command = "make imports-preview"
         elif not provisional.has_fundamentals or not provisional.dcf_ready:
             provisional.target_file = "data/imports/fundamentals.csv"
             provisional.focus_command = focus_command_for_ticker("fundamentals", provisional.ticker)
@@ -989,6 +1026,13 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                 )
             )
         if not row.dcf_ready:
+            recommended_action = row.next_best_action if _has_staged_fundamentals_follow_through(row) else _fundamentals_action_text(row.ticker)
+            focus_command = row.focus_command if _has_staged_fundamentals_follow_through(row) else focus_command_for_ticker("fundamentals", row.ticker)
+            example_command = _normalized_fundamentals_example_command(
+                focus_command,
+                row.example_command if _has_staged_fundamentals_follow_through(row) else f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {row.ticker}",
+                row.ticker,
+            )
             actions.append(
                 OnboardingAction(
                     priority=2,
@@ -996,10 +1040,10 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     dataset="fundamentals",
                     status="missing_or_incomplete",
                     reason=_fundamentals_onboarding_reason(row),
-                    recommended_action=_fundamentals_action_text(row.ticker),
-                    target_file="data/imports/fundamentals.csv",
-                    focus_command=focus_command_for_ticker("fundamentals", row.ticker),
-                    example_command=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {row.ticker}",
+                    recommended_action=recommended_action,
+                    target_file=row.target_file if _has_staged_fundamentals_follow_through(row) else "data/imports/fundamentals.csv",
+                    focus_command=focus_command,
+                    example_command=example_command,
                 )
             )
         if not row.has_peer_mapping:
@@ -1114,6 +1158,12 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                 )
             )
         if not row.usable_for_dcf:
+            focus_command = row.focus_command if _has_staged_fundamentals_follow_through(row) else focus_command_for_ticker("fundamentals", row.ticker)
+            example_command = _normalized_fundamentals_example_command(
+                focus_command,
+                row.example_command if _has_staged_fundamentals_follow_through(row) else f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {row.ticker}",
+                row.ticker,
+            )
             rows.append(
                 DataCoverageWizardRow(
                     priority=2,
@@ -1122,10 +1172,10 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     blocking_dataset="fundamentals",
                     current_status=row.missing_required_for_dcf or "DCF inputs incomplete",
                     why_it_matters="DCF needs free cash flow or revenue plus FCF margin, and shares outstanding.",
-                    recommended_action=_fundamentals_action_text(row.ticker),
-                    target_file="data/imports/fundamentals.csv",
-                    focus_command=focus_command_for_ticker("fundamentals", row.ticker),
-                    example_command=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {row.ticker}",
+                    recommended_action=row.next_best_action if _has_staged_fundamentals_follow_through(row) else _fundamentals_action_text(row.ticker),
+                    target_file=row.target_file if _has_staged_fundamentals_follow_through(row) else "data/imports/fundamentals.csv",
+                    focus_command=focus_command,
+                    example_command=example_command,
                     safe_next_step="Review staged SEC-derived fields before import merge; leave unavailable fields blank.",
                 )
             )
@@ -1312,7 +1362,7 @@ def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> lis
             recommended_action = "Coverage is already sufficient for DCF and peer-relative local research."
         elif not coverage.dcf_ready:
             priority = 1
-            recommended_action = _fundamentals_action_text(coverage.ticker)
+            recommended_action = coverage.next_best_action if _has_staged_fundamentals_follow_through(coverage) else _fundamentals_action_text(coverage.ticker)
         elif not coverage.has_peer_mapping or not coverage.peer_ready:
             priority = 2
             recommended_action = coverage.next_best_action
@@ -1320,14 +1370,18 @@ def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> lis
             priority = 3
             recommended_action = "Review local fundamentals and peer inputs for completeness."
 
-        target_file = coverage.target_file if coverage.dcf_ready else "data/imports/fundamentals.csv"
+        target_file = coverage.target_file if (coverage.dcf_ready or _has_staged_fundamentals_follow_through(coverage)) else "data/imports/fundamentals.csv"
         example_command = (
-            f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {coverage.ticker}"
+            _normalized_fundamentals_example_command(coverage.focus_command, coverage.example_command, coverage.ticker)
+            if _has_staged_fundamentals_follow_through(coverage)
+            else f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {coverage.ticker}"
             if not coverage.dcf_ready
             else coverage.example_command
         )
         safe_next_step = (
-            "Review staged SEC-derived fundamentals before import merge; keep unavailable fields blank."
+            "Validate staged fundamentals before preview and apply; keep unavailable valuation fields blank."
+            if _has_staged_fundamentals_follow_through(coverage)
+            else "Review staged SEC-derived fundamentals before import merge; keep unavailable fields blank."
             if not coverage.dcf_ready
             else (
                 "Use data/imports/peers.csv for manual peer mappings; when mappings already exist, finish the staged peer-data follow-through without guessing missing context."
@@ -1346,7 +1400,9 @@ def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> lis
                 recommended_action=recommended_action,
                 target_file=target_file,
                 focus_command=(
-                    focus_command_for_ticker("fundamentals", coverage.ticker)
+                    coverage.focus_command
+                    if _has_staged_fundamentals_follow_through(coverage)
+                    else focus_command_for_ticker("fundamentals", coverage.ticker)
                     if not coverage.dcf_ready
                     else coverage.focus_command
                 ),
@@ -1434,7 +1490,7 @@ def build_sec_stage_queue(
             priority = 3
         else:
             priority = 4
-        recommended_action = _fundamentals_action_text(coverage.ticker)
+        recommended_action = coverage.next_best_action if _has_staged_fundamentals_follow_through(coverage) else _fundamentals_action_text(coverage.ticker)
         rows.append(
             SecStageQueueRow(
                 priority=priority,
@@ -1447,10 +1503,18 @@ def build_sec_stage_queue(
                 dcf_ready=coverage.dcf_ready,
                 missing_required_for_dcf=coverage.missing_required_for_dcf,
                 recommended_action=recommended_action,
-                target_file="data/imports/fundamentals.csv",
-                focus_command=focus_command_for_ticker("fundamentals", coverage.ticker),
-                example_command=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {coverage.ticker}",
-                safe_next_step="Validate and preview staged fundamentals before apply; keep unavailable valuation fields blank.",
+                target_file=coverage.target_file if _has_staged_fundamentals_follow_through(coverage) else "data/imports/fundamentals.csv",
+                focus_command=coverage.focus_command if _has_staged_fundamentals_follow_through(coverage) else focus_command_for_ticker("fundamentals", coverage.ticker),
+                example_command=_normalized_fundamentals_example_command(
+                    coverage.focus_command if _has_staged_fundamentals_follow_through(coverage) else focus_command_for_ticker("fundamentals", coverage.ticker),
+                    coverage.example_command if _has_staged_fundamentals_follow_through(coverage) else f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {coverage.ticker}",
+                    coverage.ticker,
+                ),
+                safe_next_step=(
+                    "Validate staged fundamentals before preview and apply; keep unavailable valuation fields blank."
+                    if _has_staged_fundamentals_follow_through(coverage)
+                    else "Validate and preview staged fundamentals before apply; keep unavailable valuation fields blank."
+                ),
             )
         )
     return sorted(rows, key=lambda item: (item.priority, -item.price_history_days, item.ticker))
@@ -1550,11 +1614,19 @@ def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[Tick
         elif not coverage.dcf_ready:
             current_unlock_stage = "fundamentals"
             next_unlock_goal = "Unlock DCF"
-            recommended_action = _fundamentals_action_text(coverage.ticker)
-            target_file = "data/imports/fundamentals.csv"
-            focus_command = focus_command_for_ticker("fundamentals", coverage.ticker)
-            example_command = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {coverage.ticker}"
-            safe_next_step = "Review staged SEC-derived fundamentals before import merge and keep unavailable fields blank."
+            recommended_action = coverage.next_best_action if _has_staged_fundamentals_follow_through(coverage) else _fundamentals_action_text(coverage.ticker)
+            target_file = coverage.target_file if _has_staged_fundamentals_follow_through(coverage) else "data/imports/fundamentals.csv"
+            focus_command = coverage.focus_command if _has_staged_fundamentals_follow_through(coverage) else focus_command_for_ticker("fundamentals", coverage.ticker)
+            example_command = _normalized_fundamentals_example_command(
+                focus_command,
+                coverage.example_command if _has_staged_fundamentals_follow_through(coverage) else f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {coverage.ticker}",
+                coverage.ticker,
+            )
+            safe_next_step = (
+                "Validate staged fundamentals before preview and apply; keep unavailable valuation fields blank."
+                if _has_staged_fundamentals_follow_through(coverage)
+                else "Review staged SEC-derived fundamentals before import merge and keep unavailable fields blank."
+            )
         elif not coverage.peer_ready:
             current_unlock_stage = "peers"
             next_unlock_goal = "Unlock Peer Relative"

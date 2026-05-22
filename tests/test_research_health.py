@@ -210,6 +210,39 @@ def test_data_quality_wizard_normalizes_stale_enrichment_actions():
     assert amd["ExampleCommand"] == "make templates"
 
 
+def test_data_quality_wizard_preserves_staged_fundamentals_follow_through():
+    coverage = [
+        {
+            "ticker": "NVDA",
+            "has_prices": True,
+            "price_history_days": 80,
+            "has_fundamentals": False,
+            "dcf_ready": False,
+            "has_peer_mapping": False,
+            "peer_ready": False,
+            "has_earnings": False,
+            "has_analyst_estimates": False,
+            "usable_for_momentum": True,
+            "usable_for_monthly_picks": True,
+            "missing_required_for_dcf": "staged fundamentals still need validate/preview/apply",
+            "next_best_action": (
+                "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+                "to confirm the live local fundamentals and DCF inputs."
+            ),
+            "focus_command": "make imports-validate",
+            "example_command": "make status",
+        }
+    ]
+
+    frame = build_data_quality_wizard(coverage)
+
+    nvda = frame.loc[frame["Ticker"] == "NVDA"].iloc[0]
+
+    assert nvda["FocusCommand"] == "make imports-validate"
+    assert nvda["ExampleCommand"] == "make imports-preview"
+    assert "make imports-apply" in nvda["NextBestAction"]
+
+
 def test_liquidity_risk_calculates_context_without_recommendations():
     frame = build_liquidity_risk(_price_frame(), tickers=["NVDA", "THIN", "MISSING"])
 

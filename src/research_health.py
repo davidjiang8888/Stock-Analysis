@@ -46,6 +46,13 @@ def _fundamentals_next_best_action(ticker: str) -> str:
     )
 
 
+def _staged_fundamentals_next_best_action() -> str:
+    return (
+        "Run make imports-validate, then make imports-preview, then make imports-apply, then make status "
+        "to confirm the live local fundamentals and DCF inputs."
+    )
+
+
 def _peer_next_best_action(ticker: str, *, missing_mapping: bool) -> str:
     if missing_mapping:
         return (
@@ -72,6 +79,16 @@ def _normalized_peer_example_command(focus_command: str, example_command: str) -
         return "make imports-preview"
     if focus.startswith("make focus-peers"):
         return "make templates"
+    return example
+
+
+def _normalized_fundamentals_example_command(focus_command: str, example_command: str, ticker: str) -> str:
+    focus = str(focus_command or "").strip()
+    example = str(example_command or "").strip()
+    if focus == "make imports-validate":
+        return "make imports-preview"
+    if focus.startswith("make focus-fundamentals"):
+        return f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
     return example
 
 LIQUIDITY_COLUMNS = [
@@ -205,8 +222,13 @@ def build_data_quality_wizard(coverage_rows: list[dict[str, Any]] | pd.DataFrame
             focus_command = focus_command_for_ticker("prices", ticker)
             example_command = f"make price-normalize INPUT=data/raw/prices/{ticker}.csv TICKER={ticker} SOURCE=yahoo_manual"
         elif not dcf_ready:
-            focus_command = focus_command_for_ticker("fundamentals", ticker)
-            example_command = f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}"
+            focus_command = str(row.get("focus_command", "") or "").strip() or focus_command_for_ticker("fundamentals", ticker)
+            example_command = _normalized_fundamentals_example_command(
+                focus_command,
+                str(row.get("example_command", "") or "").strip()
+                or f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}",
+                ticker,
+            )
         elif not peer_ready:
             if has_peer_mapping:
                 focus_command = str(row.get("focus_command", "") or "").strip() or focus_command_for_ticker("peers", ticker)
@@ -233,7 +255,10 @@ def build_data_quality_wizard(coverage_rows: list[dict[str, Any]] | pd.DataFrame
             if "make focus-price" not in next_best_action:
                 next_best_action = _price_next_best_action(ticker)
         elif not dcf_ready:
-            if "make focus-fundamentals" not in next_best_action:
+            if focus_command == "make imports-validate":
+                if "make imports-validate" not in next_best_action:
+                    next_best_action = _staged_fundamentals_next_best_action()
+            elif "make focus-fundamentals" not in next_best_action:
                 next_best_action = _fundamentals_next_best_action(ticker)
         elif not peer_ready:
             if focus_command == "make imports-validate":

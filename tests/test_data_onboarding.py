@@ -211,6 +211,96 @@ def test_staged_peer_imports_surface_validate_flow_in_coverage_and_wizard(tmp_pa
     assert "make imports-apply" in peer_wizard_rows[0]["recommended_action"]
 
 
+def test_staged_fundamentals_surface_validate_flow_in_coverage_and_wizard(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    imports_dir = data_dir / "imports"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    imports_dir.mkdir()
+    (data_dir / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-01,AMD,100,1000\n"
+        "2026-01-02,AMD,101,1000\n"
+        "2026-01-03,AMD,102,1000\n"
+        "2026-01-04,AMD,103,1000\n"
+        "2026-01-05,AMD,104,1000\n"
+        "2026-01-06,AMD,105,1000\n"
+        "2026-01-07,AMD,106,1000\n"
+        "2026-01-08,AMD,107,1000\n"
+        "2026-01-09,AMD,108,1000\n"
+        "2026-01-10,AMD,109,1000\n"
+        "2026-01-11,AMD,110,1000\n"
+        "2026-01-12,AMD,111,1000\n"
+        "2026-01-13,AMD,112,1000\n"
+        "2026-01-14,AMD,113,1000\n"
+        "2026-01-15,AMD,114,1000\n"
+        "2026-01-16,AMD,115,1000\n"
+        "2026-01-17,AMD,116,1000\n"
+        "2026-01-18,AMD,117,1000\n"
+        "2026-01-19,AMD,118,1000\n"
+        "2026-01-20,AMD,119,1000\n"
+        "2026-01-21,AMD,120,1000\n"
+        "2026-01-22,AMD,121,1000\n",
+        encoding="utf-8",
+    )
+    (data_dir / "fundamentals.csv").write_text(
+        "ticker,revenue,source,as_of_date\n"
+        "AMD,1000,fixture,2026-01-01\n",
+        encoding="utf-8",
+    )
+    (imports_dir / "fundamentals.csv").write_text(
+        "ticker,revenue,fcf_margin,shares_outstanding,source,as_of_date\n"
+        "AMD,1000,0.2,10,sec_companyfacts,2026-01-02\n",
+        encoding="utf-8",
+    )
+    (data_dir / "universe.csv").write_text(
+        "ticker,theme,sectoretf,defaultpurpose,marketcapbucket,notes\n"
+        "AMD,AI,SMH,Momentum Leader,Large,fixture\n",
+        encoding="utf-8",
+    )
+    (outputs_dir / "final_watchlist.csv").write_text("Ticker,FinalState\nAMD,Watch\n", encoding="utf-8")
+    (outputs_dir / "momentum_leaders.csv").write_text("Ticker,SetupStatus\nAMD,Watch\n", encoding="utf-8")
+
+    payload = build_onboarding_payload(tmp_path)
+    coverage = {row["ticker"]: row for row in payload["ticker_coverage"]}
+    fundamentals_actions = {
+        row["ticker"]: row
+        for row in payload["onboarding_actions"]
+        if row["dataset"] == "fundamentals"
+    }
+    fundamentals_wizard_rows = [
+        row for row in payload["data_coverage_wizard"] if row["ticker"] == "AMD" and row["blocking_dataset"] == "fundamentals"
+    ]
+    fundamentals_worklist = {row["ticker"]: row for row in payload["fundamentals_peer_worklist"]}
+    sec_queue = {row["ticker"]: row for row in payload["sec_stage_queue"]}
+    unlock_rows = {row["ticker"]: row for row in payload["ticker_unlock_ladder"]}
+
+    amd = coverage["AMD"]
+    assert amd["dcf_ready"] is False
+    assert amd["focus_command"] == "make imports-validate"
+    assert amd["example_command"] == "make imports-preview"
+    assert amd["target_file"] == "data/imports/fundamentals.csv"
+    assert "make imports-apply" in amd["next_best_action"]
+
+    amd_action = fundamentals_actions["AMD"]
+    assert amd_action["focus_command"] == "make imports-validate"
+    assert amd_action["example_command"] == "make imports-preview"
+    assert "staged fundamentals" in amd_action["reason"].lower()
+
+    assert fundamentals_wizard_rows
+    assert fundamentals_wizard_rows[0]["focus_command"] == "make imports-validate"
+    assert fundamentals_wizard_rows[0]["example_command"] == "make imports-preview"
+    assert "make imports-apply" in fundamentals_wizard_rows[0]["recommended_action"]
+
+    assert fundamentals_worklist["AMD"]["focus_command"] == "make imports-validate"
+    assert fundamentals_worklist["AMD"]["example_command"] == "make imports-preview"
+    assert sec_queue["AMD"]["focus_command"] == "make imports-validate"
+    assert sec_queue["AMD"]["example_command"] == "make imports-preview"
+    assert unlock_rows["AMD"]["focus_command"] == "make imports-validate"
+    assert unlock_rows["AMD"]["example_command"] == "make imports-preview"
+
+
 def test_data_coverage_wizard_normalizes_stale_peer_example_commands():
     coverage = [
         TickerCoverage(
