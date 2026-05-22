@@ -5771,7 +5771,7 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
     return cards or [
         {
             "kicker": "BUNDLE RUNBOOK",
-            "title": "Generate bundle runbook",
+            "title": "No bundle runbook yet",
             "body": "Run make onboarding to refresh the onboarding outputs and surface ordered prices, SEC fundamentals, and peer-mapping runbook steps.",
             "badges": ["read-only", "data moat"],
             "command": "make onboarding",
