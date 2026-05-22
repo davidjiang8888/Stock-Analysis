@@ -1,10 +1,11 @@
-.PHONY: help status test pipeline stock-report local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help status status-check test pipeline stock-report local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
 
 help:
 	@echo "Stock Research Screener convenience commands"
 	@echo ""
 	@echo "Core:"
-	@echo "  make status           Print read-only local project status"
+	@echo "  make status           Refresh supporting artifacts, then print read-only local project status"
+	@echo "  make status-check     Print the current read-only local project status without refreshing artifacts"
 	@echo "  make test             Run unit tests"
 	@echo "  make pipeline         Generate core CSV outputs"
 	@echo "  make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json] Generate one local stock report JSON"
@@ -85,6 +86,9 @@ test:
 
 status:
 	python3 -m src.project_status --refresh-artifacts
+
+status-check:
+	python3 -m src.project_status
 
 pipeline:
 	python3 -m src.report_generator

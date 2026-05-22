@@ -127,7 +127,7 @@ make universe-preview
 make universe-apply
 ```
 
-If you are unsure what to run next, start with `make help`; it prints the core workflow, onboarding, price fallback, SEC staging, and universe commands. Use `make status` first for the read-only local project snapshot and the printed focus/runbook path. Use `make verify` for deterministic local verification that avoids remote price refresh. Use `make dashboard-smoke` before deeper dashboard review. Use `make validate-all` for the extended local validation launcher, including monthly picks, track record, data-source checks, and a dashboard smoke check.
+If you are unsure what to run next, start with `make help`; it prints the core workflow, onboarding, price fallback, SEC staging, and universe commands. Use `make status` first when you want the read-only local project snapshot plus a refresh of the supporting operator artifacts, or `make status-check` when you only want the current summary without that refresh step. Use `make verify` for deterministic local verification that avoids remote price refresh. Use `make dashboard-smoke` before deeper dashboard review. Use `make validate-all` for the extended local validation launcher, including monthly picks, track record, data-source checks, and a dashboard smoke check.
 
 Path-proof shell launchers:
 
@@ -769,7 +769,7 @@ make dashboard-smoke
 make dashboard
 ```
 
-`make status` is now the read-only front door. It prints the current top onboarding blockers plus the next structured commands, usually:
+`make status` is now the refreshed read-only front door. It prints the current top onboarding blockers plus the next structured commands, usually:
 
 - one ticker-level `make focus-* TICKER=...` shortcut
 - one bundle/runbook shortcut like `make runbook-prices` or `make runbook-prices-broader`
@@ -785,6 +785,12 @@ make daily
 ```
 
 `make daily` runs the local price updater, report generator, monthly picks, track record, local-data validation, and then refreshes the source-status, onboarding, research-health, action-queue, and project-status operator artifacts.
+
+If you want the current project-status summary without first refreshing those supporting artifacts, use:
+
+```bash
+make status-check
+```
 
 If price history is the main blocker, run:
 
