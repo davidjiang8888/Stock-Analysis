@@ -2216,7 +2216,7 @@ def stock_report_next_step_cards(
                     "Use the manual staged price workflow if the free refresh path stays unreliable."
                 ),
                 "badges": ["prices", "data moat"],
-                "command": ticker_focus_command("prices", ticker, fallback=f"python3 -m src.data_update --tickers {ticker}"),
+                "command": ticker_focus_command("prices", ticker, fallback=f"make price-refresh TICKERS={ticker}"),
             }
         )
     elif not readiness.get("dcf_ready") and not has_fundamentals:
@@ -3462,7 +3462,7 @@ def universe_preset_cards() -> list[dict[str, object]]:
                 "title": name,
                 "body": preset_descriptions.get(name, "Source-driven universe preset. Preview before applying."),
                 "badges": [", ".join(sources)],
-                "command": f"python3 -m src.universe_builder --preview --preset {name} --max-tickers 50",
+                "command": "make universe-preview",
             }
         )
     return cards

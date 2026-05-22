@@ -4240,7 +4240,7 @@ def test_universe_preset_cards_include_preview_commands():
     rendered = " ".join(str(value) for card in cards for value in card.values())
 
     assert cards
-    assert "preview --preset" in rendered
+    assert "make universe-preview" in rendered
     assert "apply-import" not in rendered
 
 
