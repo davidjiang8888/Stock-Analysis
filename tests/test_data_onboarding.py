@@ -472,8 +472,7 @@ def test_data_onboarding_cli_command_bundles_text_surfaces_goal_summary(tmp_path
     assert "unlock monthly picks" in output
     assert "target_history_rows:" in output
     assert "suggested_start_date:" in output
-    assert "target_history_rows:" in output
-    assert "suggested_start_date:" in output
+    assert "fallback:" not in output
 
 
 def test_data_onboarding_cli_command_bundles_can_filter_by_lane_and_holdings(tmp_path: Path, capsys):
@@ -599,6 +598,8 @@ def test_data_onboarding_cli_command_bundle_runbook_text_surfaces_goal_summary(t
     assert "price coverage bundle" in output
     assert "goal:" in output
     assert "unlock monthly picks" in output
+    assert "if refresh fails, normalize first csv" in output
+    assert "fallback:" in output
 
 
 def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_path: Path):
@@ -615,6 +616,7 @@ def test_command_bundle_details_expand_bundle_tickers_with_stage_context(tmp_pat
     assert price_detail["rows_needed"] >= 1
     assert price_detail["target_history_rows"] >= 21
     assert price_detail["suggested_start_date"]
+    assert "make price-normalize" in price_detail["fallback_manual_command"]
     assert "src.data_update --tickers AMD" in price_detail["primary_command"]
     assert peer_detail["is_holding"] is True
     assert peer_detail["current_unlock_stage"] == "peers"
@@ -629,12 +631,15 @@ def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path:
     price_steps = [row for row in runbook if row["lane"] == "prices"]
 
     assert list(runbook[0].keys()) == COMMAND_BUNDLE_RUNBOOK_COLUMNS
-    assert [row["step_order"] for row in price_steps] == [1, 2, 3]
+    assert [row["step_order"] for row in price_steps] == [1, 2, 3, 4]
     assert price_steps[0]["step_label"] == "Run bundle command"
     assert "Unlock Monthly Picks" in price_steps[0]["goal_summary"]
     assert price_steps[0]["target_history_rows"] >= 21
     assert price_steps[0]["suggested_start_date"]
     assert "src.data_update --tickers" in price_steps[0]["command"]
+    assert price_steps[1]["step_label"] == "If refresh fails, normalize first CSV"
+    assert "make price-normalize" in price_steps[1]["command"]
+    assert "make price-normalize" in price_steps[1]["fallback_manual_command"]
     assert price_steps[-1]["command"] == "make onboarding"
 
 

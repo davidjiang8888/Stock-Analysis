@@ -188,6 +188,7 @@ COMMAND_BUNDLE_DETAIL_COLUMNS = [
     "rows_needed",
     "target_history_rows",
     "suggested_start_date",
+    "fallback_manual_command",
     "recommended_action",
     "primary_command",
     "follow_up_command",
@@ -207,6 +208,7 @@ COMMAND_BUNDLE_RUNBOOK_COLUMNS = [
     "goal_summary",
     "target_history_rows",
     "suggested_start_date",
+    "fallback_manual_command",
     "why_it_matters",
     "safe_next_step",
 ]
@@ -285,6 +287,7 @@ class CommandBundleDetailRow:
     rows_needed: int
     target_history_rows: int
     suggested_start_date: str
+    fallback_manual_command: str
     recommended_action: str
     primary_command: str
     follow_up_command: str
@@ -308,6 +311,7 @@ class CommandBundleRunbookRow:
     goal_summary: str
     target_history_rows: int
     suggested_start_date: str
+    fallback_manual_command: str
     why_it_matters: str
     safe_next_step: str
 
@@ -1534,6 +1538,7 @@ def build_command_bundle_details(
             recommended_action = ""
             target_goal = ""
             rows_needed = 0
+            fallback_manual_command = ""
             if coverage is not None:
                 if bundle.lane == "prices":
                     recommended_action = coverage.next_best_action
@@ -1543,6 +1548,7 @@ def build_command_bundle_details(
                         rows_needed = max(0, int(price_target.rows_needed_for_next_goal))
                         target_history_rows = max(0, int(price_target.next_target_history_rows))
                         suggested_start_date = str(price_target.suggested_start_date or "")
+                        fallback_manual_command = str(price_target.example_command or "")
                     else:
                         target_history_rows = 0
                         suggested_start_date = ""
@@ -1555,6 +1561,7 @@ def build_command_bundle_details(
                     target_goal = "Unlock DCF"
                     target_history_rows = 0
                     suggested_start_date = ""
+                    fallback_manual_command = ""
                 elif bundle.lane == "peers":
                     recommended_action = (
                         "Add manually researched peer mappings for this ticker and keep peer-relative comparison transparent."
@@ -1564,12 +1571,15 @@ def build_command_bundle_details(
                     target_goal = "Unlock Peer Relative"
                     target_history_rows = 0
                     suggested_start_date = ""
+                    fallback_manual_command = ""
                 else:
                     target_history_rows = 0
                     suggested_start_date = ""
+                    fallback_manual_command = ""
             else:
                 target_history_rows = 0
                 suggested_start_date = ""
+                fallback_manual_command = ""
             details.append(
                 CommandBundleDetailRow(
                     bundle_name=bundle.bundle_name,
@@ -1583,6 +1593,7 @@ def build_command_bundle_details(
                     rows_needed=rows_needed,
                     target_history_rows=target_history_rows,
                     suggested_start_date=suggested_start_date,
+                    fallback_manual_command=fallback_manual_command,
                     recommended_action=recommended_action or bundle.why_it_matters,
                     primary_command=bundle.primary_command,
                     follow_up_command=bundle.follow_up_command,
@@ -1603,20 +1614,43 @@ def build_command_bundle_runbook(
     output_dir: Path | str | None = None,
 ) -> list[CommandBundleRunbookRow]:
     bundles = build_command_bundles(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir)
+    detail_map = {}
+    for detail in build_command_bundle_details(coverage_rows, project_root, data_dir=data_dir, output_dir=output_dir):
+        detail_map.setdefault(detail.bundle_name, []).append(detail)
     runbook: list[CommandBundleRunbookRow] = []
 
     for bundle in bundles:
-        steps = [
-            (1, "Run bundle command", bundle.primary_command, bundle.safe_next_step),
-            (2, "Review follow-up output", bundle.follow_up_command, bundle.safe_next_step),
-            (
-                3,
-                "Refresh onboarding outputs",
-                "make onboarding",
-                "After the bundle flow finishes, reopen Data Health or Overview to confirm the updated local coverage state.",
-            ),
+        details_for_bundle = detail_map.get(bundle.bundle_name, [])
+        fallback_command = ""
+        if bundle.lane == "prices":
+            for detail in details_for_bundle:
+                candidate = str(detail.fallback_manual_command or "").strip()
+                if candidate:
+                    fallback_command = candidate
+                    break
+
+        step_specs: list[tuple[str, str, str]] = [
+            ("Run bundle command", bundle.primary_command, bundle.safe_next_step),
         ]
-        for step_order, step_label, command, safe_next_step in steps:
+        if bundle.lane == "prices" and fallback_command:
+            step_specs.append(
+                (
+                    "If refresh fails, normalize first CSV",
+                    fallback_command,
+                    "Use the staged manual import path for the first blocked ticker, then repeat for the remaining bundle names before validate/preview/apply.",
+                )
+            )
+        step_specs.extend(
+            [
+                ("Review follow-up output", bundle.follow_up_command, bundle.safe_next_step),
+                (
+                    "Refresh onboarding outputs",
+                    "make onboarding",
+                    "After the bundle flow finishes, reopen Data Health or Overview to confirm the updated local coverage state.",
+                ),
+            ]
+        )
+        for step_order, (step_label, command, safe_next_step) in enumerate(step_specs, start=1):
             runbook.append(
                 CommandBundleRunbookRow(
                     bundle_name=bundle.bundle_name,
@@ -1630,6 +1664,7 @@ def build_command_bundle_runbook(
                     goal_summary=bundle.goal_summary,
                     target_history_rows=bundle.target_history_rows,
                     suggested_start_date=bundle.suggested_start_date,
+                    fallback_manual_command=fallback_command,
                     why_it_matters=bundle.why_it_matters,
                     safe_next_step=safe_next_step,
                 )
@@ -1926,6 +1961,8 @@ def _print_command_bundle_details(payload: dict[str, Any]) -> None:
             f"target_rows={row.get('target_history_rows', 0)} start={row.get('suggested_start_date') or '-'}"
         )
         print(f"  next: {row['recommended_action']}")
+        if row.get("fallback_manual_command"):
+            print(f"  fallback: {row['fallback_manual_command']}")
     print(f"Command bundle detail rows: {len(payload['command_bundle_details'])}")
 
 
@@ -1942,6 +1979,8 @@ def _print_command_bundle_runbook(payload: dict[str, Any]) -> None:
                 f"  target_history_rows: {row['target_history_rows']} "
                 f"suggested_start_date: {row.get('suggested_start_date') or '-'}"
             )
+        if row.get("fallback_manual_command") and str(row.get("step_label", "")).lower().startswith("if refresh fails"):
+            print(f"  fallback: {row['fallback_manual_command']}")
     print(f"Command bundle runbook rows: {len(payload['command_bundle_runbook'])}")
 
 

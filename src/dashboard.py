@@ -186,6 +186,7 @@ COLUMN_LABELS = {
     "RowsNeeded": "Rows Needed",
     "TargetHistoryRows": "Target History Rows",
     "SuggestedStartDate": "Suggested Start Date",
+    "FallbackManualCommand": "Fallback Manual Command",
 }
 
 
@@ -2084,7 +2085,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
                 parts.append(f"start by {suggested_start_date}")
             hint_text = f" ({'; '.join(parts)})"
         steps = []
-        for _, row in lane_rows.head(3).iterrows():
+        for _, row in lane_rows.head(4).iterrows():
             step_label = format_missing(row.get("step_label"), "Step")
             command = format_missing(row.get("command"), "")
             if command:
@@ -6280,6 +6281,7 @@ def render_data_health(provider) -> None:
                     "rows_needed",
                     "target_history_rows",
                     "suggested_start_date",
+                    "fallback_manual_command",
                     "recommended_action",
                     "primary_command",
                     "follow_up_command",
@@ -6308,6 +6310,7 @@ def render_data_health(provider) -> None:
                     "goal_summary",
                     "target_history_rows",
                     "suggested_start_date",
+                    "fallback_manual_command",
                     "target_file",
                 ]
                 if column in command_bundle_runbook_frame.columns

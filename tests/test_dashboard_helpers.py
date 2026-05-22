@@ -2278,6 +2278,7 @@ def test_data_health_command_bundle_cards_surface_holdings_first_commands():
                 "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
                 "target_history_rows": 21,
                 "suggested_start_date": "2025-12-01",
+                "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                 "primary_command": "python3 -m src.data_update --tickers AMD,AVGO",
                 "follow_up_command": "make price-status",
                 "target_file": "data/imports/prices.csv",
@@ -2329,6 +2330,7 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
                 "target_history_rows": 21,
                 "suggested_start_date": "2025-12-01",
+                "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
                 "safe_next_step": "Use staged local imports if the free refresh fails.",
             },
@@ -2337,13 +2339,14 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "lane": "prices",
                 "scope": "holdings_first",
                 "step_order": 2,
-                "step_label": "Review follow-up output",
-                "command": "make price-status",
+                "step_label": "If refresh fails, normalize first CSV",
+                "command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                 "target_file": "data/imports/prices.csv",
                 "tickers": "AMD,AVGO",
                 "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
                 "target_history_rows": 21,
                 "suggested_start_date": "2025-12-01",
+                "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
                 "safe_next_step": "Use staged local imports if the free refresh fails.",
             },
@@ -2352,6 +2355,22 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "lane": "prices",
                 "scope": "holdings_first",
                 "step_order": 3,
+                "step_label": "Review follow-up output",
+                "command": "make price-status",
+                "target_file": "data/imports/prices.csv",
+                "tickers": "AMD,AVGO",
+                "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
+                "target_history_rows": 21,
+                "suggested_start_date": "2025-12-01",
+                "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
+                "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
+                "safe_next_step": "Use staged local imports if the free refresh fails.",
+            },
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 4,
                 "step_label": "Refresh onboarding outputs",
                 "command": "make onboarding",
                 "target_file": "data/imports/prices.csv",
@@ -2359,6 +2378,7 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
                 "goal_summary": "Unlock Monthly Picks for 2 tickers; 42 verified rows still needed across this bundle",
                 "target_history_rows": 21,
                 "suggested_start_date": "2025-12-01",
+                "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/AMD.csv TICKER=AMD SOURCE=yahoo_manual",
                 "why_it_matters": "These tickers still block monthly picks because local price history is too short.",
                 "safe_next_step": "Reopen Data Health or Overview after refreshing outputs.",
             },
@@ -2373,7 +2393,7 @@ def test_data_health_command_bundle_runbook_cards_surface_lane_steps_safely():
     assert "unlock monthly picks" in rendered
     assert "21 target rows" in rendered
     assert "start by 2025-12-01" in rendered
-    assert "make price-status" in rendered
+    assert "make price-normalize input=data/raw/prices/amd.csv ticker=amd source=yahoo_manual" in rendered
     assert "make onboarding" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -2897,6 +2917,7 @@ def test_dashboard_column_labels_cover_bundle_goal_fields():
     assert dashboard.COLUMN_LABELS["RowsNeeded"] == "Rows Needed"
     assert dashboard.COLUMN_LABELS["TargetHistoryRows"] == "Target History Rows"
     assert dashboard.COLUMN_LABELS["SuggestedStartDate"] == "Suggested Start Date"
+    assert dashboard.COLUMN_LABELS["FallbackManualCommand"] == "Fallback Manual Command"
 
 
 def test_overview_command_bundle_cards_surface_bundle_commands_safely():
@@ -2947,18 +2968,33 @@ def test_overview_bundle_runbook_cards_surface_lane_steps_safely():
                 "goal_summary": "Unlock Monthly Picks for 1 ticker; 21 verified rows still needed across this bundle",
                 "target_history_rows": 21,
                 "suggested_start_date": "2025-12-01",
+                "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/META.csv TICKER=META SOURCE=yahoo_manual",
             },
             {
                 "bundle_name": "Price Coverage Bundle",
                 "lane": "prices",
                 "scope": "holdings_first",
                 "step_order": 2,
+                "step_label": "If refresh fails, normalize first CSV",
+                "command": "make price-normalize INPUT=data/raw/prices/META.csv TICKER=META SOURCE=yahoo_manual",
+                "tickers": "META",
+                "goal_summary": "Unlock Monthly Picks for 1 ticker; 21 verified rows still needed across this bundle",
+                "target_history_rows": 21,
+                "suggested_start_date": "2025-12-01",
+                "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/META.csv TICKER=META SOURCE=yahoo_manual",
+            },
+            {
+                "bundle_name": "Price Coverage Bundle",
+                "lane": "prices",
+                "scope": "holdings_first",
+                "step_order": 3,
                 "step_label": "Review follow-up output",
                 "command": "make price-status",
                 "tickers": "META",
                 "goal_summary": "Unlock Monthly Picks for 1 ticker; 21 verified rows still needed across this bundle",
                 "target_history_rows": 21,
                 "suggested_start_date": "2025-12-01",
+                "fallback_manual_command": "make price-normalize INPUT=data/raw/prices/META.csv TICKER=META SOURCE=yahoo_manual",
             },
             {
                 "bundle_name": "SEC Fundamentals Bundle",
@@ -2983,7 +3019,7 @@ def test_overview_bundle_runbook_cards_surface_lane_steps_safely():
     assert "unlock monthly picks" in rendered
     assert "21 target rows" in rendered
     assert "start by 2025-12-01" in rendered
-    assert "make price-status" in rendered
+    assert "make price-normalize input=data/raw/prices/meta.csv ticker=meta source=yahoo_manual" in rendered
     assert "make sec-stage tickers=nvda" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
