@@ -2546,9 +2546,9 @@ def data_health_action_path_cards(
             {
                 "kicker": "ACTION PATHS",
                 "title": "No action paths yet",
-                "body": "Run make status to refresh the onboarding outputs and action queue, then use the best local command path for prices, fundamentals, peers, and optional context.",
+                "body": "Run make onboarding to refresh the onboarding outputs and action queue, then use the best local command path for prices, fundamentals, peers, and optional context.",
                 "badges": ["read-only"],
-                "command": "make status",
+                "command": "make onboarding",
             }
         ]
 
@@ -2829,9 +2829,9 @@ def data_health_deep_research_target_cards(
         {
             "kicker": "DEEP TARGETS",
             "title": "No DCF or peer targets yet",
-            "body": "Run make status to refresh the onboarding outputs and surface explicit fundamentals and peer-relative target queues.",
+            "body": "Run make onboarding to refresh the onboarding outputs and surface explicit fundamentals and peer-relative target queues.",
             "badges": ["read-only"],
-            "command": "make status",
+            "command": "make onboarding",
         }
     ]
 
@@ -2902,9 +2902,9 @@ def overview_deep_research_target_cards(
         {
             "kicker": "DEEP TARGETS",
             "title": "Generate DCF and peer targets",
-            "body": "Run make status to refresh the onboarding outputs and surface the next exact fundamentals and peer-relative targets.",
+            "body": "Run make onboarding to refresh the onboarding outputs and surface the next exact fundamentals and peer-relative targets.",
             "badges": ["read-only", "data moat"],
-            "command": "make status",
+            "command": "make onboarding",
         }
     ]
 
@@ -2915,9 +2915,9 @@ def overview_price_target_cards(price_worklist_frame: pd.DataFrame | None, limit
             {
                 "kicker": "PRICE TARGET",
                 "title": "Generate price targets",
-                "body": "Run make status to refresh the onboarding outputs and surface the next exact history targets for Monthly Picks, track record, and fuller local coverage.",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface the next exact history targets for Monthly Picks, track record, and fuller local coverage.",
                 "badges": ["read-only", "data moat"],
-                "command": "make status",
+                "command": "make onboarding",
             }
         ]
 

@@ -3769,8 +3769,8 @@ def test_data_health_action_path_cards_handle_missing_inputs_gracefully():
 
     assert len(cards) == 1
     assert "no action paths yet" in rendered
-    assert cards[0]["command"] == "make status"
-    assert "make status" in rendered
+    assert cards[0]["command"] == "make onboarding"
+    assert "make onboarding" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -4237,6 +4237,26 @@ def test_overview_deep_research_target_cards_preserve_staged_fundamentals_comman
 
     assert cards[0]["command"] == "make imports-validate"
     assert "make imports-apply" in cards[0]["body"].lower()
+
+
+def test_deep_research_target_fallback_cards_use_onboarding_refresh():
+    data_health_cards = dashboard.data_health_deep_research_target_cards(None, None)
+    overview_cards = dashboard.overview_deep_research_target_cards(None, None)
+    price_cards = dashboard.overview_price_target_cards(None)
+
+    rendered = " ".join(
+        str(value)
+        for card_group in (data_health_cards, overview_cards, price_cards)
+        for card in card_group
+        for value in card.values()
+    ).lower()
+
+    assert data_health_cards[0]["command"] == "make onboarding"
+    assert overview_cards[0]["command"] == "make onboarding"
+    assert price_cards[0]["command"] == "make onboarding"
+    assert "run make onboarding" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values():
