@@ -5711,9 +5711,9 @@ def monthly_picks_next_step_cards(
         primary = {
             "kicker": "NEXT STEP",
             "title": "Refresh monthly context",
-            "body": "Monthly candidate outputs are unavailable right now. Start with make status so the local blocker path and monthly research files refresh together before interpreting this tab.",
-            "badges": ["status first", "read-only"],
-            "command": "make status",
+            "body": "Monthly candidate outputs are unavailable right now. Run make monthly to refresh the monthly research files before interpreting this tab.",
+            "badges": ["monthly refresh", "read-only"],
+            "command": "make monthly",
         }
     elif picks_frame.empty:
         primary = {
@@ -6726,8 +6726,8 @@ def render_monthly_picks(catalog: LocalDataCatalog) -> None:
     if picks_frame is None:
         render_notice_card(
             "Monthly context is not available yet",
-            picks_message or "Run make status so the local blocker path and monthly research files refresh together before interpreting this tab. This stays research-only and may still return fewer than five names.",
-            "make status",
+            picks_message or "Run make monthly to refresh the monthly research files before interpreting this tab. This stays research-only and may still return fewer than five names.",
+            "make monthly",
         )
     elif picks_frame.empty:
         render_notice_card(

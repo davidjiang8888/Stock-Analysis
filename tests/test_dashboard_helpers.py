@@ -3221,7 +3221,8 @@ def test_monthly_picks_next_step_cards_cover_generation_coverage_history_and_rev
 
     cards = dashboard.monthly_picks_next_step_cards(None, None, None, 5, queue)
     assert cards[0]["title"] == "Refresh monthly context"
-    assert cards[0]["command"] == "make status"
+    assert cards[0]["command"] == "make monthly"
+    assert "make monthly" in cards[0]["body"]
 
     picks = pd.DataFrame([{"Month": "2026-05", "MissingDataFields": "Return3M"}] * 4)
     cards = dashboard.monthly_picks_next_step_cards(picks, None, None, 5, queue)
