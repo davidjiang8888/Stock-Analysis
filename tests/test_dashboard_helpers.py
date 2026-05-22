@@ -2133,6 +2133,63 @@ def test_holdings_unlock_cards_use_runbook_fallback_when_action_is_missing():
     assert "not available" not in cards[0]["body"].lower()
 
 
+def test_holdings_unlock_cards_keep_staged_import_front_doors_when_target_files_are_present():
+    holdings = pd.DataFrame(
+        [
+            {"Ticker": "AMD", "PrimaryPurpose": "Core Compounder"},
+            {"Ticker": "NVDA", "PrimaryPurpose": "Momentum Leader"},
+            {"Ticker": "TSLA", "PrimaryPurpose": "Speculative Optionality"},
+        ]
+    )
+    ladder = pd.DataFrame(
+        [
+            {
+                "ticker": "AMD",
+                "current_unlock_stage": "prices",
+                "next_unlock_goal": "Unlock Monthly Picks",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/prices.csv",
+                "price_stage_status": "partial_price_history",
+            },
+            {
+                "ticker": "NVDA",
+                "current_unlock_stage": "fundamentals",
+                "next_unlock_goal": "Unlock DCF",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+                "price_stage_status": "momentum_ready_short_history",
+            },
+            {
+                "ticker": "TSLA",
+                "current_unlock_stage": "peers",
+                "next_unlock_goal": "Unlock Peer Relative",
+                "recommended_action": "",
+                "focus_command": "",
+                "example_command": "",
+                "target_file": "data/imports/peers.csv",
+                "price_stage_status": "momentum_ready_short_history",
+            },
+        ]
+    )
+
+    cards = dashboard.holdings_unlock_cards(holdings, ladder, None, limit=3)
+    price_card = next(card for card in cards if card["kicker"] == "AMD")
+    fundamentals_card = next(card for card in cards if card["kicker"] == "NVDA")
+    peer_card = next(card for card in cards if card["kicker"] == "TSLA")
+
+    assert price_card["command"] == "make price-validate"
+    assert "make price-preview" in price_card["body"].lower()
+    assert "make price-apply" in price_card["body"].lower()
+    assert fundamentals_card["command"] == "make imports-validate"
+    assert "staged fundamentals import" in fundamentals_card["body"].lower()
+    assert peer_card["command"] == "make imports-validate"
+    assert "staged peer import" in peer_card["body"].lower()
+
+
 def test_holdings_deep_research_cards_surface_sec_and_peer_blockers():
     holdings = pd.DataFrame(
         [

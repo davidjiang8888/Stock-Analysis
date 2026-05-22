@@ -4359,15 +4359,40 @@ def holdings_unlock_cards(
         stage = format_missing(row.get("current_unlock_stage"), "coverage")
         goal = format_missing(row.get("next_unlock_goal"), "Unlock data")
         purpose = format_missing(purpose_map.get(ticker), "Portfolio holding")
-        command = preferred_row_command(
-            row,
-            ticker_focus_command(
-                stage,
-                row.get("ticker"),
-                unlock_stage_command(stage, "make onboarding"),
-            ),
+        target_file = format_missing(row.get("target_file"), "")
+        staged_fundamentals_import = target_file == "data/imports/fundamentals.csv"
+        staged_peer_import = target_file == "data/imports/peers.csv"
+        staged_price_import = target_file == "data/imports/prices.csv"
+        command = (
+            preferred_row_command(row, "make imports-validate")
+            if staged_fundamentals_import or staged_peer_import
+            else (
+                preferred_row_command(row, "make price-validate")
+                if staged_price_import
+                else preferred_row_command(
+                    row,
+                    ticker_focus_command(
+                        stage,
+                        row.get("ticker"),
+                        unlock_stage_command(stage, "make onboarding"),
+                    ),
+                )
+            )
         )
-        fallback_action = command_family_fallback(command, f"Review {stage} path.")
+        if staged_fundamentals_import:
+            fallback_action = (
+                f"Staged fundamentals import is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting DCF coverage."
+            )
+        elif staged_peer_import:
+            fallback_action = (
+                f"Staged peer import is waiting in {target_file}; run make imports-validate, then make imports-preview, then make imports-apply before trusting peer-relative context."
+            )
+        elif staged_price_import:
+            fallback_action = (
+                f"Staged price import is waiting in {target_file}; run make price-validate, then make price-preview, then make price-apply before trusting local price coverage."
+            )
+        else:
+            fallback_action = command_family_fallback(command, f"Review {stage} path.")
         cards.append(
             {
                 "kicker": ticker,
