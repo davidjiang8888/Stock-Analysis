@@ -1,4 +1,4 @@
-.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers detail-prices detail-fundamentals detail-peers runbook-prices runbook-fundamentals runbook-peers focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help status test pipeline monthly track-record validate-data research-health action-queue verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
 
 help:
 	@echo "Stock Research Screener convenience commands"
@@ -30,12 +30,21 @@ help:
 	@echo "  make bundle-prices    Show only the price bundle and its holdings-first scope when available"
 	@echo "  make bundle-fundamentals Show only the SEC fundamentals bundle"
 	@echo "  make bundle-peers     Show only the peer-mapping bundle"
+	@echo "  make bundle-prices-broader Show only the broader-queue price bundle"
+	@echo "  make bundle-fundamentals-broader Show only the broader-queue SEC fundamentals bundle"
+	@echo "  make bundle-peers-broader Show only the broader-queue peer-mapping bundle"
 	@echo "  make detail-prices    Show only the price bundle detail rows"
 	@echo "  make detail-fundamentals Show only the SEC fundamentals detail rows"
 	@echo "  make detail-peers     Show only the peer-mapping detail rows"
+	@echo "  make detail-prices-broader Show only the broader-queue price detail rows"
+	@echo "  make detail-fundamentals-broader Show only the broader-queue SEC detail rows"
+	@echo "  make detail-peers-broader Show only the broader-queue peer detail rows"
 	@echo "  make runbook-prices   Show only the price bundle runbook"
 	@echo "  make runbook-fundamentals Show only the SEC fundamentals runbook"
 	@echo "  make runbook-peers    Show only the peer-mapping runbook"
+	@echo "  make runbook-prices-broader Show only the broader-queue price runbook"
+	@echo "  make runbook-fundamentals-broader Show only the broader-queue SEC runbook"
+	@echo "  make runbook-peers-broader Show only the broader-queue peer runbook"
 	@echo "  make focus-price TICKER=AMD Show one ticker's price detail row and runbook"
 	@echo "  make focus-fundamentals TICKER=NVDA Show one ticker's SEC detail row and runbook"
 	@echo "  make focus-peers TICKER=NVDA Show one ticker's peer detail row and runbook"
@@ -122,6 +131,15 @@ bundle-fundamentals:
 bundle-peers:
 	python3 -m src.data_onboarding --command-bundles --lane peers --holdings-only
 
+bundle-prices-broader:
+	python3 -m src.data_onboarding --command-bundles --lane prices --scope broader_queue
+
+bundle-fundamentals-broader:
+	python3 -m src.data_onboarding --command-bundles --lane fundamentals --scope broader_queue
+
+bundle-peers-broader:
+	python3 -m src.data_onboarding --command-bundles --lane peers --scope broader_queue
+
 detail-prices:
 	python3 -m src.data_onboarding --command-bundle-details --lane prices --holdings-only
 
@@ -131,6 +149,15 @@ detail-fundamentals:
 detail-peers:
 	python3 -m src.data_onboarding --command-bundle-details --lane peers --holdings-only
 
+detail-prices-broader:
+	python3 -m src.data_onboarding --command-bundle-details --lane prices --scope broader_queue
+
+detail-fundamentals-broader:
+	python3 -m src.data_onboarding --command-bundle-details --lane fundamentals --scope broader_queue
+
+detail-peers-broader:
+	python3 -m src.data_onboarding --command-bundle-details --lane peers --scope broader_queue
+
 runbook-prices:
 	python3 -m src.data_onboarding --command-bundle-runbook --lane prices --holdings-only
 
@@ -139,6 +166,15 @@ runbook-fundamentals:
 
 runbook-peers:
 	python3 -m src.data_onboarding --command-bundle-runbook --lane peers --holdings-only
+
+runbook-prices-broader:
+	python3 -m src.data_onboarding --command-bundle-runbook --lane prices --scope broader_queue
+
+runbook-fundamentals-broader:
+	python3 -m src.data_onboarding --command-bundle-runbook --lane fundamentals --scope broader_queue
+
+runbook-peers-broader:
+	python3 -m src.data_onboarding --command-bundle-runbook --lane peers --scope broader_queue
 
 focus-price:
 ifndef TICKER

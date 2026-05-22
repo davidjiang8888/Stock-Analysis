@@ -1470,20 +1470,23 @@ def build_command_bundles(
         else:
             broader_price_queue.append(price_row)
 
+    bundles: list[CommandBundleRow] = []
     holdings_first_prices.sort(key=lambda item: (item.price_history_days > 0, item.price_history_days, item.ticker))
     broader_price_queue.sort(key=lambda item: (item.price_history_days > 0, item.price_history_days, item.ticker))
-    price_targets = holdings_first_prices[:5] or broader_price_queue[:5]
-
     holdings_sec = [row for row in sec_queue if row.is_holding][:5]
-    sec_targets = holdings_sec or sec_queue[:5]
+    broader_sec = [row for row in sec_queue if not row.is_holding][:5]
     holdings_peer = [row for row in peer_queue if row.is_holding][:5]
-    peer_targets = holdings_peer or peer_queue[:5]
+    broader_peer = [row for row in peer_queue if not row.is_holding][:5]
 
-    bundles: list[CommandBundleRow] = []
+    def bundle_name_for_scope(base_name: str, scope: str, include_scope_variant: bool) -> str:
+        if scope == "broader_queue" and include_scope_variant:
+            return f"{base_name} (Broader Queue)"
+        return base_name
 
-    if price_targets:
+    def append_price_bundle(price_targets: list[PriceWorklistRow], scope: str, include_scope_variant: bool) -> None:
+        if not price_targets:
+            return
         tickers = ",".join(row.ticker for row in price_targets)
-        scope = "holdings_first" if any(bool(context_lookup.get(row.ticker, {}).get("is_holding", False)) for row in price_targets) else "broader_queue"
         goal_counts = Counter(row.next_price_goal for row in price_targets if row.next_price_goal and row.next_price_goal != "Maintain Coverage")
         target_history_rows = max((int(row.next_target_history_rows) for row in price_targets), default=0)
         start_dates = sorted(date for date in (str(row.suggested_start_date or "").strip() for row in price_targets) if date)
@@ -1496,9 +1499,14 @@ def build_command_bundles(
                 goal_summary = f"{goal_summary}; {total_rows_needed} verified rows still needed across this bundle"
         else:
             goal_summary = "Maintain local price coverage for this bundle"
+        why_it_matters = (
+            "These holdings are still blocking monthly picks or broader local research because price history is missing or too short."
+            if scope == "holdings_first"
+            else "These broader-queue tickers are still blocking monthly picks or broader local research because price history is missing or too short."
+        )
         bundles.append(
             CommandBundleRow(
-                bundle_name="Price Coverage Bundle",
+                bundle_name=bundle_name_for_scope("Price Coverage Bundle", scope, include_scope_variant),
                 lane="prices",
                 scope=scope,
                 ticker_count=len(price_targets),
@@ -1509,17 +1517,23 @@ def build_command_bundles(
                 primary_command=f"python3 -m src.data_update --tickers {tickers}",
                 follow_up_command="make price-status",
                 target_file="data/imports/prices.csv",
-                why_it_matters="These tickers are still blocking monthly picks or broader local research because price history is missing or too short.",
+                why_it_matters=why_it_matters,
                 safe_next_step="If the free refresh fails, use data/raw/prices/ plus make price-normalize before price validate/preview/apply.",
             )
         )
 
-    if sec_targets:
+    def append_sec_bundle(sec_targets: list[SecStageQueueRow], scope: str, include_scope_variant: bool) -> None:
+        if not sec_targets:
+            return
         tickers = ",".join(row.ticker for row in sec_targets)
-        scope = "holdings_first" if any(row.is_holding for row in sec_targets) else "broader_queue"
+        why_it_matters = (
+            "These holdings are the best next candidates for explicit local DCF inputs once price coverage is good enough."
+            if scope == "holdings_first"
+            else "These broader-queue tickers are the best next candidates for explicit local DCF inputs once price coverage is good enough."
+        )
         bundles.append(
             CommandBundleRow(
-                bundle_name="SEC Fundamentals Bundle",
+                bundle_name=bundle_name_for_scope("SEC Fundamentals Bundle", scope, include_scope_variant),
                 lane="fundamentals",
                 scope=scope,
                 ticker_count=len(sec_targets),
@@ -1530,17 +1544,23 @@ def build_command_bundles(
                 primary_command=f"SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS={tickers}",
                 follow_up_command="make sec-preview",
                 target_file="data/imports/fundamentals.csv",
-                why_it_matters="These tickers are the best next candidates for explicit local DCF inputs once price coverage is good enough.",
+                why_it_matters=why_it_matters,
                 safe_next_step="Keep SEC enrichment staged and review-only until validate/preview/apply confirms the merge.",
             )
         )
 
-    if peer_targets:
+    def append_peer_bundle(peer_targets: list[PeerMappingQueueRow], scope: str, include_scope_variant: bool) -> None:
+        if not peer_targets:
+            return
         tickers = ",".join(row.ticker for row in peer_targets)
-        scope = "holdings_first" if any(row.is_holding for row in peer_targets) else "broader_queue"
+        why_it_matters = (
+            "These holdings are closest to peer-relative coverage once manually researched peer mappings are added locally."
+            if scope == "holdings_first"
+            else "These broader-queue tickers are closest to peer-relative coverage once manually researched peer mappings are added locally."
+        )
         bundles.append(
             CommandBundleRow(
-                bundle_name="Peer Mapping Bundle",
+                bundle_name=bundle_name_for_scope("Peer Mapping Bundle", scope, include_scope_variant),
                 lane="peers",
                 scope=scope,
                 ticker_count=len(peer_targets),
@@ -1551,10 +1571,21 @@ def build_command_bundles(
                 primary_command="make templates",
                 follow_up_command="make onboarding",
                 target_file="data/imports/peers.csv",
-                why_it_matters="These tickers are closest to peer-relative coverage once manually researched peer mappings are added locally.",
+                why_it_matters=why_it_matters,
                 safe_next_step="Fill only manually researched peers for the listed tickers, then rerun onboarding to refresh readiness and action outputs.",
             )
         )
+
+    append_price_bundle(holdings_first_prices[:5], "holdings_first", include_scope_variant=bool(broader_price_queue))
+    append_price_bundle(broader_price_queue[:5], "broader_queue", include_scope_variant=bool(holdings_first_prices))
+    if not holdings_first_prices and not broader_price_queue:
+        append_price_bundle([], "broader_queue", include_scope_variant=False)
+
+    append_sec_bundle(holdings_sec, "holdings_first", include_scope_variant=bool(broader_sec))
+    append_sec_bundle(broader_sec, "broader_queue", include_scope_variant=bool(holdings_sec))
+
+    append_peer_bundle(holdings_peer, "holdings_first", include_scope_variant=bool(broader_peer))
+    append_peer_bundle(broader_peer, "broader_queue", include_scope_variant=bool(holdings_peer))
 
     lane_rank = {"prices": 1, "fundamentals": 2, "peers": 3}
     scope_rank = {"holdings_first": 1, "broader_queue": 2}
@@ -2131,8 +2162,10 @@ def _filter_command_bundle_payload(
     *,
     lane: str | None = None,
     holdings_only: bool = False,
+    scope: str | None = None,
 ) -> dict[str, Any]:
     lane_value = _normalized_lane(lane)
+    scope_value = _normalized_lane(scope)
 
     bundles = payload.get("command_bundles", [])
     details = payload.get("command_bundle_details", [])
@@ -2143,7 +2176,15 @@ def _filter_command_bundle_payload(
         details = [row for row in details if _normalized_lane(row.get("lane")) == lane_value]
         runbook = [row for row in runbook if _normalized_lane(row.get("lane")) == lane_value]
 
-    if holdings_only:
+    if holdings_only and not scope_value:
+        scope_value = "holdings_first"
+
+    if scope_value:
+        bundles = [row for row in bundles if _normalized_lane(row.get("scope")) == scope_value]
+        bundle_names = {str(row.get("bundle_name", "")) for row in bundles}
+        details = [row for row in details if str(row.get("bundle_name", "")) in bundle_names]
+        runbook = [row for row in runbook if str(row.get("bundle_name", "")) in bundle_names]
+    elif holdings_only:
         bundles = [
             row
             for row in bundles
@@ -2228,6 +2269,11 @@ def main() -> None:
         action="store_true",
         help="Limit command bundle views to holdings-first rows when available.",
     )
+    parser.add_argument(
+        "--scope",
+        choices=["holdings_first", "broader_queue"],
+        help="Optional scope filter for command bundle views.",
+    )
     parser.add_argument("--write-output", action="store_true", help="Write ticker coverage and onboarding action CSVs.")
     parser.add_argument("--write-templates", action="store_true", help="Write header-only onboarding templates under data/templates.")
     parser.add_argument("--tickers", help="Comma-separated tickers to inspect. Defaults to universe and holdings tickers.")
@@ -2258,7 +2304,7 @@ def main() -> None:
         payload = build_onboarding_payload(root, data_dir=data_path, output_dir=output_path, tickers=tickers)
 
     if args.command_bundles or args.command_bundle_details or args.command_bundle_runbook:
-        payload = _filter_command_bundle_payload(payload, lane=args.lane, holdings_only=args.holdings_only)
+        payload = _filter_command_bundle_payload(payload, lane=args.lane, holdings_only=args.holdings_only, scope=args.scope)
 
     if args.json:
         if args.wizard and not args.coverage and not args.write_output and not args.price_worklist and not args.fundamentals_peer_worklist and not args.optional_context_worklist and not args.sec_stage_queue and not args.peer_mapping_queue and not args.unlock_ladder and not args.unlock_summary and not args.command_bundles and not args.command_bundle_details and not args.command_bundle_runbook:

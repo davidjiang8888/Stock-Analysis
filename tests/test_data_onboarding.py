@@ -568,27 +568,55 @@ def test_data_onboarding_cli_command_bundles_can_filter_by_lane_and_holdings(tmp
     assert payload["command_bundles"][0]["scope"] == "holdings_first"
 
 
+def test_data_onboarding_cli_command_bundles_can_filter_by_lane_and_broader_scope(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = [
+        "python",
+        "--project-root",
+        str(tmp_path),
+        "--command-bundles",
+        "--lane",
+        "prices",
+        "--scope",
+        "broader_queue",
+        "--json",
+    ]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert len(payload["command_bundles"]) == 1
+    assert payload["command_bundles"][0]["lane"] == "prices"
+    assert payload["command_bundles"][0]["scope"] == "broader_queue"
+
+
 def test_command_bundles_surface_holdings_first_price_and_sec_paths(tmp_path: Path):
     _write_fixture(tmp_path)
 
     payload = build_onboarding_payload(tmp_path)
-    bundles = {row["lane"]: row for row in payload["command_bundles"]}
+    bundles = payload["command_bundles"]
+    price_bundle = next(row for row in bundles if row["lane"] == "prices" and row["scope"] == "broader_queue")
+    fundamentals_bundle = next(row for row in bundles if row["lane"] == "fundamentals" and row["scope"] == "broader_queue")
+    peer_bundle = next(row for row in bundles if row["lane"] == "peers" and row["scope"] == "holdings_first")
 
     assert list(payload["command_bundles"][0].keys()) == COMMAND_BUNDLE_COLUMNS
-    assert bundles["prices"]["scope"] == "broader_queue"
-    assert "AMD" in bundles["prices"]["tickers"]
-    assert "Unlock Monthly Picks" in bundles["prices"]["goal_summary"]
-    assert bundles["prices"]["target_history_rows"] >= 21
-    assert bundles["prices"]["suggested_start_date"]
-    assert "src.data_update --tickers AMD" in bundles["prices"]["primary_command"]
-    assert bundles["fundamentals"]["scope"] == "broader_queue"
-    assert "AMD" in bundles["fundamentals"]["tickers"]
-    assert "DCF readiness" in bundles["fundamentals"]["goal_summary"]
-    assert "make sec-stage" in bundles["fundamentals"]["primary_command"]
-    assert bundles["peers"]["scope"] == "holdings_first"
-    assert "NVDA" in bundles["peers"]["tickers"]
-    assert "peer-relative readiness" in bundles["peers"]["goal_summary"]
-    assert bundles["peers"]["target_file"] == "data/imports/peers.csv"
+    assert price_bundle["scope"] == "broader_queue"
+    assert "AMD" in price_bundle["tickers"]
+    assert "Unlock Monthly Picks" in price_bundle["goal_summary"]
+    assert price_bundle["target_history_rows"] >= 21
+    assert price_bundle["suggested_start_date"]
+    assert "src.data_update --tickers AMD" in price_bundle["primary_command"]
+    assert fundamentals_bundle["scope"] == "broader_queue"
+    assert "AMD" in fundamentals_bundle["tickers"]
+    assert "DCF readiness" in fundamentals_bundle["goal_summary"]
+    assert "make sec-stage" in fundamentals_bundle["primary_command"]
+    assert peer_bundle["scope"] == "holdings_first"
+    assert "NVDA" in peer_bundle["tickers"]
+    assert "peer-relative readiness" in peer_bundle["goal_summary"]
+    assert peer_bundle["target_file"] == "data/imports/peers.csv"
 
 
 def test_data_onboarding_cli_command_bundle_details_json(tmp_path: Path, capsys):
@@ -630,6 +658,31 @@ def test_data_onboarding_cli_command_bundle_details_can_filter_by_lane_and_holdi
     assert all(row["is_holding"] is True for row in payload["command_bundle_details"])
 
 
+def test_data_onboarding_cli_command_bundle_details_can_filter_by_lane_and_broader_scope(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = [
+        "python",
+        "--project-root",
+        str(tmp_path),
+        "--command-bundle-details",
+        "--lane",
+        "prices",
+        "--scope",
+        "broader_queue",
+        "--json",
+    ]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert payload["command_bundle_details"]
+    assert all(row["lane"] == "prices" for row in payload["command_bundle_details"])
+    assert all(row["is_holding"] is False for row in payload["command_bundle_details"])
+
+
 def test_data_onboarding_cli_command_bundle_runbook_can_filter_by_lane_and_holdings(tmp_path: Path, capsys):
     _write_fixture(tmp_path)
     previous_argv = sys.argv[:]
@@ -652,6 +705,31 @@ def test_data_onboarding_cli_command_bundle_runbook_can_filter_by_lane_and_holdi
     assert payload["command_bundle_runbook"]
     assert all(row["lane"] == "peers" for row in payload["command_bundle_runbook"])
     assert all(row["scope"] == "holdings_first" for row in payload["command_bundle_runbook"])
+
+
+def test_data_onboarding_cli_command_bundle_runbook_can_filter_by_lane_and_broader_scope(tmp_path: Path, capsys):
+    _write_fixture(tmp_path)
+    previous_argv = sys.argv[:]
+    sys.argv = [
+        "python",
+        "--project-root",
+        str(tmp_path),
+        "--command-bundle-runbook",
+        "--lane",
+        "prices",
+        "--scope",
+        "broader_queue",
+        "--json",
+    ]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+    finally:
+        sys.argv = previous_argv
+
+    assert payload["command_bundle_runbook"]
+    assert all(row["lane"] == "prices" for row in payload["command_bundle_runbook"])
+    assert all(row["scope"] == "broader_queue" for row in payload["command_bundle_runbook"])
 
 
 def test_data_onboarding_cli_command_bundle_runbook_text_surfaces_goal_summary(tmp_path: Path, capsys):
@@ -736,7 +814,11 @@ def test_command_bundle_runbook_expands_each_bundle_into_ordered_steps(tmp_path:
     assert price_steps[4]["command"] == "make price-apply"
     assert price_steps[5]["command"] == "make price-status"
     assert price_steps[-1]["command"] == "make onboarding"
-    peer_steps = [row for row in runbook if row["lane"] == "peers"]
+    peer_steps = [
+        row
+        for row in runbook
+        if row["lane"] == "peers" and row["scope"] == "holdings_first"
+    ]
     assert [row["step_order"] for row in peer_steps] == [1, 2, 3, 4]
     assert peer_steps[1]["step_label"] == "Fill peer mappings manually"
     assert peer_steps[1]["command"] == "data/imports/peers.csv"
