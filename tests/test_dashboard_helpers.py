@@ -1893,7 +1893,8 @@ def test_theme_unlock_cards_handle_missing_inputs_gracefully():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "no theme unlock board yet" in rendered
-    assert "make status" in rendered
+    assert cards[0]["command"] == "make onboarding"
+    assert "make onboarding" in rendered
     assert "buy" not in rendered
 
 
@@ -2298,7 +2299,8 @@ def test_overview_ready_blocked_cards_handle_missing_inputs_gracefully():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "no readiness shortlist yet" in rendered
-    assert "make status" in rendered
+    assert cards[0]["command"] == "make onboarding"
+    assert "make onboarding" in rendered
     assert "buy" not in rendered
 
 
@@ -2330,6 +2332,8 @@ def test_overview_best_current_name_cards_handle_missing_inputs_gracefully():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "no current ready names yet" in rendered
+    assert cards[0]["command"] == "make onboarding"
+    assert "make onboarding" in rendered
     assert "buy" not in rendered
 
 

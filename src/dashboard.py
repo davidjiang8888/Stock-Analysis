@@ -4180,9 +4180,9 @@ def theme_unlock_cards(
             {
                 "kicker": "THEME FIRST",
                 "title": "No theme unlock board yet",
-                "body": "Run make status to refresh the onboarding outputs and surface which local themes or sector ETF clusters are blocked first.",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface which local themes or sector ETF clusters are blocked first.",
                 "badges": ["read-only"],
-                "command": "make status",
+                "command": "make onboarding",
             }
         ]
 
@@ -4639,9 +4639,9 @@ def overview_ready_blocked_cards(
             {
                 "kicker": "READY NOW VS BLOCKED",
                 "title": "No readiness shortlist yet",
-                "body": "Run make status to refresh the onboarding outputs and separate names that are already usable from names still blocked by local data gaps.",
+                "body": "Run make onboarding to refresh the onboarding outputs and separate names that are already usable from names still blocked by local data gaps.",
                 "badges": ["read-only"],
-                "command": "make status",
+                "command": "make onboarding",
             }
         ]
 
@@ -4720,9 +4720,9 @@ def overview_best_current_name_cards(
             {
                 "kicker": "BEST CURRENT NAMES",
                 "title": "No current ready names yet",
-                "body": "Run make status to refresh the onboarding outputs and surface which names are already usable with today’s local coverage.",
+                "body": "Run make onboarding to refresh the onboarding outputs and surface which names are already usable with today’s local coverage.",
                 "badges": ["read-only"],
-                "command": "make status",
+                "command": "make onboarding",
             }
         ]
 
