@@ -2681,6 +2681,15 @@ def data_health_deep_research_target_cards(
             sec_rows["priority"] = pd.to_numeric(sec_rows["priority"], errors="coerce")
             sec_rows = sec_rows.sort_values(["priority", "price_history_days", "ticker"], ascending=[True, False, True], kind="stable")
         for _, row in sec_rows.head(limit_per_lane).iterrows():
+            row_focus_command = format_missing(row.get("focus_command"), "")
+            command = (
+                preferred_row_command(
+                    row,
+                    ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), "")),
+                )
+                if row_focus_command
+                else ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
+            )
             cards.append(
                 {
                     "kicker": "DCF TARGET",
@@ -2693,7 +2702,7 @@ def data_health_deep_research_target_cards(
                         "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
                         f"{format_value(row.get('price_history_days'), fallback='0')} price rows",
                     ],
-                    "command": ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), "")),
+                    "command": command,
                 }
             )
 
@@ -2745,6 +2754,15 @@ def overview_deep_research_target_cards(
             sec_rows["priority"] = pd.to_numeric(sec_rows["priority"], errors="coerce")
             sec_rows = sec_rows.sort_values(["priority", "price_history_days", "ticker"], ascending=[True, False, True], kind="stable")
         for _, row in sec_rows.head(limit_per_lane).iterrows():
+            row_focus_command = format_missing(row.get("focus_command"), "")
+            command = (
+                preferred_row_command(
+                    row,
+                    ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), "")),
+                )
+                if row_focus_command
+                else ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), ""))
+            )
             cards.append(
                 {
                     "kicker": "UNLOCK DCF",
@@ -2757,7 +2775,7 @@ def overview_deep_research_target_cards(
                         "holding" if bool(row.get("is_holding", False)) else format_missing(row.get("theme"), "theme"),
                         f"P{format_value(row.get('priority'), fallback='-')}",
                     ],
-                    "command": ticker_focus_command("fundamentals", row.get("ticker"), fallback=format_missing(row.get("example_command"), "")),
+                    "command": command,
                 }
             )
 

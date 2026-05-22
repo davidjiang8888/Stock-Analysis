@@ -3945,6 +3945,30 @@ def test_data_health_deep_research_target_cards_surface_dcf_and_peer_targets_saf
     assert "sell" not in rendered
 
 
+def test_data_health_deep_research_target_cards_preserve_staged_fundamentals_command():
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "is_holding": True,
+                "theme": "AI Semis",
+                "price_history_days": 63,
+                "missing_required_for_dcf": "staged fundamentals still need validate/preview/apply",
+                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals.",
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "target_file": "data/imports/fundamentals.csv",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_deep_research_target_cards(sec_queue, pd.DataFrame())
+
+    assert cards[0]["command"] == "make imports-validate"
+    assert "make imports-apply" in cards[0]["body"].lower()
+
+
 def test_overview_price_target_cards_surface_exact_history_targets_safely():
     worklist = pd.DataFrame(
         [
@@ -4024,6 +4048,30 @@ def test_overview_deep_research_target_cards_surface_dcf_and_peer_targets_safely
     assert "make focus-peers ticker=tsla" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_overview_deep_research_target_cards_preserve_staged_fundamentals_command():
+    sec_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "NVDA",
+                "is_holding": True,
+                "theme": "AI Semis",
+                "price_history_days": 63,
+                "missing_required_for_dcf": "staged fundamentals still need validate/preview/apply",
+                "recommended_action": "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live staged fundamentals.",
+                "focus_command": "make imports-validate",
+                "example_command": "make imports-preview",
+                "target_file": "data/imports/fundamentals.csv",
+            }
+        ]
+    )
+
+    cards = dashboard.overview_deep_research_target_cards(sec_queue, pd.DataFrame())
+
+    assert cards[0]["command"] == "make imports-validate"
+    assert "make imports-apply" in cards[0]["body"].lower()
 
 
 def test_data_coverage_wizard_cards_show_unlock_goals_without_raw_missing_values():
