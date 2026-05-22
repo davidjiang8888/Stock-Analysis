@@ -2162,8 +2162,9 @@ def data_health_action_path_cards(
             {
                 "kicker": "ACTION PATHS",
                 "title": "No action paths yet",
-                "body": "Generate the onboarding outputs and action queue to surface the best local command path for prices, fundamentals, peers, and optional context.",
+                "body": "Run make status to refresh the onboarding outputs and action queue, then use the best local command path for prices, fundamentals, peers, and optional context.",
                 "badges": ["read-only"],
+                "command": "make status",
             }
         ]
 
@@ -3734,8 +3735,9 @@ def theme_unlock_cards(
             {
                 "kicker": "THEME FIRST",
                 "title": "No theme unlock board yet",
-                "body": "Generate onboarding outputs to surface which local themes or sector ETF clusters are blocked first.",
+                "body": "Run make status to refresh the onboarding outputs and surface which local themes or sector ETF clusters are blocked first.",
                 "badges": ["read-only"],
+                "command": "make status",
             }
         ]
 
@@ -4148,8 +4150,9 @@ def overview_ready_blocked_cards(
             {
                 "kicker": "READY NOW VS BLOCKED",
                 "title": "No readiness shortlist yet",
-                "body": "Generate onboarding outputs to separate names that are already usable from names still blocked by local data gaps.",
+                "body": "Run make status to refresh the onboarding outputs and separate names that are already usable from names still blocked by local data gaps.",
                 "badges": ["read-only"],
+                "command": "make status",
             }
         ]
 
@@ -4228,8 +4231,9 @@ def overview_best_current_name_cards(
             {
                 "kicker": "BEST CURRENT NAMES",
                 "title": "No current ready names yet",
-                "body": "Generate onboarding outputs to surface which names are already usable with today’s local coverage.",
+                "body": "Run make status to refresh the onboarding outputs and surface which names are already usable with today’s local coverage.",
                 "badges": ["read-only"],
+                "command": "make status",
             }
         ]
 
