@@ -119,6 +119,9 @@ def test_data_coverage_wizard_ranks_core_unlocks_before_optional_context(tmp_pat
     assert "Unlock Monthly Picks" in goals
     assert "Unlock DCF" in goals
     assert "Unlock Peer Relative" in goals
+    assert any(row["focus_command"] == "make focus-price TICKER=AMD" for row in amd_rows if row["blocking_dataset"] == "prices")
+    assert any(row["focus_command"] == "make focus-fundamentals TICKER=AMD" for row in amd_rows if row["blocking_dataset"] == "fundamentals")
+    assert any(row["focus_command"] == "make focus-peers TICKER=AMD" for row in amd_rows if row["blocking_dataset"] == "peers")
     assert goals.index("Add Earnings Context") > goals.index("Unlock Peer Relative")
     assert goals.index("Add Analyst Estimate Context") > goals.index("Unlock Peer Relative")
 
@@ -237,6 +240,7 @@ def test_data_onboarding_cli_wizard_json(tmp_path: Path, capsys):
 
     assert "data_coverage_wizard" in payload
     assert any(row["unlock_goal"] == "Unlock DCF" for row in payload["data_coverage_wizard"])
+    assert "focus_command" in payload["data_coverage_wizard"][0]
 
 
 def test_data_onboarding_cli_price_worklist_json(tmp_path: Path, capsys):
@@ -306,6 +310,7 @@ def test_data_onboarding_cli_fundamentals_peer_worklist_json(tmp_path: Path, cap
     assert "fundamentals_peer_worklist" in payload
     assert payload["fundamentals_peer_worklist"][0]["ticker"] == "AMD"
     assert "missing_required_for_dcf" in payload["fundamentals_peer_worklist"][0]
+    assert payload["fundamentals_peer_worklist"][0]["focus_command"] == "make focus-fundamentals TICKER=AMD"
 
 
 def test_fundamentals_peer_worklist_prioritizes_dcf_then_peer_gaps(tmp_path: Path):
@@ -316,10 +321,12 @@ def test_fundamentals_peer_worklist_prioritizes_dcf_then_peer_gaps(tmp_path: Pat
 
     assert worklist["AMD"]["priority"] == 1
     assert worklist["AMD"]["dcf_ready"] is False
+    assert worklist["AMD"]["focus_command"] == "make focus-fundamentals TICKER=AMD"
     assert "fundamentals row" in worklist["AMD"]["missing_required_for_dcf"]
     assert worklist["NVDA"]["priority"] == 2
     assert worklist["NVDA"]["dcf_ready"] is True
     assert worklist["NVDA"]["peer_ready"] is False
+    assert worklist["NVDA"]["focus_command"] == "make focus-peers TICKER=NVDA"
 
 
 def test_data_onboarding_cli_optional_context_worklist_json(tmp_path: Path, capsys):

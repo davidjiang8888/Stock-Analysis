@@ -6597,6 +6597,7 @@ def render_data_health(provider) -> None:
                             "blocking_dataset",
                             "current_status",
                             "recommended_action",
+                            "focus_command",
                             "safe_next_step",
                         ]
                         if column in wizard_frame.columns
@@ -6641,6 +6642,7 @@ def render_data_health(provider) -> None:
                             "peer_ready",
                             "missing_required_for_dcf",
                             "missing_required_for_peer_relative",
+                            "focus_command",
                             "example_command",
                         ]
                         if column in fundamentals_peer_worklist_frame.columns

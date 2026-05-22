@@ -80,6 +80,7 @@ FUNDAMENTALS_PEER_WORKLIST_COLUMNS = [
     "missing_required_for_peer_relative",
     "recommended_action",
     "target_file",
+    "focus_command",
     "example_command",
     "safe_next_step",
 ]
@@ -226,6 +227,7 @@ WIZARD_COLUMNS = [
     "why_it_matters",
     "recommended_action",
     "target_file",
+    "focus_command",
     "example_command",
     "safe_next_step",
 ]
@@ -393,6 +395,7 @@ class FundamentalsPeerWorklistRow:
     missing_required_for_peer_relative: str
     recommended_action: str
     target_file: str
+    focus_command: str
     example_command: str
     safe_next_step: str
 
@@ -509,6 +512,7 @@ class DataCoverageWizardRow:
     why_it_matters: str
     recommended_action: str
     target_file: str
+    focus_command: str
     example_command: str
     safe_next_step: str
 
@@ -873,6 +877,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     why_it_matters="Monthly ranking needs enough verified local price history for momentum and setup context.",
                     recommended_action=price_action,
                     target_file="data/imports/prices.csv",
+                    focus_command=focus_command_for_ticker("prices", row.ticker),
                     example_command=price_command,
                     safe_next_step="Use make price-normalize for downloaded CSVs, then make price-validate and make price-preview before applying.",
                 )
@@ -888,6 +893,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     why_it_matters="Track-record comparisons need longer dated local history for picks and benchmark returns.",
                     recommended_action=price_action,
                     target_file="data/imports/prices.csv",
+                    focus_command=focus_command_for_ticker("prices", row.ticker),
                     example_command=price_command,
                     safe_next_step="Add verified historical OHLCV rows locally; do not infer or backfill synthetic returns.",
                 )
@@ -903,6 +909,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     why_it_matters="DCF needs free cash flow or revenue plus FCF margin, and shares outstanding.",
                     recommended_action="Run SEC staging for candidate fundamentals, then validate and preview before applying.",
                     target_file="data/imports/fundamentals.csv",
+                    focus_command=focus_command_for_ticker("fundamentals", row.ticker),
                     example_command=f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {row.ticker}",
                     safe_next_step="Review staged SEC-derived fields before import merge; leave unavailable fields blank.",
                 )
@@ -918,6 +925,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     why_it_matters="Peer-relative valuation needs manual peer mappings plus peer fundamentals and price or market-cap context.",
                     recommended_action="Add manually researched peer mappings and peer data through local CSV imports.",
                     target_file="data/imports/peers.csv",
+                    focus_command=focus_command_for_ticker("peers", row.ticker),
                     example_command="python3 -m src.data_onboarding --write-templates",
                     safe_next_step="Use data/imports/peers.csv for mappings; never fabricate peer relationships.",
                 )
@@ -933,6 +941,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     why_it_matters="Earnings context improves the stock report but does not block core ranking or valuation.",
                     recommended_action="Add earnings rows manually only from a trusted source.",
                     target_file="data/imports/earnings.csv",
+                    focus_command="",
                     example_command="python3 -m src.data_onboarding --write-templates",
                     safe_next_step="Leave earnings blank when no trusted local source exists.",
                 )
@@ -948,6 +957,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     why_it_matters="Estimate context is optional and should not be treated as a recommendation.",
                     recommended_action="Add analyst estimates only if you have a trusted local source.",
                     target_file="data/imports/analyst_estimates.csv",
+                    focus_command="",
                     example_command="python3 -m src.data_onboarding --write-templates",
                     safe_next_step="It is safe to leave analyst estimates missing.",
                 )
@@ -1068,6 +1078,11 @@ def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> lis
                 missing_required_for_peer_relative=coverage.missing_required_for_peer_relative,
                 recommended_action=recommended_action,
                 target_file=target_file,
+                focus_command=(
+                    focus_command_for_ticker("fundamentals", coverage.ticker)
+                    if not coverage.dcf_ready
+                    else focus_command_for_ticker("peers", coverage.ticker)
+                ),
                 example_command=example_command,
                 safe_next_step=safe_next_step,
             )
@@ -1945,6 +1960,8 @@ def _print_wizard(payload: dict[str, Any]) -> None:
             f"- P{row['priority']} {row['unlock_goal']}{ticker}: "
             f"{row['blocking_dataset']} - {row['recommended_action']}"
         )
+        print(f"  focus: {row.get('focus_command') or '-'}")
+        print(f"  command: {row['example_command']}")
     print(f"Wizard rows: {len(payload['data_coverage_wizard'])}")
 
 
@@ -1973,6 +1990,8 @@ def _print_fundamentals_peer_worklist(payload: dict[str, Any]) -> None:
             f"missing_peer={row['missing_required_for_peer_relative'] or '-'}"
         )
         print(f"  next: {row['recommended_action']}")
+        print(f"  focus: {row.get('focus_command') or '-'}")
+        print(f"  command: {row['example_command']}")
     print(f"Fundamentals/peer worklist rows: {len(payload['fundamentals_peer_worklist'])}")
 
 
