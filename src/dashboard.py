@@ -5240,6 +5240,17 @@ def overview_bundle_handoff_cards(
             if "step_order" in matches.columns:
                 matches["step_order"] = pd.to_numeric(matches["step_order"], errors="coerce")
                 matches = matches.sort_values("step_order")
+            if not follow_up_command:
+                runbook_commands = [
+                    normalize_operator_command(format_missing(row.get("command"), ""))
+                    for _, row in matches.iterrows()
+                    if format_missing(row.get("command"), "")
+                ]
+                if runbook_commands:
+                    follow_up_command = next(
+                        (command for command in runbook_commands if command != primary_command),
+                        runbook_commands[0],
+                    )
             refresh_labels = {"refresh status outputs", "refresh onboarding outputs"}
             refresh_matches = matches.loc[
                 matches.get("step_label", pd.Series(dtype=str)).astype(str).str.lower().isin(refresh_labels)

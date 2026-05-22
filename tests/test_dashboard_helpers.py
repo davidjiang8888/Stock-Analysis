@@ -5791,6 +5791,48 @@ def test_overview_bundle_handoff_cards_surface_follow_through_safely():
     assert "sell" not in rendered
 
 
+def test_overview_bundle_handoff_cards_use_runbook_follow_through_when_bundle_field_is_missing():
+    bundles = pd.DataFrame(
+        [
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "ticker_count": 3,
+                "tickers": "META,NVDA,TSLA",
+                "goal_summary": "Advance explicit local DCF readiness for the listed tickers",
+                "primary_command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=META,NVDA,TSLA",
+                "follow_up_command": "",
+            }
+        ]
+    )
+    runbook = pd.DataFrame(
+        [
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "step_order": 1,
+                "step_label": "Run bundle command",
+                "command": "SEC_USER_AGENT='Name email@example.com' make sec-stage TICKERS=META,NVDA,TSLA",
+            },
+            {
+                "bundle_name": "SEC Fundamentals Bundle",
+                "lane": "fundamentals",
+                "scope": "holdings_first",
+                "step_order": 2,
+                "step_label": "Review follow-up output",
+                "command": "make imports-validate",
+            },
+        ]
+    )
+
+    cards = dashboard.overview_bundle_handoff_cards(bundles, None, runbook)
+
+    assert cards[1]["title"] == "make imports-validate"
+    assert cards[1]["command"] == "make imports-validate"
+
+
 def test_overview_bundle_handoff_cards_use_monthly_front_door_for_price_bundle_refresh():
     bundles = pd.DataFrame(
         [
