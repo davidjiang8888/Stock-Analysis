@@ -4839,6 +4839,7 @@ def test_overview_interpretation_guardrail_card_flags_partial_workflow():
     rendered = " ".join(str(value) for value in card.values()).lower()
 
     assert "workflow" in card["title"].lower()
+    assert card["command"] == "make status-check TOP_N=5"
     assert "the workflow is usable, but some outputs should still be treated as partial" in rendered
     assert "19 visible data gaps remain" in rendered
     assert "buy" not in rendered
@@ -4864,6 +4865,7 @@ def test_overview_interpretation_guardrail_card_flags_needs_data_workflow():
     rendered = " ".join(str(value) for value in card.values()).lower()
 
     assert "needs data workflow" in rendered
+    assert card["command"] == "make onboarding"
     assert "coverage is still the main blocker" in rendered
     assert "3/12 tickers have usable prices" in rendered
     assert "buy" not in rendered
@@ -4889,6 +4891,7 @@ def test_overview_interpretation_guardrail_card_supports_ready_workflow():
     rendered = " ".join(str(value) for value in card.values()).lower()
 
     assert "ready workflow" in rendered
+    assert card["command"] == "make dashboard-smoke"
     assert "10/10 tickers have prices" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

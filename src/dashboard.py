@@ -4160,12 +4160,14 @@ def overview_interpretation_guardrail_card(
             f"{price_ready}/{total_tickers} tickers have prices, {dcf_ready} are DCF-ready, and {peer_ready} have peer-relative context."
         )
         badges = ["ready", "read with context"]
+        command = "make dashboard-smoke"
     elif health_label == "Partial":
         body = (
             f"The workflow is usable, but some outputs should still be treated as partial. "
             f"{data_gaps} visible data gaps remain, so rankings and valuation context should stay tied to the missing-data notes."
         )
         badges = ["partial", "check gaps"]
+        command = "make status-check TOP_N=5"
     else:
         body = (
             f"Coverage is still the main blocker. "
@@ -4173,12 +4175,14 @@ def overview_interpretation_guardrail_card(
             "Use onboarding and Data Health before leaning on downstream rankings."
         )
         badges = ["needs data", "coverage first"]
+        command = "make onboarding"
 
     return {
         "kicker": "INTERPRETATION GUARDRAIL",
         "title": f"{health_label} workflow · {health_score}/100",
         "body": body,
         "badges": badges,
+        "command": command,
     }
 
 
