@@ -4996,7 +4996,8 @@ def test_overview_workflow_path_cards_use_structured_project_status_steps():
     assert cards[0]["title"] == "make focus-price TICKER=META"
     assert cards[1]["title"] == "make imports-validate"
     assert cards[2]["title"] == "make verify"
-    assert "data/imports/fundamentals.csv" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -5016,8 +5017,38 @@ def test_overview_workflow_path_cards_use_command_family_fallback_when_reason_is
 
     assert cards[0]["title"] == "make imports-validate"
     assert "staged flow" in [badge.lower() for badge in cards[0]["badges"]]
-    assert "use the staged local workflow next" in cards[0]["body"].lower()
+    assert "make imports-preview" in cards[0]["body"].lower()
+    assert "make imports-apply" in cards[0]["body"].lower()
     assert "not available" not in cards[0]["body"].lower()
+
+
+def test_overview_workflow_path_cards_keep_structured_staged_follow_through_visible_when_reason_is_generic():
+    payload = {
+        "recommended_next_command_rows": [
+            {
+                "Step": "Advance staged fundamentals import",
+                "Command": "make imports-validate",
+                "Reason": "Use staged local imports if the free refresh fails.",
+            },
+            {
+                "Step": "Advance staged price import",
+                "Command": "make price-validate",
+                "Reason": "Use staged local imports if the free refresh fails.",
+            },
+        ]
+    }
+
+    cards = dashboard.overview_workflow_path_cards(payload, None)
+
+    assert cards[0]["title"] == "make imports-validate"
+    assert "make imports-preview" in cards[0]["body"].lower()
+    assert "make imports-apply" in cards[0]["body"].lower()
+    assert cards[1]["title"] == "make price-validate"
+    assert "make price-preview" in cards[1]["body"].lower()
+    assert "make price-apply" in cards[1]["body"].lower()
+    assert "use staged local imports if the free refresh fails" not in " ".join(
+        card["body"] for card in cards[:2]
+    ).lower()
 
 
 def test_overview_workflow_path_cards_use_bundle_fallback_when_reason_is_missing():

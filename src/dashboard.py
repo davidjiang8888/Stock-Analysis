@@ -6146,6 +6146,7 @@ def overview_workflow_path_cards(
             command = format_missing(row.get("Command"), "make status-check TOP_N=5")
             reason = compact_reason(row.get("Reason"), max_sentences=2, max_chars=220)
             has_reason = bool(reason and reason != "Not available")
+            lower_reason = reason.lower() if has_reason else ""
             body = reason or "Repo-native next step from the current local workflow snapshot."
             badges = ["today", "data first"] if index == 1 else ["workflow", "command"]
             lowered = command.lower()
@@ -6161,7 +6162,19 @@ def overview_workflow_path_cards(
             elif "bundle-" in lowered:
                 badges = ["today", "bundle first"] if index == 1 else ["bundle first", "workflow"]
                 body = reason if has_reason else "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
-            elif "runbook-" in lowered or "imports-" in lowered:
+            elif "imports-" in lowered:
+                badges = ["today", "staged flow"] if index == 1 else ["staged flow", "workflow"]
+                if has_reason and "make imports-preview" in lower_reason and "make imports-apply" in lower_reason:
+                    body = reason
+                else:
+                    body = "Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
+            elif lowered == "make price-validate":
+                badges = ["today", "staged flow"] if index == 1 else ["staged flow", "workflow"]
+                if has_reason and "make price-preview" in lower_reason and "make price-apply" in lower_reason:
+                    body = reason
+                else:
+                    body = "Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
+            elif "runbook-" in lowered:
                 badges = ["today", "staged flow"] if index == 1 else ["staged flow", "workflow"]
                 body = reason if has_reason else "Use the staged local workflow next so validation and preview safeguards stay in place."
             cards.append(
