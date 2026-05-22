@@ -625,9 +625,9 @@ def main() -> None:
             **result,
             **write_result,
             "recommended_next_commands": [
-                "python -m src.stock_report --validate-imports",
-                "python -m src.stock_report --preview-import-merge",
-                "python -m src.stock_report --apply-import-merge",
+                "make imports-validate",
+                "make imports-preview",
+                "make imports-apply",
             ],
         }
         if args.json:

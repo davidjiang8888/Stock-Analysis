@@ -476,6 +476,46 @@ def test_stock_report_cli_apply_import_merge_json(tmp_path: Path, capsys):
         os.chdir(previous_cwd)
 
 
+def test_stock_report_cli_sec_stage_json_surfaces_make_based_follow_up(monkeypatch, tmp_path: Path, capsys):
+    (tmp_path / "data").mkdir()
+    previous_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    previous_argv = sys.argv[:]
+
+    monkeypatch.setattr(
+        "src.stock_report.build_sec_fundamentals_rows",
+        lambda requested_tickers, user_agent, cache_dir, refresh: {
+            "requested_tickers": requested_tickers,
+            "resolved_tickers": requested_tickers,
+            "unresolved_tickers": [],
+            "rows": [{"ticker": requested_tickers[0], "revenue": 1000}],
+            "warnings": [],
+            "row_summaries": [{"ticker": requested_tickers[0], "populated_fields": ["revenue"], "missing_fields": [], "warnings": []}],
+        },
+    )
+    monkeypatch.setattr(
+        "src.stock_report.write_sec_fundamentals_import",
+        lambda rows, output_path, overwrite: {
+            "rows_written": len(rows),
+            "staged_row_count": len(rows),
+            "output_path": str(output_path),
+        },
+    )
+
+    sys.argv = ["python", "--project-root", str(tmp_path), "--sec-stage-fundamentals", "--tickers", "NVDA", "--json"]
+    try:
+        main()
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["recommended_next_commands"] == [
+            "make imports-validate",
+            "make imports-preview",
+            "make imports-apply",
+        ]
+    finally:
+        sys.argv = previous_argv
+        os.chdir(previous_cwd)
+
+
 def test_stock_report_from_rich_local_fixture_is_serializable_and_includes_validation(tmp_path: Path):
     payload = create_stock_report_payload("ALFA", provider_name="local", base_dir=_copy_rich_fixture(tmp_path))
 
