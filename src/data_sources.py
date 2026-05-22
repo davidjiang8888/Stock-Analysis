@@ -57,6 +57,8 @@ class DataSourceStatus:
     requires_api_key: bool
     expected_local_file: str
     fallback_action: str
+    focus_command: str
+    example_command: str
     notes: str
     local_file: str
     row_count: int
@@ -416,6 +418,8 @@ def build_data_source_status(
                 requires_api_key=entry.requires_api_key,
                 expected_local_file=entry.expected_local_file,
                 fallback_action=entry.fallback_action,
+                focus_command=_gap_focus_command(entry.dataset, ""),
+                example_command=_gap_example_command(entry.dataset, ""),
                 notes=notes,
                 local_file=local_file,
                 row_count=row_count,
@@ -550,6 +554,10 @@ def _print_human(payload: dict[str, Any]) -> None:
             f"- {row['dataset']}: {row['availability_status']} "
             f"rows={row['row_count']} source={row['source_name']}"
         )
+        if row.get("focus_command"):
+            print(f"  focus: {row['focus_command']}")
+        if row.get("example_command"):
+            print(f"  command: {row['example_command']}")
     print(f"Data gaps: {len(payload['data_gaps'])}")
     for row in payload["data_gaps"][:20]:
         ticker = f" {row['ticker']}" if row["ticker"] else ""

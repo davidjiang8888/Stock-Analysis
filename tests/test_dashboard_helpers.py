@@ -365,6 +365,39 @@ def test_data_source_status_tables_handle_missing_outputs(tmp_path):
     assert dashboard.friendly_data_source_status("optional_unofficial") == "Optional unofficial"
 
 
+def test_data_source_status_table_columns_surface_command_fields():
+    frame = pd.DataFrame(
+        [
+            {
+                "dataset": "fundamentals",
+                "availability_status": "partial",
+                "required_for": "valuation",
+                "fallback_action": "Start with make status.",
+                "focus_command": "make status",
+                "example_command": "make runbook-fundamentals-broader",
+                "local_file": "data/fundamentals.csv",
+                "row_count": 6,
+                "validation_warnings": "as_of_date missing",
+                "source_name": "fixture",
+                "source_type": "local_csv",
+                "expected_local_file": "data/fundamentals.csv",
+                "notes": "fixture",
+            }
+        ]
+    )
+
+    columns = dashboard.data_source_status_table_columns(frame)
+
+    assert columns[:6] == [
+        "dataset",
+        "availability_status",
+        "required_for",
+        "fallback_action",
+        "focus_command",
+        "example_command",
+    ]
+
+
 def test_data_source_status_tables_refresh_stale_gap_report_columns(tmp_path):
     data_dir = tmp_path / "data"
     outputs_dir = tmp_path / "outputs"

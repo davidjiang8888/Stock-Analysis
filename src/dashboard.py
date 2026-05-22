@@ -262,6 +262,27 @@ def friendly_data_source_status(value: object) -> str:
     return DATA_SOURCE_STATUS_LABELS.get(format_missing(value, "-"), format_missing(value, "-"))
 
 
+def data_source_status_table_columns(frame: pd.DataFrame | None) -> list[str]:
+    if frame is None:
+        return []
+    columns = [
+        "dataset",
+        "availability_status",
+        "required_for",
+        "fallback_action",
+        "focus_command",
+        "example_command",
+        "local_file",
+        "row_count",
+        "validation_warnings",
+        "source_name",
+        "source_type",
+        "expected_local_file",
+        "notes",
+    ]
+    return [column for column in columns if column in frame.columns]
+
+
 def summarize_price_update_status(status_frame: pd.DataFrame | None) -> dict[str, int]:
     if status_frame is None or status_frame.empty or "status" not in status_frame.columns:
         return {}
@@ -6930,19 +6951,7 @@ def render_data_health(provider) -> None:
                 display_status = status_frame.copy()
                 if "availability_status" in display_status.columns:
                     display_status["availability_status"] = display_status["availability_status"].map(friendly_data_source_status)
-                columns = [
-                    column
-                    for column in [
-                        "dataset",
-                        "availability_status",
-                        "row_count",
-                        "source_name",
-                        "required_for",
-                        "fallback_action",
-                        "notes",
-                    ]
-                    if column in display_status.columns
-                ]
+                columns = data_source_status_table_columns(display_status)
                 st.dataframe(clean_display_frame(display_status[columns]), width="stretch", hide_index=True)
             else:
                 render_notice_card(

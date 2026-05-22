@@ -74,11 +74,16 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
 
     payload = build_data_source_payload(tmp_path)
     statuses = {row["dataset"]: row["availability_status"] for row in payload["data_sources"]}
+    source_lookup = {row["dataset"]: row for row in payload["data_sources"]}
 
     assert statuses["prices"] == "available"
     assert statuses["peers"] == "manual_only"
     assert statuses["earnings"] == "manual_only"
     assert statuses["analyst_estimates"] == "manual_only"
+    assert source_lookup["fundamentals"]["focus_command"] == "make status"
+    assert source_lookup["fundamentals"]["example_command"] == "make runbook-fundamentals-broader"
+    assert source_lookup["smh_holdings"]["focus_command"] == "make templates"
+    assert source_lookup["sp500_constituents"]["focus_command"] == "make universe-preview"
     assert any(gap["dataset"] == "prices" and gap["ticker"] == "MSFT" for gap in payload["data_gaps"])
     gap_lookup = {gap["dataset"]: gap for gap in payload["data_gaps"] if not gap["ticker"]}
     assert "make status" in gap_lookup["fundamentals"]["recommended_action"]
@@ -108,6 +113,8 @@ def test_write_data_source_outputs_creates_csvs(tmp_path: Path):
     assert status_path.exists()
     assert gap_path.exists()
     assert "dataset" in pd.read_csv(status_path).columns
+    assert "focus_command" in pd.read_csv(status_path).columns
+    assert "example_command" in pd.read_csv(status_path).columns
     assert "recommended_action" in pd.read_csv(gap_path).columns
     assert "focus_command" in pd.read_csv(gap_path).columns
     assert "example_command" in pd.read_csv(gap_path).columns
@@ -125,5 +132,7 @@ def test_data_sources_cli_check_json(tmp_path: Path, capsys):
 
     assert "data_sources" in payload
     assert "data_gaps" in payload
+    assert "focus_command" in payload["data_sources"][0]
+    assert "example_command" in payload["data_sources"][0]
     assert "focus_command" in payload["data_gaps"][0]
     assert "example_command" in payload["data_gaps"][0]
