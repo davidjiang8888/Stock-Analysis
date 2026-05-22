@@ -725,6 +725,32 @@ def test_action_queue_uses_status_for_unknown_global_gap_fallback():
     assert row.example_command == "make status"
 
 
+def test_action_queue_uses_validate_first_fundamentals_global_gap_fallback_without_bundles():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(),
+        data_gaps=pd.DataFrame(
+            [
+                {
+                    "dataset": "fundamentals",
+                    "ticker": "",
+                    "status": "partial",
+                    "reason": "Staged fundamentals need follow-through.",
+                    "recommended_action": "Run staged fundamentals follow-through.",
+                    "local_file": "data/imports/fundamentals.csv",
+                }
+            ]
+        ),
+        data_quality=pd.DataFrame(),
+        command_bundles=pd.DataFrame(),
+    )
+
+    row = rows[0]
+    assert row.focus_command == "make sec-validate"
+    assert row.example_command == "make sec-validate"
+
+
 def test_action_queue_payload_refreshes_stale_data_gap_actions(tmp_path: Path):
     outputs_dir = tmp_path / "outputs"
     data_dir = tmp_path / "data"

@@ -282,7 +282,7 @@ def _bundle_runbook_shortcut(command_bundles: pd.DataFrame, lane: str) -> str:
 
 def _global_gap_command(dataset: str, command_bundles: pd.DataFrame) -> str:
     if dataset == "fundamentals":
-        return _bundle_runbook_shortcut(command_bundles, "fundamentals") or "make sec-preview"
+        return _bundle_runbook_shortcut(command_bundles, "fundamentals") or "make sec-validate"
     if dataset == "peers":
         return _bundle_runbook_shortcut(command_bundles, "peers") or "make templates"
     if dataset == "smh_holdings":
