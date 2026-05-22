@@ -3066,7 +3066,7 @@ def workflow_command_rows() -> list[dict[str, str]]:
         {"Step": "Deterministic verification", "Command": "make verify"},
         {"Step": "Extended validation", "Command": "make validate-all"},
         {"Step": "Dashboard smoke check", "Command": "make dashboard-smoke"},
-        {"Step": "Daily refresh", "Command": "make daily"},
+        {"Step": "Optional broader pipeline", "Command": "make daily"},
         {"Step": "Data coverage", "Command": "make status"},
         {"Step": "Manual price normalization", "Command": "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"},
         {"Step": "Price import safety", "Command": "make price-validate && make price-preview && make price-apply"},
@@ -7280,7 +7280,7 @@ with st.sidebar:
     render_action_cards(dashboard_navigation_cards())
     render_context_note("Safe local commands.", "These commands are read-only or preview-first by default.")
     st.code(
-        "make help\nmake status\nmake focus-price TICKER=AMD\nmake verify\nmake dashboard-smoke\nmake daily\nmake dashboard",
+        "make help\nmake status\nmake focus-price TICKER=AMD\nmake runbook-prices-broader\nmake verify\nmake dashboard-smoke\nmake dashboard",
         language="bash",
     )
     render_context_note("Safety note.", "CLI-only applies remain the safest path for staged imports and universe changes.", tone="warning")

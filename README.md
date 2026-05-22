@@ -723,6 +723,7 @@ The easiest path is now:
 make status
 # then run the first focus or bundle shortcut that status prints
 make verify
+make dashboard-smoke
 make dashboard
 ```
 
