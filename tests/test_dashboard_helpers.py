@@ -4000,6 +4000,42 @@ def test_data_health_action_path_cards_handle_missing_inputs_gracefully():
     assert "sell" not in rendered
 
 
+def test_data_health_action_path_cards_use_lane_and_queue_front_doors_when_commands_are_missing():
+    actions = pd.DataFrame(
+        [
+            {
+                "priority": 2,
+                "dataset": "fundamentals",
+                "ticker": "AMD",
+                "reason": "DCF inputs are still incomplete.",
+                "recommended_action": "Run SEC staging for fundamentals, then validate and preview before applying.",
+            }
+        ]
+    )
+    queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "NVDA",
+                "title": "Repair prices",
+                "reason": "NVDA update failed during remote refresh.",
+            }
+        ]
+    )
+
+    cards = dashboard.data_health_action_path_cards(actions, queue)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["command"] == "make action-queue-check TOP_N=10"
+    assert any(card.get("command") == "make focus-fundamentals TICKER=AMD" for card in cards)
+    assert "make action-queue-check top_n=10" in rendered
+    assert "make focus-fundamentals ticker=amd" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_data_health_command_bundle_cards_surface_holdings_first_commands():
     bundles = pd.DataFrame(
         [

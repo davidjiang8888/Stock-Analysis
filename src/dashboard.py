@@ -2589,7 +2589,10 @@ def data_health_action_path_cards(
                         f"{_action_path_body(row)}"
                     ),
                     "badges": [f"P{format_missing(row.get('priority'), '-')}", dataset],
-                    "command": preferred_row_command(row, "make status"),
+                    "command": preferred_row_command(
+                        row,
+                        ticker_focus_command(dataset, row.get("ticker"), "make data-wizard TOP_N=10"),
+                    ),
                 }
             )
 
@@ -2604,7 +2607,7 @@ def data_health_action_path_cards(
                     "title": format_missing(signal.get("title"), "Priority action"),
                     "body": compact_reason(signal.get("body"), max_sentences=2, max_chars=220),
                     "badges": [str(item) for item in signal.get("badges", [])][:2] or ["priority"],
-                    "command": format_missing(signal.get("command"), "make status"),
+                    "command": format_missing(signal.get("command"), "make action-queue-check TOP_N=10"),
                 },
             )
 
