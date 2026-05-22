@@ -1363,11 +1363,11 @@ If you want to enrich canonical local fundamentals safely, use the staged SEC + 
 
 ```bash
 export SEC_USER_AGENT="Your Name your.email@example.com"
-make sec-stage
+make sec-stage TICKERS=NVDA,MSFT
 make imports-validate
 make imports-preview
 make imports-apply
-python3 -m src.stock_report --validate-local-data
+make validate-data
 ```
 
 This flow is explicit by design:
