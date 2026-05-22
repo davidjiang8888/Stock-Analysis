@@ -561,8 +561,8 @@ def test_action_queue_loader_and_summary_handle_missing_outputs(tmp_path):
 def test_top_priority_signals_are_compact_and_sorted():
     queue = pd.DataFrame(
         [
-            {"priority": 2, "urgency": "high", "action_type": "fundamentals", "ticker": "NVDA", "title": "Improve fundamentals", "reason": "Need SEC staging.", "example_command": "make sec-stage"},
-            {"priority": 1, "urgency": "critical", "action_type": "prices", "ticker": "AMD", "title": "Repair prices", "reason": "No local prices.", "example_command": "make price-refresh"},
+            {"priority": 2, "urgency": "high", "action_type": "fundamentals", "ticker": "NVDA", "title": "Improve fundamentals", "reason": "Need SEC staging.", "focus_command": "make focus-fundamentals TICKER=NVDA", "example_command": "make sec-stage"},
+            {"priority": 1, "urgency": "critical", "action_type": "prices", "ticker": "AMD", "title": "Repair prices", "reason": "No local prices.", "focus_command": "make focus-price TICKER=AMD", "example_command": "make price-refresh"},
         ]
     )
 
@@ -570,6 +570,7 @@ def test_top_priority_signals_are_compact_and_sorted():
 
     assert signals[0]["title"] == "Repair prices"
     assert "P1" in signals[0]["badges"]
+    assert signals[0]["command"] == "make focus-price TICKER=AMD"
     assert signals[1]["title"] == "Improve fundamentals"
 
 
@@ -608,6 +609,7 @@ def test_project_status_helpers_turn_payload_into_cards_and_commands():
                 "dataset": "prices",
                 "ticker": "NVDA",
                 "reason": "Short local price history.",
+                "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "make price-refresh",
             }
         ],
@@ -622,6 +624,7 @@ def test_project_status_helpers_turn_payload_into_cards_and_commands():
     assert "4/10" in rendered
     assert "9/20" in rendered
     assert actions[0][0] == "P1 prices - NVDA"
+    assert actions[0][2] == "make focus-price TICKER=NVDA"
     assert actions[0][3] == "danger"
     assert commands[0]["Command"] == "make onboarding"
 
@@ -2182,6 +2185,7 @@ def test_data_health_fix_first_cards_prioritize_actions():
                 "ticker": "MSFT",
                 "reason": "Needs verified local fundamentals.",
                 "recommended_action": "Run SEC staging, then validate and preview.",
+                "focus_command": "make focus-fundamentals TICKER=MSFT",
                 "example_command": "make sec-stage TICKERS=MSFT",
             },
             {
@@ -2190,6 +2194,7 @@ def test_data_health_fix_first_cards_prioritize_actions():
                 "ticker": "NVDA",
                 "reason": "Short local price history.",
                 "recommended_action": "Normalize verified downloaded OHLCV rows.",
+                "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual",
             },
         ]
@@ -2200,7 +2205,7 @@ def test_data_health_fix_first_cards_prioritize_actions():
 
     assert cards[0][0] == "P1 prices - NVDA"
     assert cards[0][3] == "danger"
-    assert "price-normalize" in rendered
+    assert "make focus-price ticker=nvda" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 
@@ -2213,6 +2218,7 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
                 "dataset": "prices",
                 "ticker": "NVDA",
                 "recommended_action": "Add verified local price history first.",
+                "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "make price-worklist",
             },
             {
@@ -2220,6 +2226,7 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
                 "dataset": "fundamentals",
                 "ticker": "AMD",
                 "recommended_action": "Run SEC staging for fundamentals.",
+                "focus_command": "make focus-fundamentals TICKER=AMD",
                 "example_command": "make sec-stage TICKERS=AMD",
             },
             {
@@ -2227,6 +2234,7 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
                 "dataset": "peers",
                 "ticker": "TSLA",
                 "recommended_action": "Add manually researched peers.",
+                "focus_command": "make focus-peers TICKER=TSLA",
                 "example_command": "make templates",
             },
         ]
@@ -2240,6 +2248,7 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
                 "ticker": "NVDA",
                 "title": "Repair prices",
                 "reason": "Need more local rows.",
+                "focus_command": "make focus-price TICKER=NVDA",
                 "example_command": "make price-worklist",
             }
         ]
@@ -2250,10 +2259,11 @@ def test_data_health_action_path_cards_surface_best_and_lane_commands():
 
     assert len(cards) == 4
     assert cards[0]["kicker"] == "BEST NEXT"
+    assert cards[0]["command"] == "make focus-price TICKER=NVDA"
     assert "price path" in rendered
     assert "fundamentals path" in rendered
     assert "peer path" in rendered
-    assert "make sec-stage tickers=amd" in rendered
+    assert "make focus-fundamentals ticker=amd" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

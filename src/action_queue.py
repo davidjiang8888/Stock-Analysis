@@ -8,7 +8,7 @@ from typing import Any
 
 import pandas as pd
 
-from src.data_onboarding import build_onboarding_payload
+from src.data_onboarding import build_onboarding_payload, focus_command_for_ticker
 from src.data_sources import build_data_source_payload
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.research_health import run as run_research_health
@@ -22,6 +22,7 @@ ACTION_QUEUE_COLUMNS = [
     "title",
     "status",
     "recommended_action",
+    "focus_command",
     "example_command",
     "source_file",
     "source_artifact",
@@ -40,6 +41,7 @@ class ActionQueueItem:
     title: str
     status: str
     recommended_action: str
+    focus_command: str
     example_command: str
     source_file: str
     source_artifact: str
@@ -94,6 +96,7 @@ def build_action_queue_rows(
                     title=f"Repair price history for {ticker}" if ticker else "Repair price history",
                     status=status,
                     recommended_action=str(row.get("recommended_action", "")).strip() or "Use staged manual prices in data/imports/prices.csv.",
+                    focus_command=focus_command_for_ticker("prices", ticker),
                     example_command=f"python3 -m src.data_update --tickers {ticker}" if ticker else "make price-refresh",
                     source_file="data/imports/prices.csv",
                     source_artifact="outputs/price_update_status.csv",
@@ -115,6 +118,7 @@ def build_action_queue_rows(
                         title=f"Add enough local price history for {ticker}",
                         status=status,
                         recommended_action=str(row.get("NextBestAction", "")).strip() or "Refresh or manually import prices for this ticker.",
+                        focus_command=focus_command_for_ticker("prices", ticker),
                         example_command=f"python3 -m src.data_update --tickers {ticker}" if ticker else "make price-refresh",
                         source_file="data/imports/prices.csv",
                         source_artifact="outputs/data_quality_wizard.csv",
@@ -131,6 +135,7 @@ def build_action_queue_rows(
                         title=f"Improve research coverage for {ticker}",
                         status=status,
                         recommended_action=str(row.get("NextBestAction", "")).strip() or "Review the local missing-data fields and enrich what matters most.",
+                        focus_command="",
                         example_command="make onboarding",
                         source_file="outputs/data_quality_wizard.csv",
                         source_artifact="outputs/data_quality_wizard.csv",
@@ -144,6 +149,9 @@ def build_action_queue_rows(
             ticker = _normalized_ticker(row.get("ticker"))
             priority_value = int(pd.to_numeric(pd.Series([row.get("priority")]), errors="coerce").fillna(5).iloc[0])
             urgency = "critical" if priority_value == 1 else "high" if priority_value <= 3 else "medium"
+            focus_command = str(row.get("focus_command", "")).strip()
+            if not focus_command and ticker and dataset in {"prices", "fundamentals", "peers"}:
+                focus_command = focus_command_for_ticker(dataset, ticker)
             items.append(
                 ActionQueueItem(
                     priority=priority_value,
@@ -153,6 +161,7 @@ def build_action_queue_rows(
                     title=f"Improve {dataset} coverage for {ticker}".strip() if ticker else f"Improve {dataset} coverage".strip(),
                     status=str(row.get("status", "")).strip() or "pending",
                     recommended_action=str(row.get("recommended_action", "")).strip(),
+                    focus_command=focus_command,
                     example_command=str(row.get("example_command", "")).strip(),
                     source_file=str(row.get("target_file", "")).strip(),
                     source_artifact="outputs/data_onboarding_actions.csv",
@@ -181,6 +190,15 @@ def build_action_queue_rows(
                     title=f"Resolve {dataset} gap for {ticker}".strip() if ticker else f"Resolve {dataset} gap".strip(),
                     status=status or "gap",
                     recommended_action=str(row.get("recommended_action", "")).strip(),
+                    focus_command=(
+                        focus_command_for_ticker("prices", ticker)
+                        if dataset == "prices" and ticker
+                        else focus_command_for_ticker("fundamentals", ticker)
+                        if dataset == "fundamentals" and ticker
+                        else focus_command_for_ticker("peers", ticker)
+                        if dataset == "peers" and ticker
+                        else ""
+                    ),
                     example_command="make onboarding" if dataset in {"fundamentals", "peers", "earnings", "analyst_estimates"} else "make daily",
                     source_file=str(row.get("local_file", "")).strip(),
                     source_artifact="outputs/data_gap_report.csv",
@@ -249,6 +267,8 @@ def _print_human(payload: dict[str, Any]) -> None:
     for row in payload["action_queue"][:20]:
         ticker = f" {row['ticker']}" if row["ticker"] else ""
         print(f"- P{row['priority']} {row['action_type']}{ticker}: {row['recommended_action']}")
+        print(f"  focus: {row.get('focus_command') or '-'}")
+        print(f"  command: {row['example_command']}")
 
 
 def main() -> None:

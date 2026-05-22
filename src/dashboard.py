@@ -1186,6 +1186,13 @@ def ticker_focus_command(lane: str, ticker: object, fallback: str = "") -> str:
     return command_map.get(lane_key, fallback)
 
 
+def preferred_row_command(row: pd.Series | dict[str, object], fallback: str = "") -> str:
+    focus_command = ""
+    if hasattr(row, "get"):
+        focus_command = format_missing(row.get("focus_command"), fallback="")
+    return focus_command or format_missing(row.get("example_command") if hasattr(row, "get") else "", fallback)
+
+
 def format_value(value: object, fallback: str = "Not available") -> str:
     text = format_missing(value, fallback=fallback)
     if text == fallback:
@@ -2000,7 +2007,7 @@ def data_health_action_path_cards(
                         f"{compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
                     ),
                     "badges": [f"P{format_missing(row.get('priority'), '-')}", dataset],
-                    "command": format_missing(row.get("example_command"), "make onboarding"),
+                    "command": preferred_row_command(row, "make onboarding"),
                 }
             )
 
@@ -2484,7 +2491,7 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
         title = f"P{priority} {dataset}" + (f" - {ticker}" if ticker else "")
         reason = compact_reason(row.get("reason"), max_sentences=1, max_chars=150)
         action = format_missing(row.get("recommended_action"), fallback="Review local data coverage.")
-        command = format_missing(row.get("example_command"), fallback="make onboarding")
+        command = preferred_row_command(row, "make onboarding")
         body = f"{reason} {action}".strip()
         tone = "danger" if priority <= 1 else "warning" if priority <= 2 else "neutral"
         cards.append((title, body, command, tone))
@@ -2523,7 +2530,7 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
         ordered = subset.sort_values(["priority", "ticker", "blocking_dataset"], na_position="last")
         first = ordered.iloc[0]
         ticker = format_missing(first.get("ticker"), "portfolio")
-        command = format_missing(first.get("example_command"), "make onboarding")
+        command = preferred_row_command(first, "make onboarding")
         cards.append(
             {
                 "kicker": kicker,
@@ -3087,7 +3094,7 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
         dataset = format_missing(row.get("dataset"))
         ticker = format_missing(row.get("ticker"), fallback="")
         reason = format_missing(row.get("reason"), fallback="Local data coverage needs attention.")
-        command = format_missing(row.get("example_command"), fallback="make onboarding")
+        command = preferred_row_command(row, "make onboarding")
         title = f"P{priority} {dataset}" + (f" - {ticker}" if ticker else "")
         tone = "danger" if priority <= 1 else "warning" if priority <= 2 else "neutral"
         actions.append((title, reason, command, tone))
@@ -3436,7 +3443,7 @@ def holdings_deep_research_cards(
                             f"{compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
                         ),
                         "badges": ["fundamentals", format_missing(row.get("theme"), "theme")],
-                        "command": format_missing(row.get("example_command"), ""),
+                        "command": preferred_row_command(row, ""),
                     }
                 )
 
@@ -3458,7 +3465,7 @@ def holdings_deep_research_cards(
                             f"{compact_reason(row.get('recommended_action'), max_sentences=1, max_chars=150)}"
                         ),
                         "badges": ["peers", format_missing(row.get("theme"), "theme")],
-                        "command": format_missing(row.get("example_command"), ""),
+                        "command": preferred_row_command(row, ""),
                     }
                 )
 
@@ -3783,7 +3790,7 @@ def overview_deep_research_priority_bridge_cards(
                     "priority": float(row.get("priority", 999)),
                     "next_surface": next_surface,
                     "recommended_action": compact_reason(row.get("recommended_action"), max_sentences=1, max_chars=140),
-                    "command": format_missing(row.get("example_command"), "Not available"),
+                "command": preferred_row_command(row, "Not available"),
                 }
             )
 
@@ -4929,7 +4936,7 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
                     format_missing(row.get("action_type"), "action"),
                     format_missing(row.get("ticker"), "portfolio-wide"),
                 ],
-                "command": format_missing(row.get("example_command"), ""),
+                "command": preferred_row_command(row, ""),
             }
         )
     return rows

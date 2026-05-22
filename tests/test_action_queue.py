@@ -39,6 +39,7 @@ def test_action_queue_prioritizes_price_failures_before_optional_gaps():
 
     assert rows[0].action_type == "prices"
     assert rows[0].priority == 1
+    assert rows[0].focus_command == "make focus-price TICKER=NVDA"
     assert rows[-1].action_type == "analyst_estimates"
 
 
@@ -61,6 +62,7 @@ def test_action_queue_uses_research_health_when_price_data_is_missing():
 
     assert rows[0].ticker == "AMD"
     assert rows[0].action_type == "prices"
+    assert rows[0].focus_command == "make focus-price TICKER=AMD"
     assert "Refresh or import prices" in rows[0].recommended_action
 
 
@@ -75,8 +77,8 @@ def test_action_queue_write_output_creates_csv_from_existing_outputs(tmp_path: P
         encoding="utf-8",
     )
     (outputs_dir / "data_onboarding_actions.csv").write_text(
-        "priority,ticker,dataset,status,reason,recommended_action,target_file,example_command\n"
-        "2,NVDA,fundamentals,missing_or_incomplete,DCF inputs incomplete,Run SEC staging,data/imports/fundamentals.csv,make sec-stage TICKERS=NVDA\n",
+        "priority,ticker,dataset,status,reason,recommended_action,target_file,focus_command,example_command\n"
+        "2,NVDA,fundamentals,missing_or_incomplete,DCF inputs incomplete,Run SEC staging,data/imports/fundamentals.csv,make focus-fundamentals TICKER=NVDA,make sec-stage TICKERS=NVDA\n",
         encoding="utf-8",
     )
     (outputs_dir / "data_gap_report.csv").write_text(
@@ -97,4 +99,5 @@ def test_action_queue_write_output_creates_csv_from_existing_outputs(tmp_path: P
     frame = pd.read_csv(queue_path)
     assert list(frame.columns)
     assert {"priority", "action_type", "recommended_action", "reason"} <= set(frame.columns)
+    assert "focus_command" in frame.columns
     assert frame.iloc[0]["action_type"] == "prices"
