@@ -379,6 +379,84 @@ def test_action_queue_uses_runbook_and_template_commands_for_global_gap_rows():
     assert earnings_row.source_file == "data/imports/earnings.csv"
 
 
+def test_action_queue_payload_refreshes_stale_data_gap_actions(tmp_path: Path):
+    outputs_dir = tmp_path / "outputs"
+    data_dir = tmp_path / "data"
+    outputs_dir.mkdir()
+    data_dir.mkdir()
+    pd.DataFrame(
+        [
+            {"date": "2026-01-01", "ticker": "NVDA", "adj_close": 100, "volume": 1000},
+        ]
+    ).to_csv(data_dir / "prices.csv", index=False)
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "theme": "AI", "sectoretf": "SMH", "defaultpurpose": "Momentum Leader", "marketcapbucket": "Large", "notes": "fixture"},
+        ]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    pd.DataFrame([{"ticker": "NVDA", "primarypurpose": "Momentum Leader"}]).to_csv(data_dir / "holdings.csv", index=False)
+    pd.DataFrame([{"ticker": "NVDA", "theme": "AI"}]).to_csv(data_dir / "fundamentals.csv", index=False)
+    (outputs_dir / "data_onboarding_actions.csv").write_text(
+        "priority,ticker,dataset,status,reason,recommended_action,target_file,focus_command,example_command\n",
+        encoding="utf-8",
+    )
+    pd.DataFrame(
+        [
+            {
+                "dataset": "earnings",
+                "ticker": "",
+                "status": "manual_only",
+                "reason": "Local CSV file is not present.",
+                "required_for": "earnings summary",
+                "recommended_action": "Add data/imports/earnings.csv manually if you want local earnings coverage.",
+                "local_file": "data/earnings.csv",
+                "source_name": "Manual local earnings CSV",
+            },
+            {
+                "dataset": "analyst_estimates",
+                "ticker": "",
+                "status": "manual_only",
+                "reason": "Local CSV file is not present.",
+                "required_for": "analyst estimate summary",
+                "recommended_action": "Add data/imports/analyst_estimates.csv manually if you want estimate coverage.",
+                "local_file": "data/analyst_estimates.csv",
+                "source_name": "Manual local analyst estimates CSV",
+            },
+        ]
+    ).to_csv(outputs_dir / "data_gap_report.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "DataQualityScore": 20,
+                "ReadinessStatus": "Needs Enrichment",
+                "MomentumReady": True,
+                "MonthlyPicksReady": True,
+                "DCFReady": False,
+                "PeerReady": False,
+                "EarningsAvailable": False,
+                "AnalystEstimatesAvailable": False,
+                "PriceHistoryDays": 1,
+                "MissingDataFields": "DCF inputs;peer mapping",
+                "NextBestAction": (
+                    "Run make focus-fundamentals TICKER=NVDA, or stage explicit local fundamentals with "
+                    "python3 -m src.stock_report --sec-stage-fundamentals --tickers NVDA."
+                ),
+                "Reason": "Missing DCF and peer coverage.",
+            }
+        ]
+    ).to_csv(outputs_dir / "data_quality_wizard.csv", index=False)
+
+    payload = build_action_queue_payload(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
+
+    earnings_row = next(row for row in payload["action_queue"] if row["action_type"] == "earnings" and not row["ticker"])
+    analyst_row = next(row for row in payload["action_queue"] if row["action_type"] == "analyst_estimates" and not row["ticker"])
+    assert earnings_row["focus_command"] == "make templates"
+    assert earnings_row["recommended_action"].startswith("Run make templates")
+    assert analyst_row["focus_command"] == "make templates"
+    assert analyst_row["recommended_action"].startswith("Run make templates")
+
+
 def test_action_queue_merges_price_status_with_price_worklist_guidance():
     rows = build_action_queue_rows(
         price_status=pd.DataFrame(

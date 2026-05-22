@@ -48,6 +48,20 @@ STALE_ONBOARDING_REASONS = {
 STALE_DATA_QUALITY_PRICE_ACTIONS = {
     "refresh or import prices.",
 }
+STALE_DATA_GAP_ACTIONS = {
+    "fundamentals": {
+        "run sec staging for fundamentals, then validate, preview, and apply the staged import.",
+    },
+    "peers": {
+        "add data/imports/peers.csv manually with real peer mappings, then validate and apply imports.",
+    },
+    "earnings": {
+        "add data/imports/earnings.csv manually if you want local earnings coverage.",
+    },
+    "analyst_estimates": {
+        "add data/imports/analyst_estimates.csv manually if you want estimate coverage.",
+    },
+}
 
 
 @dataclass
@@ -108,6 +122,22 @@ def _data_quality_needs_refresh(frame: pd.DataFrame) -> bool:
     if enrichment_rows.empty:
         return False
     return not enrichment_rows["NextBestAction"].astype(str).str.contains(r"make focus-(?:fundamentals|peers|price)\s+TICKER=", regex=True).all()
+
+
+def _data_gaps_need_refresh(frame: pd.DataFrame) -> bool:
+    if frame.empty:
+        return True
+    if "dataset" not in frame.columns or "recommended_action" not in frame.columns:
+        return True
+
+    for dataset, stale_actions in STALE_DATA_GAP_ACTIONS.items():
+        dataset_rows = frame.loc[frame["dataset"].astype(str).str.strip() == dataset]
+        if dataset_rows.empty:
+            continue
+        normalized_actions = dataset_rows["recommended_action"].astype(str).str.strip().str.lower()
+        if normalized_actions.isin(stale_actions).any():
+            return True
+    return False
 
 
 def _onboarding_title(dataset: str, ticker: str, status: str) -> str:
@@ -455,7 +485,7 @@ def build_action_queue_payload(
         onboarding_actions = pd.DataFrame(onboarding_payload["onboarding_actions"])
         price_worklist = pd.DataFrame(onboarding_payload["price_import_worklist"])
         command_bundles = pd.DataFrame(onboarding_payload["command_bundles"])
-    if data_gaps.empty:
+    if _data_gaps_need_refresh(data_gaps):
         data_gaps = pd.DataFrame(build_data_source_payload(root, data_dir=data_path, output_dir=output_path)["data_gaps"])
     if _data_quality_needs_refresh(data_quality):
         run_research_health(root, data_dir=data_path, output_dir=output_path)
