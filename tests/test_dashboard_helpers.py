@@ -1699,15 +1699,28 @@ def test_top_priority_signals_use_command_family_fallbacks_when_row_copy_is_miss
                 "focus_command": "make bundle-peers",
                 "example_command": "",
             },
+            {
+                "priority": 3,
+                "urgency": "high",
+                "action_type": "peers",
+                "ticker": "TSLA",
+                "title": "Open peer runbook",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make runbook-peers",
+                "example_command": "",
+            },
         ]
     )
 
-    signals = dashboard.top_priority_signals(queue, limit=2)
+    signals = dashboard.top_priority_signals(queue, limit=3)
 
     assert signals[0]["title"] == "make imports-validate"
     assert "staged local workflow next" in signals[0]["body"].lower()
     assert signals[1]["title"] == "make bundle-peers"
     assert "highest-leverage local bundle first" in signals[1]["body"].lower()
+    assert signals[2]["title"] == "make runbook-peers"
+    assert "staged local workflow next" in signals[2]["body"].lower()
     assert "not available" not in " ".join(signal["body"] for signal in signals).lower()
 
 
@@ -1912,6 +1925,15 @@ def test_project_status_action_cards_use_command_family_fallbacks_when_row_copy_
                 "focus_command": "make bundle-peers",
                 "example_command": "",
             },
+            {
+                "priority": 3,
+                "dataset": "peers",
+                "ticker": "TSLA",
+                "reason": "",
+                "recommended_action": "",
+                "focus_command": "make runbook-peers",
+                "example_command": "",
+            },
         ]
     }
 
@@ -1921,6 +1943,8 @@ def test_project_status_action_cards_use_command_family_fallbacks_when_row_copy_
     assert "staged local workflow next" in actions[0][1].lower()
     assert actions[1][2] == "make bundle-peers"
     assert "highest-leverage local bundle first" in actions[1][1].lower()
+    assert actions[2][2] == "make runbook-peers"
+    assert "staged local workflow next" in actions[2][1].lower()
     assert "not available" not in " ".join(action[1] for action in actions).lower()
 
 
