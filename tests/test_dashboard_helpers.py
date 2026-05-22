@@ -4833,6 +4833,7 @@ def test_sidebar_guide_rows_are_actionable_and_research_safe():
     assert any(row["Command"] == "make dashboard-smoke" for row in workflow_rows)
     assert any(row["Command"] == "make daily" for row in workflow_rows)
     assert "verified ohlcv files before relying on momentum or track-record context" in rendered
+    assert "make runbook-prices-broader" in rendered
     assert "overview tab" in nav_rendered
     assert "monthly picks tab" in nav_rendered
     assert "make status-check top_n=5" in rendered

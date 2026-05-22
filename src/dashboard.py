@@ -3596,7 +3596,7 @@ def missing_data_guide_rows() -> list[dict[str, str]]:
     return [
         {
             "Dashboard Label": "Not enough price history",
-            "What to do": "Start with `make status`, then use the first `make focus-price TICKER=...` or `make runbook-prices-broader` path it prints. For downloaded files, use `make price-normalize`, then run `make price-validate`, `make price-preview`, and `make price-apply`.",
+            "What to do": "Use `make runbook-prices-broader` or `make focus-price TICKER=...` first. For downloaded files, use `make price-normalize`, then run `make price-validate`, `make price-preview`, and `make price-apply`.",
         },
         {
             "Dashboard Label": "Needs SEC enrichment",
