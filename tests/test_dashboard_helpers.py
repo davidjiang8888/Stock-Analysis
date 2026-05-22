@@ -4546,6 +4546,18 @@ def test_overview_workflow_reason_card_falls_back_to_status_snapshot():
     assert "buy" not in rendered
 
 
+def test_overview_workflow_reason_card_uses_actionable_empty_state_copy():
+    card = dashboard.overview_workflow_reason_card(None, None)
+    rendered = " ".join(str(value) for value in card.values()).lower()
+
+    assert card["title"] == "make status-check TOP_N=5"
+    assert "run make status-check top_n=5 first" in rendered
+    assert "local blocker triage" in rendered
+    assert "verification and ui review" in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_overview_workflow_reason_card_uses_bundle_fallback_when_structured_summary_is_thin():
     payload = {
         "summary": {"data_gaps": 0, "critical_actions": 0},

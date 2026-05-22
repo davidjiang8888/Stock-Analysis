@@ -5879,7 +5879,7 @@ def overview_workflow_reason_card(
 ) -> dict[str, object]:
     first_card = overview_workflow_path_cards(project_status_payload, action_queue)[0]
     first_command = first_card["title"]
-    reason = "Start with local blocker triage before verification and UI review."
+    reason = f"Run {first_command} first to refresh local blocker triage before verification and UI review."
     badges = ["why now", "research only"]
 
     if action_queue is not None and not action_queue.empty:
