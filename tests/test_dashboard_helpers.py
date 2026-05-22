@@ -2534,7 +2534,7 @@ def test_overview_current_top_surfaces_cards_compose_ready_blocked_command_and_t
     assert len(cards) == 4
     assert cards[0]["title"] == "NVDA"
     assert cards[1]["title"] == "NVDA"
-    assert cards[2]["title"] == "make status"
+    assert cards[2]["title"] == "make verify"
     assert cards[3]["title"] == "Stock Report Beta"
     assert "normalize verified downloaded ohlcv rows" in rendered
     assert "best currently usable local name" in rendered
@@ -3055,12 +3055,12 @@ def test_overview_best_local_research_path_cards_stitch_name_command_and_tab():
 
     assert len(cards) == 3
     assert cards[0]["title"] == "NVDA"
-    assert cards[1]["title"] == "make status"
+    assert cards[1]["title"] == "make verify"
     assert cards[2]["title"] == "Stock Report Beta"
     assert "best current name" in rendered
     assert "next command" in rendered
     assert "next tab" in rendered
-    assert "normalize verified downloaded ohlcv rows" in rendered
+    assert "deterministic verification" in rendered or "verification first" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
 

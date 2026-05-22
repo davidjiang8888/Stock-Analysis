@@ -5422,6 +5422,8 @@ def overview_best_local_research_path_cards(
     command_text = format_missing(next_command.get("title"), "make status")
     tab_text = format_missing(next_tab.get("title"), "Data Health")
     ready_command_text = format_missing(ready_cards[1].get("title"), "")
+    if tab_text == "Stock Report Beta" and command_text in {"make status", "make onboarding"} and ready_command_text:
+        command_text = ready_command_text
     if tab_text == "Monthly Picks" and command_text in {"make status", "make onboarding"}:
         command_text = "make monthly"
     if command_text == ready_command_text:
@@ -5564,6 +5566,9 @@ def overview_current_top_surfaces_cards(
     blocked_name = format_missing(deep_cards[0].get("title"), "Not available")
     command_text = format_missing(command_cards[0].get("title"), "make help") if command_cards else "make help"
     next_tab = format_missing(ready_cards[2].get("title"), "Data Health")
+    ready_command_text = format_missing(ready_cards[1].get("title"), "")
+    if next_tab == "Stock Report Beta" and command_text in {"make status", "make onboarding"} and ready_command_text:
+        command_text = ready_command_text
     if next_tab == "Monthly Picks" and command_text in {"make status", "make onboarding"}:
         command_text = "make monthly"
     blocked_summary = compact_reason(deep_cards[0].get("body"), max_sentences=2, max_chars=220)
