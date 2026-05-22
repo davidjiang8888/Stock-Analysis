@@ -5746,7 +5746,8 @@ def overview_current_top_surfaces_cards(
 
     ready_name = format_missing(ready_cards[0].get("title"), "Not available")
     blocked_name = format_missing(deep_cards[0].get("title"), "Not available")
-    command_text = format_missing(command_cards[0].get("title"), "make help") if command_cards else "make help"
+    base_command_text = format_missing(command_cards[0].get("title"), "make help") if command_cards else "make help"
+    command_text = base_command_text
     next_tab = format_missing(ready_cards[2].get("title"), "Data Health")
     ready_command_text = format_missing(ready_cards[1].get("title"), "")
     if command_text == "make help" and ready_command_text and ready_command_text != "make help":
@@ -5761,20 +5762,29 @@ def overview_current_top_surfaces_cards(
     if blocked_follow_through and blocked_follow_through != blocked_summary:
         blocked_reason = f"{blocked_summary} {blocked_follow_through}".strip()
     next_tab_reason = compact_reason(ready_cards[2].get("body"), max_sentences=2, max_chars=220)
-    command_reason = (
-        compact_reason(command_cards[0].get("body"), max_sentences=2, max_chars=220)
-        if command_cards
-        else "Highest-value repo-native command from the current local workflow state."
-    )
+    if command_text == ready_command_text:
+        command_reason = compact_reason(ready_cards[1].get("command_reason"), max_sentences=2, max_chars=220)
+    else:
+        command_reason = (
+            compact_reason(command_cards[0].get("body"), max_sentences=2, max_chars=220)
+            if command_cards
+            else "Highest-value repo-native command from the current local workflow state."
+        )
     queue_signal = top_priority_signals(action_queue, limit=1) if action_queue is not None else []
     queue_reason = compact_reason(queue_signal[0].get("body"), max_sentences=2, max_chars=220) if queue_signal else ""
     generic_reason_markers = (
         "repo-native next step from the current read-only project status snapshot",
         "refresh local data coverage, onboarding outputs, and action guidance before broader research work",
     )
-    if queue_reason and any(marker in command_reason.lower() for marker in generic_reason_markers):
+    if queue_reason and (
+        command_text != base_command_text or any(marker in command_reason.lower() for marker in generic_reason_markers)
+    ):
         command_reason = queue_reason
-    elif not queue_reason and len(deep_cards) > 1:
+    elif (
+        not queue_reason
+        and len(deep_cards) > 1
+        and (not command_reason or command_reason == "Not available" or any(marker in command_reason.lower() for marker in generic_reason_markers))
+    ):
         deep_reason = compact_reason(deep_cards[1].get("body"), max_sentences=2, max_chars=220)
         if deep_reason and deep_reason != "Not available":
             command_reason = deep_reason
