@@ -6138,6 +6138,7 @@ def overview_workflow_path_cards(
     action_queue: pd.DataFrame | None,
 ) -> list[dict[str, object]]:
     command_rows = project_status_command_rows(project_status_payload)
+    top_signal: list[dict[str, object]] = []
     structured_rows = bool(project_status_payload and project_status_payload.get("recommended_next_command_rows"))
     if structured_rows and command_rows:
         cards: list[dict[str, object]] = []
@@ -6203,6 +6204,10 @@ def overview_workflow_path_cards(
     elif "runbook-" in lowered_first or "imports-" in lowered_first:
         first_body = "Use the staged local workflow next so validation and preview safeguards stay in place."
         first_badges = ["today", "staged flow"]
+    if top_signal:
+        signal_body = compact_reason(top_signal[0].get("body"), max_sentences=2, max_chars=240)
+        if signal_body and signal_body != "Not available":
+            first_body = signal_body
 
     return [
         {

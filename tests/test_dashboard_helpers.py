@@ -4907,6 +4907,54 @@ def test_overview_workflow_path_cards_use_imports_and_bundle_fallbacks_when_acti
     assert "not available" not in " ".join(str(value) for card in imports_cards + bundle_cards for value in card.values()).lower()
 
 
+def test_overview_workflow_path_cards_surface_top_staged_follow_through_when_queue_row_has_target_file():
+    fundamentals_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "fundamentals",
+                "ticker": "NVDA",
+                "title": "Advance staged fundamentals",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make imports-validate",
+                "example_command": "",
+                "target_file": "data/imports/fundamentals.csv",
+            }
+        ]
+    )
+    prices_queue = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "urgency": "critical",
+                "action_type": "prices",
+                "ticker": "AMD",
+                "title": "Advance staged prices",
+                "reason": "",
+                "recommended_action": "Use staged local imports if the free refresh fails.",
+                "focus_command": "make price-validate",
+                "example_command": "",
+                "target_file": "data/imports/prices.csv",
+            }
+        ]
+    )
+
+    fundamentals_cards = dashboard.overview_workflow_path_cards(None, fundamentals_queue)
+    prices_cards = dashboard.overview_workflow_path_cards(None, prices_queue)
+
+    assert fundamentals_cards[0]["title"] == "make imports-validate"
+    assert "make imports-preview" in fundamentals_cards[0]["body"].lower()
+    assert "make imports-apply" in fundamentals_cards[0]["body"].lower()
+    assert prices_cards[0]["title"] == "make price-validate"
+    assert "make price-preview" in prices_cards[0]["body"].lower()
+    assert "make price-apply" in prices_cards[0]["body"].lower()
+    assert "use staged local imports if the free refresh fails" not in " ".join(
+        str(value) for card in fundamentals_cards + prices_cards for value in card.values()
+    ).lower()
+
+
 def test_overview_workflow_path_cards_use_structured_project_status_steps():
     payload = {
         "recommended_next_command_rows": [
