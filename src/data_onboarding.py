@@ -634,17 +634,36 @@ def _price_action_text(ticker: str) -> str:
     )
 
 
+def _fundamentals_action_text(ticker: str) -> str:
+    return (
+        f"Run make focus-fundamentals TICKER={ticker}, or stage explicit local fundamentals with "
+        f"python3 -m src.stock_report --sec-stage-fundamentals --tickers {ticker}."
+    )
+
+
+def _peer_action_text(ticker: str, *, missing_mapping: bool) -> str:
+    if missing_mapping:
+        return (
+            f"Run make focus-peers TICKER={ticker}, or write templates and fill data/imports/peers.csv manually "
+            "with transparent peer mappings."
+        )
+    return (
+        f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices locally so peer-relative valuation "
+        "can calculate transparently."
+    )
+
+
 def _action_for_coverage(row: TickerCoverage) -> str:
     if not row.has_prices:
         return _price_action_text(row.ticker)
     if row.price_history_days < 21:
         return _price_action_text(row.ticker)
     if not row.has_fundamentals or not row.dcf_ready:
-        return f"Run SEC staging for fundamentals: python3 -m src.stock_report --sec-stage-fundamentals --tickers {row.ticker}"
+        return _fundamentals_action_text(row.ticker)
     if not row.has_peer_mapping:
-        return "Add peer mappings manually to data/imports/peers.csv."
+        return _peer_action_text(row.ticker, missing_mapping=True)
     if not row.peer_ready:
-        return "Add peer fundamentals/prices locally so peer-relative valuation can calculate."
+        return _peer_action_text(row.ticker, missing_mapping=False)
     if not row.has_earnings:
         return "Optional: add data/imports/earnings.csv from a trusted source."
     if not row.has_analyst_estimates:
