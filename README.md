@@ -558,7 +558,8 @@ make price-refresh
 
 This updater:
 
-- uses a free daily source with no paid API keys
+- uses a free daily source through the project's provider interface
+- supports `STOOQ_API_KEY` when Stooq requires an API key for CSV downloads in your environment
 - merges fetched rows into the local `data/prices.csv`
 - processes larger ticker sets in chunks
 - skips already-fresh tickers unless you pass `--refresh`
@@ -571,6 +572,7 @@ Useful flags:
 ```bash
 make price-refresh
 make price-refresh TICKERS=NVDA,MSFT,AVGO
+STOOQ_API_KEY=your_key_here make price-refresh TICKERS=NVDA,MSFT,AVGO
 python -m src.data_update --universe-file data/universe.csv --max-tickers 100
 python -m src.data_update --chunk-size 25 --refresh
 ```
@@ -579,7 +581,7 @@ Use `make price-refresh` for the standard operator path. Keep the raw `src.data_
 
 ### Price data fallback workflow
 
-Remote price refresh can fail because the default source is free, unofficial, and outside this repo's control. That is expected; the app keeps using local CSV fallback data instead of fabricating prices.
+Remote price refresh can fail because the default source is free, unofficial, and outside this repo's control. In some environments Stooq returns an API-key instruction page instead of CSV rows; set `STOOQ_API_KEY` before running `make price-refresh`, or use the staged manual import path below. The app keeps using local CSV fallback data instead of fabricating prices.
 
 When remote refresh fails, use the staged manual import path:
 

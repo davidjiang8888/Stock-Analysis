@@ -943,11 +943,15 @@ def apply_dashboard_theme() -> None:
           background:
             radial-gradient(circle at top left, rgba(15, 118, 110, 0.15) 0, rgba(244, 246, 241, 0) 32rem),
             linear-gradient(135deg, #fbfaf4 0%, #f3f7f4 42%, #eef5f2 100%);
-          color: var(--research-text);
+          color: var(--research-text) !important;
           font-family: "Avenir Next", "SF Pro Display", "Segoe UI", sans-serif;
         }
+        html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+          background: var(--research-bg) !important;
+          color: var(--research-text) !important;
+        }
         [data-testid="stSidebar"] {
-          background: #f0f4ee;
+          background: #f8faf5 !important;
           border-right: 1px solid var(--research-border);
         }
         [data-testid="stSidebar"] * {
@@ -962,6 +966,7 @@ def apply_dashboard_theme() -> None:
         .block-container {
           padding-top: 1.6rem;
           max-width: 1500px;
+          color: var(--research-text) !important;
         }
         .app-hero {
           position: relative;
@@ -1539,16 +1544,51 @@ def apply_dashboard_theme() -> None:
         div[data-testid="stAlert"] * {
           color: #1e3a8a !important;
         }
-        div[data-testid="stDataFrame"] {
+        div[data-testid="stDataFrame"],
+        [data-testid="stTable"],
+        .stDataFrame {
           border: 1px solid var(--research-border);
           border-radius: 12px;
           overflow: hidden;
-          background: #ffffff;
+          background: #fffefa !important;
+          color: #111827 !important;
+        }
+        div[data-testid="stDataFrame"] *,
+        [data-testid="stTable"] *,
+        .stDataFrame * {
+          color: #111827 !important;
+        }
+        [role="gridcell"],
+        [role="columnheader"],
+        [data-testid="stDataFrame"] [role="gridcell"],
+        [data-testid="stDataFrame"] [role="columnheader"] {
+          background-color: #fffefa !important;
+          color: #111827 !important;
+        }
+        [data-testid="stExpander"] {
+          background: rgba(255, 254, 250, 0.96) !important;
+          border: 1px solid var(--research-border) !important;
+          border-radius: 14px !important;
+        }
+        [data-testid="stExpander"] summary,
+        [data-testid="stExpander"] p,
+        [data-testid="stExpander"] span {
+          color: #111827 !important;
         }
         input, textarea, [data-baseweb="select"] > div {
-          background: #ffffff !important;
-          color: #172033 !important;
+          background: #fffefa !important;
+          color: #111827 !important;
           border-color: var(--research-border) !important;
+        }
+        [data-baseweb="popover"],
+        [data-baseweb="menu"],
+        [role="listbox"] {
+          background: #fffefa !important;
+          color: #111827 !important;
+        }
+        [data-baseweb="menu"] *,
+        [role="option"] {
+          color: #111827 !important;
         }
         code {
           color: #0f6b63 !important;
@@ -1772,7 +1812,7 @@ def review_path_fallback(dataset: object) -> str:
 def command_family_fallback(command: object, default: str) -> str:
     lowered = format_missing(command, fallback="").strip().lower()
     if "imports-" in lowered or "runbook-" in lowered:
-        return "Use the staged local workflow next so validation and preview safeguards stay in place."
+        return "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
     if "bundle-" in lowered:
         return "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
     return default
@@ -2759,7 +2799,7 @@ def data_health_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: i
         goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
         lane_summary = command_family_fallback(command, review_path_fallback(row.get("lane")))
         if "runbook-" in command.lower():
-            lane_summary = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+            lane_summary = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
         target_file = format_missing(row.get("target_file"), "")
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
@@ -2885,7 +2925,7 @@ def data_health_command_bundle_runbook_cards(runbook_frame: pd.DataFrame | None,
         surfaced_command = first_command or fallback_first_command
         lane_summary = command_family_fallback(surfaced_command, review_path_fallback(lane))
         if "runbook-" in surfaced_command.lower():
-            lane_summary = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+            lane_summary = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
         body_summary = (
             goal_summary
             if goal_summary not in {"", "Not available"}
@@ -3022,7 +3062,7 @@ def data_health_deep_research_target_cards(
                 else command_family_fallback(command, "Review fundamentals path.")
             )
             if not staged_fundamentals_import and "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+                fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
             cards.append(
                 {
                     "kicker": "DCF TARGET",
@@ -3066,7 +3106,7 @@ def data_health_deep_research_target_cards(
                 else command_family_fallback(command, "Review peer path.")
             )
             if not staged_peer_import and "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+                fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
             cards.append(
                 {
                     "kicker": "PEER TARGET",
@@ -3130,7 +3170,7 @@ def overview_deep_research_target_cards(
                 else command_family_fallback(command, "Review fundamentals path.")
             )
             if not staged_fundamentals_import and "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+                fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
             cards.append(
                 {
                     "kicker": "UNLOCK DCF",
@@ -3174,7 +3214,7 @@ def overview_deep_research_target_cards(
                 else command_family_fallback(command, "Review peer path.")
             )
             if not staged_peer_import and "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+                fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
             cards.append(
                 {
                     "kicker": "UNLOCK PEERS",
@@ -3438,7 +3478,7 @@ def data_health_fix_first_cards(actions_frame: pd.DataFrame | None, limit: int =
         )
         lowered_command = command.lower()
         if "runbook-" in lowered_command:
-            action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+            action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
         elif lowered_command == "make imports-validate":
             normalized_action = action.lower()
             if "make imports-preview" not in normalized_action or "make imports-apply" not in normalized_action:
@@ -3544,7 +3584,7 @@ def data_coverage_wizard_cards(wizard_frame: pd.DataFrame | None) -> list[dict[s
                     recommended_action = staged_follow_through
         lowered_command = command.lower()
         if "runbook-" in lowered_command:
-            recommended_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+            recommended_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
         elif lowered_command == "make imports-validate":
             normalized_action = recommended_action.lower()
             if "make imports-preview" not in normalized_action or "make imports-apply" not in normalized_action:
@@ -4190,7 +4230,7 @@ def project_status_action_cards(payload: dict[str, Any] | None, limit: int = 3) 
         body = command_family_fallback(command, review_path_fallback(row.get("dataset")))
         lowered_command = command.lower()
         if "runbook-" in lowered_command:
-            body = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+            body = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
         if reason and reason != "Not available":
             body = f"{reason} {recommended_action}".strip() if recommended_action and recommended_action != reason else reason
         elif recommended_action and recommended_action != "Not available":
@@ -4608,7 +4648,7 @@ def holdings_unlock_cards(
         else:
             fallback_action = command_family_fallback(command, f"Review {stage} path.")
             if "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+                fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
         next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
         if staged_price_import and (
             "make price-validate" not in next_action_summary
@@ -4690,7 +4730,7 @@ def holdings_deep_research_cards(
                     else command_family_fallback(command, "Review fundamentals path.")
                 )
                 if not staged_import and "runbook-" in command.lower():
-                    fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+                    fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
                 next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
                 if staged_import and (
                     "make imports-validate" not in next_action_summary
@@ -4737,7 +4777,7 @@ def holdings_deep_research_cards(
                     else command_family_fallback(command, "Review peer path.")
                 )
                 if not staged_import and "runbook-" in command.lower():
-                    fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+                    fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
                 next_action_summary = compact_reason(row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
                 if staged_import and (
                     "make imports-validate" not in next_action_summary
@@ -4937,7 +4977,7 @@ def theme_deep_research_cards(
                 )
             )
             if not staged_import and "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+                fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
             next_action_summary = compact_reason(top_row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=150)
             if staged_import and (
                 "make imports-validate" not in next_action_summary
@@ -5153,7 +5193,7 @@ def overview_deep_research_leverage_cards(
                 "Review fundamentals path." if lane_name == "DCF LEVERAGE" else "Review peer path.",
             )
             if "runbook-" in command.lower():
-                fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+                fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
         next_action_summary = compact_reason(top_row.get("recommended_action") or fallback_action, max_sentences=1, max_chars=140)
         if (staged_fundamentals_import or staged_peer_import) and (
             "make imports-validate" not in next_action_summary
@@ -5261,7 +5301,7 @@ def overview_deep_research_priority_bridge_cards(
                     "Review fundamentals path." if lane == "Unlock DCF" else "Review peer path.",
                 )
                 if "runbook-" in command.lower():
-                    fallback_action = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+                    fallback_action = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
             next_action_summary = compact_reason(
                 row.get("recommended_action") or fallback_action,
                 max_sentences=1,
@@ -5784,7 +5824,7 @@ def overview_next_command_cards(
                 body = reason if has_reason else "Use the highest-leverage local bundle first so price, fundamentals, or peer follow-through stays coordinated."
                 badges = ["bundle first", "command"]
             elif "runbook-" in lowered:
-                body = reason if has_reason else "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+                body = reason if has_reason else "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
                 badges = ["runbook", "command"]
             elif "onboarding" in lowered:
                 body = "Refresh local data coverage, onboarding outputs, and action guidance before broader research work."
@@ -5870,7 +5910,7 @@ def overview_command_bundle_cards(bundle_frame: pd.DataFrame | None, limit: int 
         goal_summary = compact_reason(row.get("goal_summary"), max_sentences=1, max_chars=110)
         lane_summary = command_family_fallback(command, review_path_fallback(row.get("lane")))
         if "runbook-" in command.lower():
-            lane_summary = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+            lane_summary = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
         target_file = format_missing(row.get("target_file"), "")
         staged_summary = ""
         if target_file in {"data/imports/fundamentals.csv", "data/imports/peers.csv", "data/imports/prices.csv"}:
@@ -6170,7 +6210,7 @@ def overview_bundle_runbook_cards(runbook_frame: pd.DataFrame | None, limit: int
         surfaced_command = first_command or fallback_first_command
         lane_summary = command_family_fallback(surfaced_command, review_path_fallback(lane))
         if "runbook-" in surfaced_command.lower():
-            lane_summary = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+            lane_summary = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
         body_summary = (
             goal_summary
             if goal_summary not in {"", "Not available"}
@@ -6245,7 +6285,7 @@ def overview_workflow_path_cards(
                     body = "Run make price-validate, then make price-preview, then make price-apply so staged price rows are reviewed before apply."
             elif "runbook-" in lowered:
                 badges = ["today", "staged flow"] if index == 1 else ["staged flow", "workflow"]
-                body = reason if has_reason else "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+                body = reason if has_reason else "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
             cards.append(
                 {
                     "kicker": f"STEP {index}",
@@ -6287,7 +6327,7 @@ def overview_workflow_path_cards(
         first_body = "Run make imports-validate, then make imports-preview, then make imports-apply so staged local data is reviewed before apply."
         first_badges = ["today", "staged flow"]
     elif "runbook-" in lowered_first:
-        first_body = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+        first_body = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
         first_badges = ["today", "staged flow"]
     if top_signal:
         signal_body = compact_reason(top_signal[0].get("body"), max_sentences=2, max_chars=240)
@@ -6928,7 +6968,7 @@ def top_priority_signals(action_queue: pd.DataFrame | None, limit: int = 3) -> l
         target_file = format_missing(row.get("target_file"), "")
         body_source = command_family_fallback(command, review_path_fallback(row.get("action_type")))
         if "runbook-" in command.lower():
-            body_source = "Use the ordered lane runbook to move through the staged local workflow without skipping safeguards."
+            body_source = "Use the ordered lane runbook as the staged local workflow next so validation and preview safeguards stay in place."
         if recommended_action and recommended_action != reason:
             body_source = f"{reason} {recommended_action}".strip() if reason else recommended_action
         elif reason and reason != "Not available":

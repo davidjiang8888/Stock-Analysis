@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.data_update import (
+    StooqDailyPriceSource,
     apply_price_import_merge,
     enrich_price_update_status_frame,
     load_update_tickers,
@@ -27,6 +28,55 @@ class FakePriceSource:
         if payload is None:
             return pd.DataFrame(), [f"{ticker}: source unavailable"]
         return payload.copy(), []
+
+
+class FakeHTTPResponse:
+    def __init__(self, payload: str) -> None:
+        self.payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def read(self) -> bytes:
+        return self.payload.encode("utf-8")
+
+
+def test_stooq_source_reports_api_key_page_without_parser_failure():
+    def opener(_url: str, timeout: int):
+        assert timeout == 20
+        return FakeHTTPResponse(
+            "Get your apikey:\n"
+            "1. Open https://stooq.com/q/d/?s=meta.us&get_apikey\n"
+            "2. Enter the captcha code.\n"
+        )
+
+    frame, warnings = StooqDailyPriceSource(opener=opener).fetch_history("META")
+
+    assert frame.empty
+    assert "requires an API key" in warnings[0]
+    assert "Error tokenizing data" not in warnings[0]
+
+
+def test_stooq_source_passes_configured_api_key_to_download_url(monkeypatch):
+    seen: dict[str, str] = {}
+
+    def opener(url: str, timeout: int):
+        seen["url"] = url
+        return FakeHTTPResponse(
+            "Date,Open,High,Low,Close,Volume\n"
+            "2026-01-02,100,102,99,101,12345\n"
+        )
+
+    monkeypatch.setenv("STOOQ_API_KEY", "abc123")
+    frame, warnings = StooqDailyPriceSource(opener=opener).fetch_history("META")
+
+    assert warnings == []
+    assert "apikey=abc123" in seen["url"]
+    assert frame.iloc[0]["ticker"] == "META"
+    assert frame.iloc[0]["adj_close"] == 101
 
 
 def test_load_update_tickers_collects_universe_holdings_themes_and_benchmarks(tmp_path: Path):

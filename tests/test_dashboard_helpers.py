@@ -33,6 +33,27 @@ def test_dashboard_badges_use_high_contrast_html():
     assert "Watch" in html
 
 
+def test_dashboard_theme_pins_review_surfaces_to_readable_colors(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_markdown(body: str, unsafe_allow_html: bool = False) -> None:
+        captured["body"] = body
+        captured["unsafe_allow_html"] = unsafe_allow_html
+
+    monkeypatch.setattr(dashboard.st, "markdown", fake_markdown)
+
+    dashboard.apply_dashboard_theme()
+
+    css = str(captured["body"])
+    assert captured["unsafe_allow_html"] is True
+    assert '[data-testid="stAppViewContainer"]' in css
+    assert '[data-testid="stDataFrame"]' in css
+    assert '[data-testid="stExpander"]' in css
+    assert '[data-baseweb="popover"]' in css
+    assert "color: #111827 !important" in css
+    assert "background: #fffefa !important" in css
+
+
 def test_dashboard_card_helpers_render_modern_markup():
     metric = dashboard.metric_card_html("Universe", 12, "local tickers")
     action = dashboard.action_card_html("Price fallback", "Normalize downloaded CSVs", "make price-normalize", "warning")

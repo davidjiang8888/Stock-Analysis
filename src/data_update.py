@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 from dataclasses import dataclass, field
@@ -93,22 +94,44 @@ class PriceUpdateResult:
 
 
 class StooqDailyPriceSource:
-    def __init__(self, base_url: str = "https://stooq.com/q/d/l/") -> None:
+    def __init__(
+        self,
+        base_url: str = "https://stooq.com/q/d/l/",
+        api_key: str | None = None,
+        opener: Callable[..., Any] = urlopen,
+    ) -> None:
         self.base_url = base_url
+        self.api_key = api_key if api_key is not None else os.environ.get("STOOQ_API_KEY", "")
+        self.opener = opener
 
     def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
         symbol = _stooq_symbol(ticker)
-        url = f"{self.base_url}?{urlencode({'s': symbol, 'i': 'd'})}"
+        params = {"s": symbol, "i": "d"}
+        if self.api_key:
+            params["apikey"] = self.api_key
+        url = f"{self.base_url}?{urlencode(params)}"
         try:
-            with urlopen(url, timeout=20) as response:
+            with self.opener(url, timeout=20) as response:
                 payload = response.read().decode("utf-8")
         except URLError as exc:
             return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: update failed from Stooq ({exc})"]
 
         if not payload.strip() or "No data" in payload:
             return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: free daily data source returned no rows."]
+        first_line = payload.lstrip().splitlines()[0].strip().lower()
+        if "," not in first_line or "get your apikey" in payload.lower():
+            return (
+                pd.DataFrame(columns=PRICE_COLUMNS),
+                [
+                    f"{ticker}: Stooq CSV download requires an API key in this environment. "
+                    "Set STOOQ_API_KEY or use staged manual prices."
+                ],
+            )
 
-        frame = pd.read_csv(StringIO(payload))
+        try:
+            frame = pd.read_csv(StringIO(payload))
+        except pd.errors.ParserError as exc:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: source response could not be parsed as CSV ({exc})"]
         frame.columns = _normalize_columns(list(frame.columns))
         required = {"date", "open", "high", "low", "close", "volume"}
         missing = required - set(frame.columns)
