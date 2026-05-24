@@ -104,6 +104,25 @@ def _serialize_date_value(value: Any) -> Any:
     return timestamp.isoformat()
 
 
+def _has_import_value(value: Any) -> bool:
+    if value is None:
+        return False
+    try:
+        if pd.isna(value):
+            return False
+    except (TypeError, ValueError):
+        pass
+    return not (isinstance(value, str) and value.strip() == "")
+
+
+def _values_match(left: Any, right: Any) -> bool:
+    if not _has_import_value(left) and not _has_import_value(right):
+        return True
+    if _has_import_value(left) != _has_import_value(right):
+        return False
+    return left == right
+
+
 def _key_series(frame: pd.DataFrame, merge_keys: list[str]) -> pd.Series:
     return frame[merge_keys].astype(str).agg("||".join, axis=1)
 
@@ -241,9 +260,9 @@ def preview_import_merge(import_dir: Path | str | None = None, data_dir: Path | 
             for column in compare_columns:
                 left = staged_row.get(column)
                 right = canonical_row.get(column)
-                if pd.isna(left) and pd.isna(right):
+                if not _has_import_value(left):
                     continue
-                if pd.isna(left) != pd.isna(right) or left != right:
+                if not _values_match(left, right):
                     changed = True
                     break
             if changed:
@@ -302,7 +321,13 @@ def _merge_frames(dataset_name: str, canonical_frame: pd.DataFrame, staged_frame
             if column in canonical_indexed.columns and column not in merge_keys
         ]
         if update_columns:
-            canonical_indexed.loc[overlapping, update_columns] = staged_indexed.loc[overlapping, update_columns]
+            for column in update_columns:
+                staged_values = staged_indexed.loc[overlapping, column]
+                import_value_mask = staged_values.map(_has_import_value)
+                if not import_value_mask.any():
+                    continue
+                target_index = staged_values.index[import_value_mask]
+                canonical_indexed.loc[target_index, column] = staged_values.loc[target_index]
     new_rows = staged_output_indexed.loc[~staged_output_indexed.index.isin(canonical_indexed.index)]
     merged = pd.concat([canonical_indexed, new_rows], axis=0)
     return merged.reset_index(drop=True)[output_columns]

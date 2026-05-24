@@ -86,6 +86,28 @@ def test_action_queue_uses_status_first_fallback_for_price_failures_without_tick
     assert "ohlcv files" in row.recommended_action.lower()
 
 
+def test_action_queue_skips_remote_price_failure_when_local_fallback_exists():
+    rows = build_action_queue_rows(
+        price_status=pd.DataFrame(
+            [
+                {
+                    "ticker": "NVDA",
+                    "status": "failed",
+                    "fallback_used": True,
+                    "recommended_action": "Leave unchanged because local data exists; use staged manual prices if you need fresher rows.",
+                    "error_message": "NVDA: Stooq CSV download requires an API key.",
+                }
+            ]
+        ),
+        price_worklist=pd.DataFrame(),
+        onboarding_actions=pd.DataFrame(),
+        data_gaps=pd.DataFrame(),
+        data_quality=pd.DataFrame(),
+    )
+
+    assert rows == []
+
+
 def test_action_queue_cli_rejects_check_with_write_output(tmp_path: Path, capsys):
     previous_argv = sys.argv[:]
     sys.argv = ["python", "--project-root", str(tmp_path), "--check", "--write-output"]

@@ -297,12 +297,76 @@ def _data_source_action_needs_refresh(row: pd.Series) -> bool:
     return False
 
 
+def _staged_import_cell_text(value: object) -> str:
+    if pd.isna(value):
+        return ""
+    return str(value or "").strip()
+
+
+def _is_dataset_level_staged_import_row(row: pd.Series, dataset: str) -> bool:
+    ticker = _staged_import_cell_text(row.get("ticker", ""))
+    target_file = _staged_import_cell_text(row.get("target_file", ""))
+    source_file = _staged_import_cell_text(row.get("source_file", ""))
+    staged_file = f"data/imports/{dataset}.csv"
+    return not ticker and (target_file == staged_file or source_file == staged_file)
+
+
+def _staged_import_guidance(dataset: str) -> tuple[str, str]:
+    if dataset == "peers":
+        return (
+            "Advance staged peer import",
+            "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local peer mappings.",
+        )
+    return (
+        "Advance staged fundamentals import",
+        "Run make imports-validate, then make imports-preview, then make imports-apply, then make status to confirm the live local fundamentals and DCF inputs.",
+    )
+
+
+def _normalize_dataset_level_staged_import_rows(frame: pd.DataFrame | None, action_column: str) -> pd.DataFrame | None:
+    if frame is None or frame.empty:
+        return frame
+    normalized = frame.copy()
+    for idx, row in normalized.iterrows():
+        dataset = _staged_import_cell_text(row.get("dataset", row.get("action_type", "")))
+        if dataset not in {"fundamentals", "peers"}:
+            continue
+        if not _is_dataset_level_staged_import_row(row, dataset):
+            continue
+        title, action = _staged_import_guidance(dataset)
+        if action_column in normalized.columns:
+            normalized.at[idx, action_column] = action
+        if "focus_command" in normalized.columns:
+            normalized.at[idx, "focus_command"] = "make imports-validate"
+        if "example_command" in normalized.columns:
+            normalized.at[idx, "example_command"] = "make imports-preview"
+        if "title" in normalized.columns:
+            normalized.at[idx, "title"] = title
+        if "reason" in normalized.columns:
+            staged_file = f"data/imports/{dataset}.csv"
+            if dataset == "peers":
+                normalized.at[idx, "reason"] = (
+                    f"Staged import rows are present in {staged_file}; validate, preview, apply, "
+                    "then refresh status before relying on peer-relative context."
+                )
+            else:
+                normalized.at[idx, "reason"] = (
+                    f"Staged import rows are present in {staged_file}; validate, preview, apply, "
+                    "then refresh status before relying on DCF coverage."
+                )
+    return normalized
+
+
 def load_data_source_status_tables(
     outputs_dir: Path = OUTPUTS_DIR,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     tables = {filename: load_output(outputs_dir / filename) for filename in DATA_SOURCE_FILES}
     source_frame, _ = tables["data_source_status.csv"]
     gap_frame, _ = tables["data_gap_report.csv"]
+    source_frame = _normalize_dataset_level_staged_import_rows(source_frame, "fallback_action")
+    gap_frame = _normalize_dataset_level_staged_import_rows(gap_frame, "recommended_action")
+    tables["data_source_status.csv"] = (source_frame, tables["data_source_status.csv"][1])
+    tables["data_gap_report.csv"] = (gap_frame, tables["data_gap_report.csv"][1])
     required_columns = {"focus_command", "example_command", "target_file"}
     needs_refresh = source_frame is None or gap_frame is None
     if gap_frame is not None and not gap_frame.empty and not required_columns.issubset(set(gap_frame.columns)):
@@ -530,6 +594,7 @@ def load_action_queue(
     frame, message = load_output(path)
     if frame is None:
         return frame, message
+    frame = _normalize_dataset_level_staged_import_rows(frame, "recommended_action")
     needs_refresh = False
     required_columns = {"focus_command", "example_command", "target_file"}
     if not required_columns.issubset(set(frame.columns)):
@@ -549,7 +614,7 @@ def load_action_queue(
             ]
             for _, row in core_rows.iterrows():
                 action_type = str(row.get("action_type", "")).strip()
-                ticker = str(row.get("ticker", "")).strip().upper()
+                ticker = _staged_import_cell_text(row.get("ticker", "")).upper()
                 status = str(row.get("status", "")).strip()
                 recommended_action = str(row.get("recommended_action", "")).strip()
                 focus_command = str(row.get("focus_command", "")).strip()

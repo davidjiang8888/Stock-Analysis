@@ -616,6 +616,9 @@ def build_action_queue_rows(
             worklist_row = _worklist_lookup(price_worklist, ticker)
             fallback_recommended_action = _price_focus_recommended_action(ticker)
             row_recommended_action = str(row.get("recommended_action", "")).strip()
+            fallback_used = str(row.get("fallback_used", "")).strip().lower() in {"1", "true", "yes"}
+            if fallback_used and row_recommended_action.lower().startswith("leave unchanged because local data exists"):
+                continue
             if row_recommended_action.lower() in STALE_PRICE_RECOMMENDED_ACTIONS:
                 row_recommended_action = ""
             recommended_action = (

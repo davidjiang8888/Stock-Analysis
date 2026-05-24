@@ -1,0 +1,9 @@
+ticker,peer_ticker,peer_group,sector,industry,source,as_of_date
+AMD,AVGO,AI Semiconductors,SMH,,local_universe_theme_match,2026-05-24
+AMD,NVDA,AI Semiconductors,SMH,,local_universe_theme_match,2026-05-24
+AVGO,AMD,AI Semiconductors,SMH,,local_universe_theme_match,2026-05-24
+AVGO,NVDA,AI Semiconductors,SMH,,local_universe_theme_match,2026-05-24
+COHR,LITE,Optical / AI Infrastructure,SMH,,local_universe_theme_match,2026-05-24
+LITE,COHR,Optical / AI Infrastructure,SMH,,local_universe_theme_match,2026-05-24
+NVDA,AMD,AI Semiconductors,SMH,,local_universe_theme_match,2026-05-24
+NVDA,AVGO,AI Semiconductors,SMH,,local_universe_theme_match,2026-05-24

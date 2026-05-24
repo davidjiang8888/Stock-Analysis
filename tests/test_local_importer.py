@@ -143,6 +143,54 @@ def test_apply_import_merge_creates_backup_and_updates_and_appends_rows(tmp_path
     assert nvda["as_of_date"] == "2026-05-01"
 
 
+def test_sparse_staged_import_preserves_existing_canonical_values(tmp_path: Path):
+    data_dir, imports_dir = _setup_dirs(tmp_path)
+    (data_dir / "fundamentals.csv").write_text(
+        "ticker,theme,sector,pe_ratio,revenue,source,as_of_date\n"
+        "NVDA,AI Infrastructure,Technology,34,,manual,2026-01-01\n",
+        encoding="utf-8",
+    )
+    (imports_dir / "fundamentals.csv").write_text(
+        "ticker,theme,sector,pe_ratio,revenue,source,as_of_date\n"
+        "NVDA,,,,1000,sec_companyfacts,2025-12-31\n",
+        encoding="utf-8",
+    )
+
+    preview = preview_import_merge(base_dir=tmp_path)
+    assert preview["preview"][0]["updated_rows"] == 1
+
+    result = apply_import_merge(base_dir=tmp_path)
+    merged = pd.read_csv(data_dir / "fundamentals.csv")
+    nvda = merged.loc[merged["ticker"] == "NVDA"].iloc[0]
+
+    assert result["status"] == "applied"
+    assert nvda["theme"] == "AI Infrastructure"
+    assert nvda["sector"] == "Technology"
+    assert nvda["pe_ratio"] == 34
+    assert nvda["revenue"] == 1000
+    assert nvda["source"] == "sec_companyfacts"
+    assert nvda["as_of_date"] == "2025-12-31"
+
+
+def test_blank_staged_import_is_unchanged_for_existing_canonical_row(tmp_path: Path):
+    data_dir, imports_dir = _setup_dirs(tmp_path)
+    (data_dir / "fundamentals.csv").write_text(
+        "ticker,theme,source,as_of_date\n"
+        "NVDA,AI Infrastructure,manual,2026-01-01\n",
+        encoding="utf-8",
+    )
+    (imports_dir / "fundamentals.csv").write_text(
+        "ticker,theme,source,as_of_date\n"
+        "NVDA,,,\n",
+        encoding="utf-8",
+    )
+
+    preview = preview_import_merge(base_dir=tmp_path)
+
+    assert preview["preview"][0]["updated_rows"] == 0
+    assert preview["preview"][0]["unchanged_rows"] == 1
+
+
 def test_apply_import_merge_preserves_canonical_when_validation_fails(tmp_path: Path):
     data_dir, imports_dir = _setup_dirs(tmp_path)
     canonical = data_dir / "fundamentals.csv"
