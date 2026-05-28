@@ -2,6 +2,9 @@
 
 Research-only local report. This is not a trade instruction and cannot execute transactions.
 
+## One-Minute Status
+NVDA state: partial. Decision: Research Candidate - Core Data Ready. Primary blocker: earnings. DCF: ready. Peer workflow: Not available. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist..
+
 ## Decision
 - Bucket: Research Now
 - Subtype: Research Candidate - Core Data Ready
@@ -59,6 +62,6 @@ Research-only local report. This is not a trade instruction and cannot execute t
 ## Sources And Freshness
 - local:prices.csv: research-grade / local, retrieved 2026-05-27T21:34:28.109158039+00:00; Local CSV-backed research data.
 - local:fundamentals.csv: research-grade / local, retrieved 2026-05-27T21:34:35.086026430+00:00; Local fundamentals data.; Dataset row source: sec_companyfacts
-- local:earnings.csv: research-grade / local, retrieved 2026-05-28T14:25:05+00:00; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local, retrieved 2026-05-28T14:25:05+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
+- local:earnings.csv: research-grade / local, retrieved 2026-05-28T18:37:14+00:00; Earnings fields are unavailable from the bundled local sample files.
+- local:analyst_estimates.csv: research-grade / local, retrieved 2026-05-28T18:37:14+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
 

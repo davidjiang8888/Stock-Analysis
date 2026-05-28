@@ -5,6 +5,9 @@ Research-only local report. This is not a trade instruction and cannot execute t
 This is a readiness-only report because the full stock-report provider could not assemble price-backed analysis.
 Provider blocker: No local price rows were found for APLD.
 
+## One-Minute Status
+APLD state: blocked. Decision: Blocked by Data - Missing Price. Primary blocker: price. DCF: blocked. Peer workflow: missing_peer_mapping. Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist. Next: Import staged price rows or refresh price provider for APLD..
+
 ## Decision
 - Bucket: Blocked by Data
 - Subtype: Blocked by Data - Missing Price

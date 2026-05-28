@@ -431,11 +431,32 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         if "analyst_estimates_ready" in readiness
         else estimates.get("has_trusted_analyst_estimates")
     )
+    asset_type = _display_value(readiness.get("asset_type"))
+    dcf_status_text = "excluded" if "dcf" in str(readiness.get("excluded_features", "")).lower() or asset_type.lower() in {"etf", "index_proxy", "fund"} else "ready" if dcf_ready else "blocked"
+    optional_locked = not earnings_ready or not estimates_ready
+    one_minute_parts = [
+        f"{report.ticker} state: {_display_value(readiness.get('overall_readiness_state'))}.",
+        f"Decision: {_display_value(decision.get('decision_subtype') or decision.get('decision_bucket'))}.",
+        f"Primary blocker: {_display_value(decision.get('primary_blocker'))}.",
+        f"DCF: {dcf_status_text}.",
+    ]
+    peer_blocker = peer.get("peer_blocker_type") or peer.get("missing_peer_reason")
+    if peer_blocker:
+        one_minute_parts.append(f"Peer workflow: {_display_value(peer_blocker)}.")
+    if optional_locked:
+        one_minute_parts.append("Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist.")
+    one_minute_next = decision.get("next_best_action") or decision.get("next_action") or readiness.get("next_action")
+    if one_minute_next:
+        one_minute_parts.append(f"Next: {_display_value(one_minute_next)}.")
+    one_minute_summary = " ".join(part for part in one_minute_parts if part)
 
     report_lines = [
         f"# {report.ticker} Research Readiness Report",
         "",
         "Research-only local report. This is not a trade instruction and cannot execute transactions.",
+        "",
+        "## One-Minute Status",
+        one_minute_summary,
         "",
         "## Decision",
         f"- Bucket: {_display_value(decision.get('decision_bucket'))}",
@@ -498,6 +519,21 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
     peer = local_context.get("peer", {})
     if not readiness:
         raise LookupError(f"No readiness row was found for {symbol}.")
+    asset_type = _display_value(readiness.get("asset_type"))
+    dcf_status_text = "excluded" if "dcf" in str(readiness.get("excluded_features", "")).lower() or asset_type.lower() in {"etf", "index_proxy", "fund"} else "ready" if readiness.get("dcf_ready") else "blocked"
+    one_minute_summary = " ".join(
+        part
+        for part in [
+            f"{symbol} state: {_display_value(readiness.get('overall_readiness_state'))}.",
+            f"Decision: {_display_value(decision.get('decision_subtype') or decision.get('decision_bucket'))}.",
+            f"Primary blocker: {_display_value(decision.get('primary_blocker'))}.",
+            f"DCF: {dcf_status_text}.",
+            f"Peer workflow: {_display_value(peer.get('peer_blocker_type') or peer.get('missing_peer_reason'))}.",
+            "Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist.",
+            f"Next: {_display_value(decision.get('next_best_action') or decision.get('next_action') or readiness.get('next_action'))}.",
+        ]
+        if part and "Not available" not in part
+    )
     lines = [
         f"# {symbol} Research Readiness Report",
         "",
@@ -505,6 +541,9 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         "",
         "This is a readiness-only report because the full stock-report provider could not assemble price-backed analysis.",
         f"Provider blocker: {_display_value(failure_reason)}",
+        "",
+        "## One-Minute Status",
+        one_minute_summary,
         "",
         "## Decision",
         f"- Bucket: {_display_value(decision.get('decision_bucket'))}",

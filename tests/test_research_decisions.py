@@ -51,8 +51,35 @@ def test_research_decisions_monitor_etf_and_exclude_company_dcf():
 
     assert row["decision_bucket"] == "Monitor"
     assert row["decision_subtype"] == "Monitor - ETF Market Proxy"
+    assert row["primary_blocker"] == "optional_context"
     assert "excluded from company DCF" in row["main_reason"]
     assert "dcf" in row["excluded_features"]
+
+
+def test_research_decisions_etf_peer_blocker_does_not_report_fundamentals_as_primary():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "QQQ",
+                "name": "Invesco QQQ",
+                "asset_type": "etf",
+                "ready_features": "price, momentum, market_direction",
+                "partial_features": "liquidity",
+                "blocked_features": "fundamentals, peer, earnings, analyst_estimates",
+                "excluded_features": "dcf, portfolio",
+                "missing_data": "peers: needs at least 2 source-backed peer mappings; earnings: trusted local CSV input",
+                "next_action": "Add source-backed peer mappings and peer metrics for QQQ.",
+            }
+        ]
+    )
+
+    decisions = build_research_decisions_frame(readiness)
+    row = decisions.iloc[0]
+
+    assert row["decision_bucket"] == "Monitor"
+    assert row["decision_subtype"] == "Monitor - ETF Market Proxy"
+    assert row["primary_blocker"] == "peers"
+    assert "excluded from company DCF" in row["main_reason"]
 
 
 def test_research_decisions_block_company_when_fundamentals_or_dcf_are_missing():

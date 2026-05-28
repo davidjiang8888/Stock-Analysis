@@ -4709,6 +4709,7 @@ NEXT_ACTION_CONSOLE_COLUMNS = [
     "priority",
     "action_category",
     "affected_feature",
+    "scope",
     "ticker_count",
     "sample_tickers",
     "command",
@@ -4833,11 +4834,13 @@ def build_next_action_console_frame(
             if subset.empty:
                 continue
             safe_command = safe_action_console_command(category, command)
+            scope_label = "active universe" if category in {"Earnings Import Setup", "Analyst Estimates Import Setup"} else "broad universe"
             rows.append(
                 {
                     "priority": priority,
                     "action_category": category,
                     "affected_feature": feature,
+                    "scope": scope_label,
                     "ticker_count": len(subset),
                     "sample_tickers": _join_tickers(subset["ticker"], 6),
                     "command": safe_command,
@@ -4858,6 +4861,7 @@ def build_next_action_console_frame(
                     "priority": 6,
                     "action_category": "Single-Stock Review",
                     "affected_feature": "single_stock_research",
+                    "scope": "analysis-ready subset",
                     "ticker_count": len(single_stock_candidates),
                     "sample_tickers": _join_tickers(single_stock_candidates["ticker"], 6),
                     "command": command,
@@ -4896,6 +4900,7 @@ def build_next_action_console_frame(
                 "priority": 7,
                 "action_category": category,
                 "affected_feature": feature,
+                "scope": "project status",
                 "ticker_count": "",
                 "sample_tickers": "",
                 "command": command,
@@ -4916,6 +4921,7 @@ def build_next_action_console_frame(
                     "priority": 8,
                     "action_category": category,
                     "affected_feature": category.lower().replace(" / ", "_").replace(" ", "_"),
+                    "scope": "action queue",
                     "ticker_count": "",
                     "sample_tickers": "",
                     "command": command,
@@ -4949,9 +4955,12 @@ def next_action_console_cards(console_frame: pd.DataFrame | None, limit: int = 4
     cards: list[dict[str, object]] = []
     for _, row in console_frame.head(limit).iterrows():
         category = format_missing(row.get("action_category"), "Next action")
+        scope = format_missing(row.get("scope"), "")
         sample = format_missing(row.get("sample_tickers"), "")
         body = compact_reason(row.get("why_it_matters"), max_sentences=1, max_chars=150)
         source_note = compact_reason(row.get("source_freshness_note"), max_sentences=1, max_chars=140)
+        if scope and scope != "Not available":
+            body = f"{scope}: {body}"
         if sample and sample != "Not available":
             body = f"{body} Sample: {sample}."
         if source_note and source_note != "Not available":
@@ -5171,7 +5180,7 @@ def single_stock_readiness_snapshot(
         dcf_status = "blocked"
         dcf_reason = str(dcf_row.get("reason_not_ready") or readiness_row.get("missing_data") or "Missing required DCF inputs.")
 
-    return {
+    snapshot = {
         "ticker": symbol,
         "status": str(readiness_row.get("overall_readiness_state") or "partial"),
         "name": readiness_row.get("name", ""),
@@ -5208,6 +5217,35 @@ def single_stock_readiness_snapshot(
         "price_last_date": coverage_row.get("last_price_date", ""),
         "updated_at": readiness_row.get("updated_at", ""),
     }
+    snapshot["one_minute_summary"] = single_stock_one_minute_summary(snapshot)
+    return snapshot
+
+
+def single_stock_one_minute_summary(snapshot: dict[str, object]) -> str:
+    ticker = format_missing(snapshot.get("ticker"), "Ticker")
+    status = format_missing(snapshot.get("status"), "unknown")
+    decision = format_missing(snapshot.get("decision_subtype") or snapshot.get("decision_bucket"), "not classified")
+    blocker = format_missing(snapshot.get("primary_blocker"), "")
+    dcf_status = format_missing(snapshot.get("dcf_status"), "unknown")
+    peer_blocker = format_missing(snapshot.get("peer_blocker_type"), "")
+    next_action = format_missing(snapshot.get("next_action"), "")
+
+    parts = [f"{ticker} is {status}; decision: {decision}."]
+    if blocker and blocker.lower() not in {"none", "not available"}:
+        parts.append(f"Primary blocker: {blocker}.")
+    if dcf_status.lower() == "excluded":
+        parts.append("DCF is excluded because this asset is not an operating-company DCF candidate.")
+    elif dcf_status.lower() == "blocked":
+        parts.append(f"DCF is blocked: {compact_reason(snapshot.get('dcf_reason'), max_sentences=1, max_chars=120)}")
+    elif dcf_status.lower() == "ready":
+        parts.append("DCF inputs are ready, but peer and optional context may still be partial.")
+    if peer_blocker and peer_blocker.lower() not in {"not available", "nan", "none", ""}:
+        parts.append(f"Peer workflow: {peer_blocker}.")
+    if not snapshot.get("earnings_ready") or not snapshot.get("analyst_estimates_ready"):
+        parts.append("Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist.")
+    if next_action and next_action != "Not available":
+        parts.append(f"Next: {next_action}")
+    return " ".join(part for part in parts if part and part != "Not available")
 
 
 def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
@@ -5234,6 +5272,13 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
         price_window = f"Price rows/days: {format_missing(snapshot.get('price_rows'))}."
 
     return [
+        {
+            "kicker": "ONE-MINUTE READ",
+            "title": format_missing(snapshot.get("ticker"), "Selected ticker"),
+            "body": format_missing(snapshot.get("one_minute_summary"), "Readiness state available."),
+            "badges": ["readiness first", "single name"],
+            "command": f"make stock-report TICKER={format_missing(snapshot.get('ticker'))}",
+        },
         {
             "kicker": "TICKER STATUS",
             "title": f"{format_missing(snapshot.get('ticker'))}: {format_missing(snapshot.get('status'))}",

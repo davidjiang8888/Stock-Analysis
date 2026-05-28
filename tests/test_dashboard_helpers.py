@@ -8860,7 +8860,11 @@ def test_next_action_console_groups_feature_actions_with_source_notes():
     assert "make price-refresh top_n=25 provider=yahoo" in rendered
     assert "make sec-stage-queue top_n=25" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
+    assert "broad universe" in rendered
+    assert "active universe" in rendered
+    assert "analysis-ready subset" in rendered
     assert "source_freshness_note" in " ".join(console.columns)
+    assert "scope" in console.columns
     assert "dashboard does not execute" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -9266,6 +9270,7 @@ def test_single_stock_readiness_snapshot_handles_company_etf_and_missing():
     assert etf["peer_blocker_type"] == "missing_peer_mapping"
     assert "source-backed peers" in etf["next_peer_action"]
     assert "excluded" in str(etf["dcf_reason"]).lower()
+    assert "DCF is excluded" in etf["one_minute_summary"]
     assert missing["status"] == "missing"
 
 
@@ -9294,6 +9299,8 @@ def test_single_stock_status_cards_surface_badges_sources_and_next_actions():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "nvda: partial" in rendered
+    assert "one-minute read" in rendered
+    assert "decision: research candidate - dcf ready but peer blocked" in rendered
     assert "ready: price, momentum, dcf" in rendered
     assert "missing_peer_mapping" in rendered
     assert "2025-01-01 to 2026-05-22" in rendered

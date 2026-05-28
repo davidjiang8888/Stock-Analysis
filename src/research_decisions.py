@@ -200,6 +200,14 @@ def build_research_decisions_frame(readiness: pd.DataFrame, final_watchlist: pd.
             bucket = "Review Later"
             main_reason = "Ticker is known but not currently supported by enough analysis-ready data."
 
+        if bucket == "Monitor" and asset_type in {"etf", "index_proxy", "fund"}:
+            if "peer" in blocked:
+                primary_blocker = "peers"
+            elif "earnings" in blocked or "analyst_estimates" in blocked:
+                primary_blocker = "optional_context"
+            else:
+                primary_blocker = "none"
+
         if bucket == "Research Now":
             confidence = min(0.9, 0.55 * data_score + 0.45 * analysis_score_normalized)
         elif bucket == "Monitor":
