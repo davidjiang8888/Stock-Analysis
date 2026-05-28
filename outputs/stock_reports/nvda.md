@@ -59,6 +59,6 @@ Research-only local report. This is not a trade instruction and cannot execute t
 ## Sources And Freshness
 - local:prices.csv: research-grade / local, retrieved 2026-05-27T21:34:28.109158039+00:00; Local CSV-backed research data.
 - local:fundamentals.csv: research-grade / local, retrieved 2026-05-27T21:34:35.086026430+00:00; Local fundamentals data.; Dataset row source: sec_companyfacts
-- local:earnings.csv: research-grade / local, retrieved 2026-05-28T03:34:36+00:00; Earnings fields are unavailable from the bundled local sample files.
-- local:analyst_estimates.csv: research-grade / local, retrieved 2026-05-28T03:34:36+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
+- local:earnings.csv: research-grade / local, retrieved 2026-05-28T14:25:05+00:00; Earnings fields are unavailable from the bundled local sample files.
+- local:analyst_estimates.csv: research-grade / local, retrieved 2026-05-28T14:25:05+00:00; Analyst estimate fields are unavailable from the bundled local sample files.
 

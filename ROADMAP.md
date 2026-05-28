@@ -24,28 +24,31 @@ The following milestones are completed or mostly completed for the current 12-ti
 - [x] Monthly picks staying empty when data is insufficient.
 - [x] Dashboard smoke passing.
 - [x] Test suite passing.
+- [x] Broad-universe command center visibility for the current 3,538-ticker master universe.
+- [x] Product-page readiness filters, row limits, and single-stock drilldown.
+- [x] Peer Mapping Studio V1 with peer blocker filters and safe command cards.
 
 ## 2. Current Product State
 
-The product is usable today for price, momentum, and market-direction monitoring across the current active universe.
+The product is usable today for price, momentum, and market-direction monitoring across the current active universe and a growing analysis-ready subset of the broad master universe.
 
-The product is not yet decision-useful for valuation, DCF, earnings, analyst estimates, or peer-relative analysis because trusted source data is missing or incomplete. This is expected and correct: the system should not promote unsupported conclusions when the underlying data is not ready.
+The product is partially decision-useful for DCF-ready company research, but peer-relative analysis, earnings context, and analyst-estimate context remain blocked for most tickers because trusted source data is missing or incomplete. This is expected and correct: the system should not promote unsupported conclusions when the underlying data is not ready.
 
 Current verified readiness baseline:
 
-- Universe rows: 12.
-- Price ready: 12/12.
-- Momentum ready: 12/12.
-- Market direction ready: 12/12.
-- Liquidity ready: 9/12.
-- Correlation ready: 9/12.
-- Fundamentals ready: 0/12.
-- DCF ready: 0/12.
-- Peer ready: 0/12.
-- Earnings ready: 0/12.
-- Analyst estimates ready: 0/12.
-- Final watchlist ranked rows: 0.
-- Monthly research picks: 0.
+- Master universe rows: 3,538.
+- Active research rows: 12.
+- Price ready: 240/3,538.
+- Momentum ready: 237/3,538.
+- Liquidity ready: 232/3,538.
+- Correlation ready: 232/3,538.
+- Fundamentals ready: 23/3,538.
+- DCF ready: 23/3,538.
+- Peer ready: 3/3,538.
+- Earnings ready: 0/3,538.
+- Analyst estimates ready: 0/3,538.
+- Overall readiness: 3,298 blocked, 240 partial.
+- Decision buckets: 3,513 Blocked by Data, 23 Research Now, 2 Monitor.
 
 The product correctly avoids fake conclusions. The next improvement is trusted data ingestion, not more indicators.
 

@@ -8992,6 +8992,110 @@ def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_
     assert "sell" not in rendered
 
 
+def test_peer_mapping_studio_summary_cards_and_scope_toggles_are_actionable():
+    peer_readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "peer_ready": False,
+                "peer_blocker_type": "missing_peer_mapping",
+                "peer_trend_comparison_ready": False,
+                "peer_valuation_comparison_ready": False,
+            },
+            {
+                "ticker": "META",
+                "peer_ready": False,
+                "peer_blocker_type": "peer_fundamentals_missing",
+                "peer_trend_comparison_ready": True,
+                "peer_valuation_comparison_ready": False,
+            },
+            {
+                "ticker": "NVDA",
+                "peer_ready": True,
+                "peer_blocker_type": "",
+                "peer_trend_comparison_ready": True,
+                "peer_valuation_comparison_ready": True,
+            },
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "A", "dcf_ready": True, "in_active_universe": False},
+            {"ticker": "META", "dcf_ready": True, "in_active_universe": True},
+            {"ticker": "NVDA", "dcf_ready": True, "in_active_universe": True},
+        ]
+    )
+    unlock = pd.DataFrame(
+        [
+            {"ticker": "A", "priority": 1, "focus_command": "make focus-peers TICKER=A"},
+            {"ticker": "META", "priority": 1, "focus_command": "make focus-peers TICKER=META"},
+        ]
+    )
+
+    cards = dashboard.peer_mapping_studio_summary_cards(peer_readiness, readiness)
+    rendered_cards = " ".join(str(value) for card in cards for value in card.values()).lower()
+    active_only = dashboard.build_peer_mapping_studio_frame(
+        peer_readiness,
+        readiness,
+        unlock,
+        filter_mode="DCF-ready but peer-blocked",
+        active_universe_only=True,
+        dcf_ready_only=True,
+        row_limit=10,
+    )
+
+    assert list(active_only["ticker"]) == ["META"]
+    assert "dcf peer blockers" in rendered_cards
+    assert "missing mappings" in rendered_cards
+    assert "valuation blocked" in rendered_cards
+    assert "make peer-mapping-queue top_n=25" in rendered_cards
+    assert "make templates" in rendered_cards
+    assert "broker" not in rendered_cards
+    assert "order" not in rendered_cards
+    assert "buy" not in rendered_cards
+    assert "sell" not in rendered_cards
+
+
+def test_decision_workflow_summary_cards_explain_buckets_without_trade_language():
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "primary_blocker": "peers",
+                "next_best_action": "Add source-backed peer mappings for A.",
+            },
+            {
+                "ticker": "APLD",
+                "decision_bucket": "Blocked by Data",
+                "decision_subtype": "Blocked by Data - Missing Price",
+                "primary_blocker": "price",
+                "next_best_action": "Run make price-refresh TOP_N=25 PROVIDER=yahoo.",
+            },
+            {
+                "ticker": "QQQ",
+                "decision_bucket": "Monitor",
+                "decision_subtype": "Monitor - ETF Market Proxy",
+                "primary_blocker": "none",
+                "next_best_action": "Use as market proxy; DCF is excluded.",
+            },
+        ]
+    )
+
+    cards = dashboard.decision_workflow_summary_cards(decisions)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "1 research / 1 blocked" in rendered
+    assert "research candidate - dcf ready but peer blocked" in rendered
+    assert "price: 1" in rendered
+    assert "readiness-gated" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     cards = dashboard.optional_context_unlock_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
@@ -9001,6 +9105,12 @@ def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     assert "make import-earnings" in rendered
     assert "make import-analyst-estimates" in rendered
     assert "make templates" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+    assert "data/rejected/earnings_import_rejected.csv" in rendered
+    assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
+    assert "missing trusted local csv input" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
@@ -9093,12 +9203,48 @@ def test_single_stock_readiness_snapshot_handles_company_etf_and_missing():
     assert company["primary_blocker"] == "peers"
     assert company["peer_count"] == 2
     assert company["peer_trend_comparison_ready"] is True
+    assert company["ready_features"] == ""
     assert etf["dcf_status"] == "excluded"
     assert etf["decision_subtype"] == "Monitor - ETF Market Proxy"
     assert etf["peer_blocker_type"] == "missing_peer_mapping"
     assert "source-backed peers" in etf["next_peer_action"]
     assert "excluded" in str(etf["dcf_reason"]).lower()
     assert missing["status"] == "missing"
+
+
+def test_single_stock_status_cards_surface_badges_sources_and_next_actions():
+    snapshot = {
+        "ticker": "NVDA",
+        "status": "partial",
+        "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+        "confidence": "medium",
+        "main_reason": "Core data is ready for a supported research pass.",
+        "next_action": "Add source-backed peer mappings and peer metrics for NVDA.",
+        "ready_features": "price, momentum, dcf",
+        "blocked_features": "peer, earnings, analyst_estimates",
+        "excluded_features": "portfolio",
+        "missing_data": "peers: needs mappings",
+        "peer_blocker_type": "missing_peer_mapping",
+        "next_peer_action": "Add at least 2 source-backed peer mappings for NVDA.",
+        "peer_trend_comparison_ready": False,
+        "peer_valuation_comparison_ready": False,
+        "price_first_date": "2025-01-01",
+        "price_last_date": "2026-05-22",
+        "updated_at": "2026-05-28T00:00:00+00:00",
+    }
+
+    cards = dashboard.single_stock_status_cards(snapshot)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "nvda: partial" in rendered
+    assert "ready: price, momentum, dcf" in rendered
+    assert "missing_peer_mapping" in rendered
+    assert "2025-01-01 to 2026-05-22" in rendered
+    assert "trusted local csv input" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
 
 
 def test_dashboard_splits_momentum_to_ready_and_blocked_rows():
