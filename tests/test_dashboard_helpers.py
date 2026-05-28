@@ -8901,6 +8901,112 @@ def test_peer_readiness_product_cards_surface_specific_peer_blockers():
     assert "sell" not in rendered
 
 
+def test_peer_mapping_studio_filters_dcf_ready_peer_blockers_and_keeps_commands_safe():
+    peer_readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "peer_ready": False,
+                "peer_blocker_type": "missing_peer_mapping",
+                "mapping_status": "missing_mapping",
+                "peer_count": 0,
+                "ready_peer_count": 0,
+                "next_peer_action": "Add at least 2 source-backed peer mappings for A in data/imports/peers.csv.",
+            },
+            {
+                "ticker": "META",
+                "peer_ready": False,
+                "peer_blocker_type": "peer_fundamentals_missing",
+                "mapping_status": "mapped",
+                "peer_count": 2,
+                "ready_peer_count": 2,
+                "peer_missing_fundamentals_tickers": "GOOGL, AMZN",
+                "next_peer_action": "Import trusted fundamentals for mapped peers: GOOGL, AMZN.",
+            },
+            {
+                "ticker": "NVDA",
+                "peer_ready": True,
+                "peer_blocker_type": "",
+                "mapping_status": "mapped",
+                "peer_trend_comparison_ready": True,
+                "peer_count": 2,
+                "ready_peer_count": 2,
+            },
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "A", "name": "Agilent", "asset_type": "company", "dcf_ready": True, "price_ready": True, "in_active_universe": False},
+            {"ticker": "META", "name": "Meta", "asset_type": "company", "dcf_ready": True, "price_ready": True, "in_active_universe": True},
+            {"ticker": "NVDA", "name": "Nvidia", "asset_type": "company", "dcf_ready": True, "price_ready": True, "in_active_universe": True},
+        ]
+    )
+    unlock = pd.DataFrame(
+        [
+            {"ticker": "A", "priority": 1, "focus_command": "make focus-peers TICKER=A", "example_command": "make peer-mapping-queue TOP_N=25"},
+            {"ticker": "META", "priority": 1, "focus_command": "make focus-peers TICKER=META", "example_command": "make peer-mapping-queue TOP_N=25"},
+        ]
+    )
+
+    studio = dashboard.build_peer_mapping_studio_frame(
+        peer_readiness,
+        readiness,
+        unlock,
+        filter_mode="DCF-ready but peer-blocked",
+        row_limit=10,
+    )
+    missing_mapping = dashboard.build_peer_mapping_studio_frame(
+        peer_readiness,
+        readiness,
+        unlock,
+        filter_mode="Missing peer mapping",
+        row_limit=10,
+    )
+    fundamentals = dashboard.build_peer_mapping_studio_frame(
+        peer_readiness,
+        readiness,
+        unlock,
+        filter_mode="Peer fundamentals missing",
+        ticker_search="googl",
+        row_limit=10,
+    )
+    trend_ready = dashboard.build_peer_mapping_studio_frame(
+        peer_readiness,
+        readiness,
+        unlock,
+        filter_mode="Peer trend comparison ready",
+        row_limit=10,
+    )
+
+    assert list(studio["ticker"]) == ["A", "META"]
+    assert list(missing_mapping["ticker"]) == ["A"]
+    assert list(fundamentals["ticker"]) == ["META"]
+    assert list(trend_ready["ticker"]) == ["NVDA"]
+    columns = dashboard.peer_mapping_studio_table_columns(studio)
+    rendered = " ".join(str(value) for value in studio[columns].to_numpy().ravel()).lower()
+    assert "make focus-peers ticker=a" in rendered
+    assert "make peer-mapping-queue top_n=25" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
+def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
+    cards = dashboard.optional_context_unlock_cards()
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "ticker, fiscal_period, report_date" in rendered
+    assert "ticker, period, eps_estimate" in rendered
+    assert "make import-earnings" in rendered
+    assert "make import-analyst-estimates" in rendered
+    assert "make templates" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_market_blocker_summary_cards_surface_safe_top_n_worklists():
     readiness = pd.DataFrame(
         {
@@ -8964,17 +9070,33 @@ def test_single_stock_readiness_snapshot_handles_company_etf_and_missing():
             "reason_not_ready": ["", "DCF excluded for etf."],
         }
     )
+    peers = pd.DataFrame(
+        {
+            "ticker": ["NVDA", "QQQ"],
+            "peer_blocker_type": ["", "missing_peer_mapping"],
+            "mapping_status": ["mapped", "missing_mapping"],
+            "peer_count": [2, 0],
+            "ready_peer_count": [2, 0],
+            "peer_trend_comparison_ready": [True, False],
+            "peer_valuation_comparison_ready": [False, False],
+            "next_peer_action": ["Peer trend comparison ready.", "Add source-backed peers for QQQ."],
+        }
+    )
 
-    company = dashboard.single_stock_readiness_snapshot("NVDA", readiness, decisions_frame=decisions, dcf_readiness_frame=dcf)
-    etf = dashboard.single_stock_readiness_snapshot("QQQ", readiness, decisions_frame=decisions, dcf_readiness_frame=dcf)
+    company = dashboard.single_stock_readiness_snapshot("NVDA", readiness, decisions_frame=decisions, dcf_readiness_frame=dcf, peer_readiness_frame=peers)
+    etf = dashboard.single_stock_readiness_snapshot("QQQ", readiness, decisions_frame=decisions, dcf_readiness_frame=dcf, peer_readiness_frame=peers)
     missing = dashboard.single_stock_readiness_snapshot("ZZZ", readiness)
 
     assert company["dcf_status"] == "ready"
     assert company["decision_bucket"] == "Research Now"
     assert company["decision_subtype"] == "Research Candidate - DCF Ready But Peer Blocked"
     assert company["primary_blocker"] == "peers"
+    assert company["peer_count"] == 2
+    assert company["peer_trend_comparison_ready"] is True
     assert etf["dcf_status"] == "excluded"
     assert etf["decision_subtype"] == "Monitor - ETF Market Proxy"
+    assert etf["peer_blocker_type"] == "missing_peer_mapping"
+    assert "source-backed peers" in etf["next_peer_action"]
     assert "excluded" in str(etf["dcf_reason"]).lower()
     assert missing["status"] == "missing"
 

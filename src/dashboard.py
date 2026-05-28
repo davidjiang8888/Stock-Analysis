@@ -87,6 +87,7 @@ ANALYST_ESTIMATES_READINESS_FILE = "analyst_estimates_readiness.csv"
 TICKER_READINESS_REPORT_FILE = "reports/ticker_readiness_report.csv"
 FEATURE_READINESS_SUMMARY_FILE = "reports/feature_readiness_summary.csv"
 PEER_READINESS_REPORT_FILE = "reports/peer_readiness_report.csv"
+PEER_UNLOCK_WORKLIST_FILE = "peer_unlock_worklist.csv"
 TAB_TO_FILE = {
     "Market Direction": "market_direction.csv",
     "Momentum Leaders": "momentum_leaders.csv",
@@ -637,6 +638,10 @@ def load_feature_readiness_summary(data_dir: Path = DATA_DIR) -> tuple[pd.DataFr
 
 def load_peer_readiness_report(data_dir: Path = DATA_DIR) -> tuple[pd.DataFrame | None, str | None]:
     return load_output(data_dir / PEER_READINESS_REPORT_FILE)
+
+
+def load_peer_unlock_worklist(outputs_dir: Path = OUTPUTS_DIR) -> tuple[pd.DataFrame | None, str | None]:
+    return load_output(outputs_dir / PEER_UNLOCK_WORKLIST_FILE)
 
 
 def load_action_queue(
@@ -2383,6 +2388,40 @@ def optional_context_empty_state_message(dataset_label: str) -> str:
         "Not available: missing trusted local CSV input. "
         f"Add verified {dataset_label} rows through the staged manual CSV workflow, then run imports validation, preview, apply, and refresh onboarding."
     )
+
+
+def optional_context_unlock_cards() -> list[dict[str, object]]:
+    return [
+        {
+            "kicker": "EARNINGS INPUT",
+            "title": "Trusted CSV required",
+            "body": (
+                "Schema: ticker, fiscal_period, report_date, eps_actual, eps_estimate, "
+                "revenue_actual, revenue_estimate, source, updated_at."
+            ),
+            "badges": ["data/staged/earnings/", "rejected rows visible"],
+            "command": "make import-earnings",
+        },
+        {
+            "kicker": "ESTIMATES INPUT",
+            "title": "Trusted CSV required",
+            "body": (
+                "Schema: ticker, period, eps_estimate, revenue_estimate, price_target_mean, "
+                "price_target_high, price_target_low, rating_consensus, source, updated_at."
+            ),
+            "badges": ["data/staged/analyst_estimates/", "rejected rows visible"],
+            "command": "make import-analyst-estimates",
+        },
+        {
+            "kicker": "VALIDATION",
+            "title": "Preview before apply",
+            "body": (
+                "Use templates first, then import, validate, preview, and apply. Invalid rows stay in rejected CSV reports."
+            ),
+            "badges": ["csv-first", "no fabrication"],
+            "command": "make templates",
+        },
+    ]
 
 
 def stock_report_readiness_badges(readiness: dict[str, object]) -> list[str]:
@@ -4239,6 +4278,146 @@ def peer_readiness_product_cards(
     ]
 
 
+PEER_STUDIO_FILTERS = [
+    "DCF-ready but peer-blocked",
+    "Missing peer mapping",
+    "Peer price missing",
+    "Peer fundamentals missing",
+    "Peer valuation blocked",
+    "Peer trend comparison ready",
+    "All peer-blocked",
+]
+
+
+def build_peer_mapping_studio_frame(
+    peer_readiness_frame: pd.DataFrame | None,
+    ticker_readiness_frame: pd.DataFrame | None = None,
+    peer_unlock_worklist_frame: pd.DataFrame | None = None,
+    *,
+    filter_mode: str = "DCF-ready but peer-blocked",
+    ticker_search: str = "",
+    row_limit: int | None = 50,
+) -> pd.DataFrame:
+    if peer_readiness_frame is None or peer_readiness_frame.empty:
+        return pd.DataFrame()
+    frame = peer_readiness_frame.copy()
+    if "ticker" not in frame.columns:
+        return pd.DataFrame()
+    frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+
+    if ticker_readiness_frame is not None and not ticker_readiness_frame.empty and "ticker" in ticker_readiness_frame.columns:
+        readiness_columns = [
+            column
+            for column in [
+                "ticker",
+                "name",
+                "asset_type",
+                "theme",
+                "in_active_universe",
+                "price_ready",
+                "dcf_ready",
+                "fundamentals_ready",
+                "overall_readiness_state",
+                "decision_bucket",
+                "next_action",
+            ]
+            if column in ticker_readiness_frame.columns
+        ]
+        readiness = ticker_readiness_frame[readiness_columns].copy()
+        readiness["ticker"] = readiness["ticker"].astype(str).str.upper().str.strip()
+        frame = frame.merge(readiness, on="ticker", how="left", suffixes=("", "_ticker"))
+
+    if peer_unlock_worklist_frame is not None and not peer_unlock_worklist_frame.empty and "ticker" in peer_unlock_worklist_frame.columns:
+        unlock_columns = [
+            column
+            for column in ["ticker", "priority", "focus_command", "example_command"]
+            if column in peer_unlock_worklist_frame.columns
+        ]
+        unlock = peer_unlock_worklist_frame[unlock_columns].copy()
+        unlock["ticker"] = unlock["ticker"].astype(str).str.upper().str.strip()
+        frame = frame.merge(unlock, on="ticker", how="left", suffixes=("", "_unlock"))
+
+    peer_ready = bool_series(frame, "peer_ready")
+    dcf_ready = bool_series(frame, "dcf_ready")
+    blocker = frame.get("peer_blocker_type", pd.Series("", index=frame.index)).fillna("").astype(str)
+
+    if filter_mode == "DCF-ready but peer-blocked":
+        frame = frame.loc[dcf_ready & ~peer_ready].copy()
+    elif filter_mode == "Missing peer mapping":
+        frame = frame.loc[blocker.eq("missing_peer_mapping")].copy()
+    elif filter_mode == "Peer price missing":
+        frame = frame.loc[blocker.eq("peer_price_missing")].copy()
+    elif filter_mode == "Peer fundamentals missing":
+        frame = frame.loc[blocker.eq("peer_fundamentals_missing")].copy()
+    elif filter_mode == "Peer valuation blocked":
+        frame = frame.loc[blocker.eq("peer_valuation_blocked")].copy()
+    elif filter_mode == "Peer trend comparison ready":
+        frame = frame.loc[bool_series(frame, "peer_trend_comparison_ready")].copy()
+    elif filter_mode == "All peer-blocked":
+        frame = frame.loc[~peer_ready].copy()
+
+    if ticker_search.strip():
+        search_columns = [
+            column
+            for column in [
+                "ticker",
+                "name",
+                "theme",
+                "peer_blocker_type",
+                "missing_peer_reason",
+                "next_peer_action",
+                "sample_peers",
+            ]
+            if column in frame.columns
+        ]
+        if search_columns:
+            mask = frame[search_columns].astype(str).apply(
+                lambda row: row.str.contains(ticker_search, case=False, na=False).any(),
+                axis=1,
+            )
+            frame = frame.loc[mask].copy()
+
+    if "priority" in frame.columns:
+        frame["priority"] = pd.to_numeric(frame["priority"], errors="coerce").fillna(999).astype(int)
+    else:
+        frame["priority"] = 999
+    if "ticker" in frame.columns:
+        frame = frame.sort_values(["priority", "ticker"], kind="stable").copy()
+    if row_limit is not None and row_limit > 0:
+        frame = frame.head(row_limit).copy()
+    return frame
+
+
+def peer_mapping_studio_table_columns(frame: pd.DataFrame) -> list[str]:
+    preferred = [
+        "priority",
+        "ticker",
+        "name",
+        "asset_type",
+        "theme",
+        "in_active_universe",
+        "dcf_ready",
+        "peer_ready",
+        "peer_blocker_type",
+        "mapping_status",
+        "peer_count",
+        "ready_peer_count",
+        "peer_price_ready_count",
+        "peer_momentum_ready_count",
+        "peer_fundamentals_ready_count",
+        "peer_valuation_ready_count",
+        "sample_peers",
+        "peer_missing_price_tickers",
+        "peer_missing_fundamentals_tickers",
+        "peer_missing_valuation_tickers",
+        "missing_peer_reason",
+        "next_peer_action",
+        "focus_command",
+        "example_command",
+    ]
+    return [column for column in preferred if column in frame.columns]
+
+
 def _text_contains(frame: pd.DataFrame, column: str, token: str) -> pd.Series:
     if column not in frame.columns:
         return pd.Series(False, index=frame.index)
@@ -4517,6 +4696,7 @@ def single_stock_readiness_snapshot(
     coverage_frame: pd.DataFrame | None = None,
     decisions_frame: pd.DataFrame | None = None,
     dcf_readiness_frame: pd.DataFrame | None = None,
+    peer_readiness_frame: pd.DataFrame | None = None,
     earnings_readiness_frame: pd.DataFrame | None = None,
     analyst_readiness_frame: pd.DataFrame | None = None,
 ) -> dict[str, object]:
@@ -4554,6 +4734,12 @@ def single_stock_readiness_snapshot(
         if not matches.empty:
             coverage_row = matches.iloc[0].to_dict()
 
+    peer_row: dict[str, object] = {}
+    if peer_readiness_frame is not None and not peer_readiness_frame.empty and "ticker" in peer_readiness_frame.columns:
+        matches = peer_readiness_frame.loc[peer_readiness_frame["ticker"].astype(str).str.upper().str.strip().eq(symbol)]
+        if not matches.empty:
+            peer_row = matches.iloc[0].to_dict()
+
     asset_type = str(readiness_row.get("asset_type", "") or "").lower()
     excluded_features = str(readiness_row.get("excluded_features", "") or "")
     if "dcf" in excluded_features.lower() or asset_type in {"etf", "index_proxy", "fund"}:
@@ -4576,6 +4762,15 @@ def single_stock_readiness_snapshot(
         "dcf_status": dcf_status,
         "dcf_reason": dcf_reason,
         "peer_ready": bool(bool_series(pd.DataFrame([readiness_row]), "peer_ready").any()),
+        "peer_blocker_type": peer_row.get("peer_blocker_type", ""),
+        "peer_mapping_status": peer_row.get("mapping_status", ""),
+        "peer_count": peer_row.get("peer_count", ""),
+        "ready_peer_count": peer_row.get("ready_peer_count", ""),
+        "peer_trend_comparison_ready": peer_row.get("peer_trend_comparison_ready", ""),
+        "peer_valuation_comparison_ready": peer_row.get("peer_valuation_comparison_ready", ""),
+        "peer_dcf_comparison_ready": peer_row.get("peer_dcf_comparison_ready", ""),
+        "sample_peers": peer_row.get("sample_peers", ""),
+        "next_peer_action": peer_row.get("next_peer_action") or peer_row.get("missing_peer_reason", ""),
         "earnings_ready": bool(bool_series(pd.DataFrame([readiness_row]), "earnings_ready").any()),
         "analyst_estimates_ready": bool(bool_series(pd.DataFrame([readiness_row]), "analyst_estimates_ready").any()),
         "decision_bucket": decision_row.get("decision_bucket", "Not available"),
@@ -9476,6 +9671,7 @@ def render_market_command_center(
     feature_summary_frame: pd.DataFrame | None,
     peer_readiness_frame: pd.DataFrame | None,
     peer_mapping_queue_frame: pd.DataFrame | None,
+    peer_unlock_worklist_frame: pd.DataFrame | None,
     dcf_readiness_frame: pd.DataFrame | None,
     earnings_readiness_frame: pd.DataFrame | None,
     analyst_readiness_frame: pd.DataFrame | None,
@@ -9490,6 +9686,44 @@ def render_market_command_center(
     render_signal_cards(feature_readiness_cards(feature_summary_frame))
     render_section_header("Peer Readiness Workflow", "Specific peer blockers for mapping, peer prices, peer fundamentals, and peer valuation context.")
     render_signal_cards(peer_readiness_product_cards(peer_readiness_frame, peer_mapping_queue_frame))
+    render_section_header("Peer Mapping Studio", "Filtered peer unlock queue for DCF-ready names, missing mappings, and peer metric follow-through.")
+    peer_cols = st.columns([1.7, 1.5, 1])
+    peer_filter = peer_cols[0].selectbox(
+        "Peer workflow filter",
+        PEER_STUDIO_FILTERS,
+        index=0,
+        key="market-command-peer-filter",
+    )
+    peer_search = peer_cols[1].text_input(
+        "Peer ticker / reason search",
+        value="",
+        placeholder="META, missing_peer_mapping, semis...",
+        key="market-command-peer-search",
+    )
+    peer_limit = int(
+        peer_cols[2].selectbox(
+            "Peer row limit",
+            [25, 50, 100, 200],
+            index=1,
+            key="market-command-peer-limit",
+        )
+    )
+    peer_studio = build_peer_mapping_studio_frame(
+        peer_readiness_frame,
+        ticker_readiness_frame,
+        peer_unlock_worklist_frame,
+        filter_mode=peer_filter,
+        ticker_search=peer_search,
+        row_limit=peer_limit,
+    )
+    if peer_studio.empty:
+        st.info("No peer workflow rows match the current filter. Try All peer-blocked or run make readiness.")
+    else:
+        st.caption(
+            f"Showing {len(peer_studio)} peer workflow row(s). Use make peer-mapping-queue TOP_N=25 or focus commands before editing staged peer CSVs."
+        )
+        peer_columns = peer_mapping_studio_table_columns(peer_studio)
+        st.dataframe(clean_display_frame(peer_studio[peer_columns]), width="stretch", hide_index=True)
     render_context_note(
         "Universe scope.",
         "Known universe is not the same as analysis-ready universe. Missing prices, fundamentals, peers, earnings, or estimates block conclusions; ETFs and index proxies stay excluded from operating-company DCF.",
@@ -9603,6 +9837,7 @@ def render_market_command_center(
         coverage_frame,
         decisions_frame,
         dcf_readiness_frame,
+        peer_readiness_frame,
         earnings_readiness_frame,
         analyst_readiness_frame,
     )
@@ -9635,6 +9870,13 @@ def render_market_command_center(
             {"Field": "Decision subtype", "Value": snapshot.get("decision_subtype")},
             {"Field": "Primary blocker", "Value": snapshot.get("primary_blocker")},
             {"Field": "DCF reason", "Value": snapshot.get("dcf_reason")},
+            {"Field": "Peer blocker type", "Value": snapshot.get("peer_blocker_type")},
+            {"Field": "Peer mapping status", "Value": snapshot.get("peer_mapping_status")},
+            {"Field": "Peer count / ready peers", "Value": f"{format_missing(snapshot.get('peer_count'))} / {format_missing(snapshot.get('ready_peer_count'))}"},
+            {"Field": "Peer trend comparison ready", "Value": snapshot.get("peer_trend_comparison_ready")},
+            {"Field": "Peer valuation comparison ready", "Value": snapshot.get("peer_valuation_comparison_ready")},
+            {"Field": "Sample peers", "Value": snapshot.get("sample_peers")},
+            {"Field": "Next peer action", "Value": snapshot.get("next_peer_action")},
             {"Field": "Earnings ready", "Value": snapshot.get("earnings_ready")},
             {"Field": "Analyst estimates ready", "Value": snapshot.get("analyst_estimates_ready")},
             {"Field": "Missing data", "Value": snapshot.get("missing_data")},
@@ -9684,6 +9926,7 @@ def render_data_health(provider) -> None:
     ticker_readiness_frame, ticker_readiness_message = load_ticker_readiness_report()
     feature_summary_frame, feature_summary_message = load_feature_readiness_summary()
     peer_readiness_frame, peer_readiness_message = load_peer_readiness_report()
+    peer_unlock_worklist_frame, peer_unlock_worklist_message = load_peer_unlock_worklist()
     decisions_frame, decisions_message = load_output(OUTPUTS_DIR / "research_decisions.csv")
     staged_imports = validate_imports(base_dir=BASE_DIR)
     universe_summary = summarize_universe_manager(BASE_DIR)
@@ -9708,6 +9951,7 @@ def render_data_health(provider) -> None:
         feature_summary_frame,
         peer_readiness_frame,
         peer_mapping_queue_frame,
+        peer_unlock_worklist_frame,
         dcf_readiness_frame,
         earnings_readiness_frame,
         analyst_readiness_frame,
@@ -9716,6 +9960,13 @@ def render_data_health(provider) -> None:
         render_notice_card(
             "Feature readiness summary has not been generated",
             feature_summary_message,
+            "make readiness",
+            tone="warning",
+        )
+    if peer_unlock_worklist_frame is None and peer_unlock_worklist_message:
+        render_notice_card(
+            "Peer unlock worklist has not been generated",
+            peer_unlock_worklist_message,
             "make readiness",
             tone="warning",
         )
@@ -9991,6 +10242,7 @@ def render_data_health(provider) -> None:
                 "Trusted Optional Context",
                 "Earnings and analyst estimates stay not available until verified local rows are imported and applied.",
             )
+            render_signal_cards(optional_context_unlock_cards())
             optional_cols = st.columns(2)
             with optional_cols[0]:
                 st.markdown("#### Earnings Readiness")

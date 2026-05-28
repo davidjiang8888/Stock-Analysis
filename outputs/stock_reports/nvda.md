@@ -1,13 +1,13 @@
-# A Research Readiness Report
+# NVDA Research Readiness Report
 
 Research-only local report. This is not a trade instruction and cannot execute transactions.
 
 ## Decision
 - Bucket: Research Now
-- Subtype: Research Candidate - DCF Ready But Peer Blocked
-- Primary blocker: peers
+- Subtype: Research Candidate - Core Data Ready
+- Primary blocker: earnings
 - Main reason: Core data is ready for a supported research pass.
-- Next action: Add source-backed peer mappings and peer metrics for A.
+- Next action: Optional context missing for NVDA; leave unavailable unless trusted local CSVs exist.
 
 ## Readiness
 - Overall state: partial
@@ -17,16 +17,16 @@ Research-only local report. This is not a trade instruction and cannot execute t
 - Correlation ready: True
 - Fundamentals ready: True
 - DCF ready: True
-- Peer ready: False
+- Peer ready: True
 - Earnings ready: False
 - Analyst estimates ready: False
-- Blocked features: peer, earnings, analyst_estimates
-- Excluded features: portfolio
+- Blocked features: earnings, analyst_estimates
+- Excluded features: Not available
 
 ## Price Coverage
-- Price rows: 616
-- First date: 2023-12-11
-- Last date: 2026-05-27
+- Price rows: 621
+- First date: 2023-12-07
+- Last date: 2026-05-22
 - Missing price reason: Not available
 
 ## Valuation And DCF
@@ -35,21 +35,23 @@ Research-only local report. This is not a trade instruction and cannot execute t
 - Reason not ready: Not available
 
 ## Peer Workflow
-- Peer blocker type: missing_peer_mapping
-- Mapping status: missing_mapping
-- Peer count: 0
-- Trend comparison ready: False
-- Valuation comparison ready: False
-- DCF peer comparison ready: False
-- Sample peers: Not available
-- Next peer action: Add at least 2 source-backed peer mappings for A in data/imports/peers.csv.
+- Peer blocker type: Not available
+- Mapping status: mapped
+- Peer count: 2
+- Trend comparison ready: True
+- Valuation comparison ready: True
+- DCF peer comparison ready: True
+- Sample peers: AMD, AVGO
+- Next peer action: Peer trend and valuation comparison are ready for NVDA.
 
 ## Missing Data
-- 1Y performance is unavailable from the current local price history.
 - No local analyst-estimate dataset is configured in the CSV-first pipeline.
 - No local earnings dataset is configured in the CSV-first pipeline.
 - Normalized growth target was reduced to keep it conservatively below WACC.
-- Peer data is unavailable or insufficient, so only standalone multiples are shown.
+- Observed FCF margin 47.8% exceeded the conservative margin cap of 45.0% and was normalized before projection.
+- Observed revenue growth 61.5% exceeded the conservative start-growth cap of 40.0% and was normalized before projection.
+- Observed revenue growth 65.5% exceeded the conservative start-growth cap of 40.0% and was normalized before projection.
+- Observed revenue growth 69.5% exceeded the conservative start-growth cap of 40.0% and was normalized before projection.
 - Valuation missing field: ebitda
 - analyst_estimates has no local row for this ticker.
 - earnings has no local row for this ticker.

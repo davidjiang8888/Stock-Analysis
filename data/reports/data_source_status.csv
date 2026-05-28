@@ -1,15 +1,15 @@
 source_name,source_type,status,credential_required,credential_present,last_attempted_at,last_success_at,rows_available,failure_reason,manual_fallback_available,manual_import_path,updated_at
-local_prices,local_csv,available,,True,,2026-05-28T02:44:35.020280+00:00,132571,,True,data/staged/prices/,2026-05-28T02:44:35.020280+00:00
-staged_prices,manual_staged_csv,empty,,True,,,0,,True,data/staged/prices/,2026-05-28T02:44:35.020280+00:00
-remote_price_provider,remote_api,credential_missing,STOOQ_API_KEY,False,2026-05-28T02:44:35.020280+00:00,,0,missing STOOQ_API_KEY,True,data/staged/prices/,2026-05-28T02:44:35.020280+00:00
-yahoo_price_provider,remote_api,available,,True,,2026-05-28T02:44:35.020280+00:00,0,,True,make price-refresh PROVIDER=yahoo,2026-05-28T02:44:35.020280+00:00
-local_fundamentals,local_csv,available,,True,,2026-05-28T02:44:35.020280+00:00,43,,True,data/staged/fundamentals/,2026-05-28T02:44:35.020280+00:00
-sec_fundamentals,remote_api,available,SEC_USER_AGENT,True,2026-05-28T02:44:35.020280+00:00,2026-05-28T02:44:35.020280+00:00,0,,True,data/staged/fundamentals/,2026-05-28T02:44:35.020280+00:00
-staged_fundamentals,manual_staged_csv,empty,,True,,,0,,True,data/staged/fundamentals/,2026-05-28T02:44:35.020280+00:00
-local_earnings,local_csv,missing_file,,True,,,0,,True,data/staged/earnings/,2026-05-28T02:44:35.020280+00:00
-staged_earnings,manual_staged_csv,empty,,True,,,0,,True,data/staged/earnings/,2026-05-28T02:44:35.020280+00:00
-local_analyst_estimates,local_csv,missing_file,,True,,,0,,True,data/staged/analyst_estimates/,2026-05-28T02:44:35.020280+00:00
-staged_analyst_estimates,manual_staged_csv,empty,,True,,,0,,True,data/staged/analyst_estimates/,2026-05-28T02:44:35.020280+00:00
-local_peers,local_csv,available,,True,,2026-05-28T02:44:35.020280+00:00,8,,True,data/imports/peers.csv,2026-05-28T02:44:35.020280+00:00
-universe_master,local_csv,available,,True,,2026-05-28T02:44:35.020280+00:00,3538,,True,data/staged/universe/,2026-05-28T02:44:35.020280+00:00
-universe_active,local_csv,available,,True,,2026-05-28T02:44:35.020280+00:00,12,,True,data/universe_active.csv,2026-05-28T02:44:35.020280+00:00
+local_prices,local_csv,available,,True,,2026-05-28T04:09:02.036865+00:00,132571,,True,data/staged/prices/,2026-05-28T04:09:02.036865+00:00
+staged_prices,manual_staged_csv,empty,,True,,,0,,True,data/staged/prices/,2026-05-28T04:09:02.036865+00:00
+remote_price_provider,remote_api,credential_missing,STOOQ_API_KEY,False,2026-05-28T04:09:02.036865+00:00,,0,missing STOOQ_API_KEY,True,data/staged/prices/,2026-05-28T04:09:02.036865+00:00
+yahoo_price_provider,remote_api,available,,True,,2026-05-28T04:09:02.036865+00:00,0,,True,make price-refresh PROVIDER=yahoo,2026-05-28T04:09:02.036865+00:00
+local_fundamentals,local_csv,available,,True,,2026-05-28T04:09:02.036865+00:00,43,,True,data/staged/fundamentals/,2026-05-28T04:09:02.036865+00:00
+sec_fundamentals,remote_api,available,SEC_USER_AGENT,True,2026-05-28T04:09:02.036865+00:00,2026-05-28T04:09:02.036865+00:00,0,,True,data/staged/fundamentals/,2026-05-28T04:09:02.036865+00:00
+staged_fundamentals,manual_staged_csv,empty,,True,,,0,,True,data/staged/fundamentals/,2026-05-28T04:09:02.036865+00:00
+local_earnings,local_csv,missing_file,,True,,,0,,True,data/staged/earnings/,2026-05-28T04:09:02.036865+00:00
+staged_earnings,manual_staged_csv,empty,,True,,,0,,True,data/staged/earnings/,2026-05-28T04:09:02.036865+00:00
+local_analyst_estimates,local_csv,missing_file,,True,,,0,,True,data/staged/analyst_estimates/,2026-05-28T04:09:02.036865+00:00
+staged_analyst_estimates,manual_staged_csv,empty,,True,,,0,,True,data/staged/analyst_estimates/,2026-05-28T04:09:02.036865+00:00
+local_peers,local_csv,available,,True,,2026-05-28T04:09:02.036865+00:00,8,,True,data/imports/peers.csv,2026-05-28T04:09:02.036865+00:00
+universe_master,local_csv,available,,True,,2026-05-28T04:09:02.036865+00:00,3538,,True,data/staged/universe/,2026-05-28T04:09:02.036865+00:00
+universe_active,local_csv,available,,True,,2026-05-28T04:09:02.036865+00:00,12,,True,data/universe_active.csv,2026-05-28T04:09:02.036865+00:00
