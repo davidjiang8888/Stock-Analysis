@@ -9238,6 +9238,69 @@ def test_peer_unlock_operator_cards_group_priorities_scope_and_next_input():
     assert "sell" not in rendered
 
 
+def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundamentals_and_paths(monkeypatch):
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "asset_type": "company",
+                "in_active_universe": True,
+                "price_ready": True,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "next_action": "Complete trusted fundamentals for META; missing fields: shares_outstanding.",
+            },
+            {
+                "ticker": "A",
+                "asset_type": "company",
+                "in_active_universe": False,
+                "price_ready": True,
+                "fundamentals_ready": True,
+                "dcf_ready": True,
+                "peer_ready": False,
+                "next_action": "Add source-backed peer mappings and peer metrics for A.",
+            },
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "in_active_universe": True,
+                "price_ready": True,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "next_action": "ETF/index proxy excluded from DCF.",
+            },
+        ]
+    )
+    dcf = pd.DataFrame(
+        [
+            {"ticker": "META", "asset_type": "company", "missing_dcf_fields": "shares_outstanding, free_cash_flow"},
+            {"ticker": "A", "asset_type": "company", "missing_dcf_fields": ""},
+            {"ticker": "QQQ", "asset_type": "etf", "missing_dcf_fields": ""},
+        ]
+    )
+
+    cards = dashboard.fundamentals_dcf_diagnostic_cards(readiness, dcf)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert "1 price-ready companies" in rendered
+    assert "1 active-universe" in rendered
+    assert "meta" in rendered
+    assert "shares_outstanding" in rendered
+    assert "free_cash_flow" in rendered
+    assert "excluded from operating-company dcf rather than failed valuation" in rendered
+    assert "1 dcf-ready companies" in rendered
+    assert "data/imports/fundamentals.csv" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_peer_mapping_studio_summary_cards_and_scope_toggles_are_actionable():
     peer_readiness = pd.DataFrame(
         [
@@ -9344,6 +9407,7 @@ def test_decision_workflow_summary_cards_explain_buckets_without_trade_language(
 
 def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     cards = dashboard.optional_context_unlock_cards()
+    empty_message = dashboard.optional_context_empty_state_message("earnings")
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert "ticker, fiscal_period, report_date" in rendered
@@ -9363,6 +9427,10 @@ def test_optional_context_unlock_cards_show_schema_and_safe_import_commands():
     assert "data/rejected/earnings_import_rejected.csv" in rendered
     assert "data/rejected/analyst_estimates_import_rejected.csv" in rendered
     assert "missing trusted local csv input" in rendered
+    assert "make imports-validate" in empty_message
+    assert "make imports-preview" in empty_message
+    assert "make imports-apply" in empty_message
+    assert "make onboarding TOP_N=10" in empty_message
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered

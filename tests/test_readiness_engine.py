@@ -169,6 +169,10 @@ def test_peer_unlock_worklist_sorts_active_dcf_ready_rows_before_master_rows(tmp
     assert list(worklist["ticker"].head(2)) == ["META", "A"]
     assert list(worklist["workflow_scope"].head(2)) == ["active_universe", "master_universe"]
     assert set(worklist["workflow_group"]) == {"dcf_ready_peer_mapping"}
+    assert set(["workflow_group", "workflow_scope", "next_action_summary", "next_input_file", "validation_sequence"]).issubset(worklist.columns)
+    assert worklist["next_input_file"].eq("data/imports/peers.csv").all()
+    assert worklist["validation_sequence"].str.contains("make imports-preview", regex=False).all()
+    assert worklist["copy_only_note"].str.contains("Copy commands only", regex=False).all()
 
 
 def test_readiness_requires_source_and_minimum_ready_peer_metrics(tmp_path: Path, monkeypatch):
@@ -223,6 +227,8 @@ def test_readiness_requires_source_and_minimum_ready_peer_metrics(tmp_path: Path
     assert bool(fundamentals.loc["CCC", "has_fundamentals"]) is False
     assert bool(readiness.loc["AAA", "fundamentals_ready"]) is False
     assert "manual fundamentals import workflow" in readiness.loc["AAA", "next_action"]
+    assert "missing fields: free_cash_flow" in readiness.loc["AAA", "next_action"]
+    assert "make focus-fundamentals TICKER=AAA" in readiness.loc["AAA", "next_action"]
     assert int(peers.loc["AAA", "peer_count"]) == 2
     assert int(peers.loc["AAA", "ready_peer_count"]) == 2
     assert bool(peers.loc["AAA", "peer_price_ready"]) is True

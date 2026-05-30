@@ -2386,7 +2386,8 @@ def optional_context_available(data: dict[str, object], fields: list[str]) -> bo
 def optional_context_empty_state_message(dataset_label: str) -> str:
     return (
         "Not available: missing trusted local CSV input. "
-        f"Add verified {dataset_label} rows through the staged manual CSV workflow, then run imports validation, preview, apply, and refresh onboarding."
+        f"Add verified {dataset_label} rows through the staged manual CSV workflow, then run "
+        "make imports-validate, make imports-preview, make imports-apply, and make onboarding TOP_N=10."
     )
 
 
@@ -4699,6 +4700,105 @@ def peer_unlock_operator_cards(peer_unlock_worklist_frame: pd.DataFrame | None) 
             "body": workflow_text or "No workflow grouping is available yet.",
             "badges": ["mapping vs metrics", "no fallback peers"],
             "command": "make templates",
+        },
+    ]
+
+
+def fundamentals_dcf_diagnostic_cards(
+    ticker_readiness_frame: pd.DataFrame | None,
+    dcf_readiness_frame: pd.DataFrame | None = None,
+) -> list[dict[str, object]]:
+    if ticker_readiness_frame is None or ticker_readiness_frame.empty:
+        return [
+            {
+                "kicker": "FUNDAMENTALS / DCF",
+                "title": "Readiness not generated",
+                "body": "Run make readiness before reviewing fundamentals and DCF unlock diagnostics.",
+                "badges": ["blocked"],
+                "command": "make readiness",
+            }
+        ]
+
+    frame = ticker_readiness_frame.copy()
+    if "ticker" in frame.columns:
+        frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
+    company = frame.get("asset_type", pd.Series("", index=frame.index)).fillna("").astype(str).str.lower().eq("company")
+    price_ready = bool_series(frame, "price_ready")
+    fundamentals_ready = bool_series(frame, "fundamentals_ready")
+    dcf_ready = bool_series(frame, "dcf_ready")
+    active = bool_series(frame, "in_active_universe")
+    price_ready_missing_fundamentals = frame.loc[company & price_ready & ~fundamentals_ready].copy()
+    dcf_ready_peer_blocked = frame.loc[company & dcf_ready & ~bool_series(frame, "peer_ready")].copy()
+    active_missing = int((company & active & price_ready & ~fundamentals_ready).sum())
+
+    next_ticker = "Not available"
+    next_action = "Run make sec-stage-queue TOP_N=25 to refresh the fundamentals unlock queue."
+    if not price_ready_missing_fundamentals.empty:
+        ordered = price_ready_missing_fundamentals.assign(_active_rank=(~bool_series(price_ready_missing_fundamentals, "in_active_universe")).astype(int))
+        ordered = ordered.sort_values(["_active_rank", "ticker"], kind="stable")
+        next_row = ordered.iloc[0]
+        next_ticker = format_missing(next_row.get("ticker"), "Ticker")
+        next_action = compact_reason(next_row.get("next_action"), max_sentences=2, max_chars=220)
+
+    missing_field_text = "No DCF readiness table available."
+    excluded_count = 0
+    if dcf_readiness_frame is not None and not dcf_readiness_frame.empty:
+        dcf_frame = dcf_readiness_frame.copy()
+        excluded_count = int(dcf_frame.get("asset_type", pd.Series("", index=dcf_frame.index)).fillna("").astype(str).str.lower().ne("company").sum())
+        if "missing_dcf_fields" in dcf_frame.columns:
+            missing_counts = (
+                dcf_frame["missing_dcf_fields"]
+                .fillna("")
+                .astype(str)
+                .str.split(",")
+                .explode()
+                .str.strip()
+            )
+            missing_counts = missing_counts.loc[missing_counts.ne("")]
+            if not missing_counts.empty:
+                missing_field_text = ", ".join(f"{field}: {count}" for field, count in missing_counts.value_counts().head(4).items())
+            else:
+                missing_field_text = "No missing DCF fields reported for generated rows."
+
+    sec_configured = bool(os.environ.get("SEC_USER_AGENT", "").strip())
+    return [
+        {
+            "kicker": "FUNDAMENTALS GAP",
+            "title": f"{len(price_ready_missing_fundamentals)} price-ready companies",
+            "body": f"{active_missing} active-universe price-ready company row(s) still need trusted fundamentals before DCF can be interpreted.",
+            "badges": ["trusted rows only", "no valuation conclusion"],
+            "command": "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "NEXT FUNDAMENTALS TARGET",
+            "title": next_ticker,
+            "body": next_action,
+            "badges": ["focus first", "preview before apply"],
+            "command": f"make focus-fundamentals TICKER={next_ticker}" if next_ticker != "Not available" else "make sec-stage-queue TOP_N=25",
+        },
+        {
+            "kicker": "DCF FIELD GAPS",
+            "title": missing_field_text,
+            "body": f"{excluded_count} ETF/index/fund row(s) remain excluded from operating-company DCF rather than failed valuation.",
+            "badges": ["missing fields explicit", "excluded is not failed"],
+            "command": "make dcf-readiness",
+        },
+        {
+            "kicker": "DCF-READY PEER BLOCKERS",
+            "title": f"{len(dcf_ready_peer_blocked)} DCF-ready companies",
+            "body": "These rows can have standalone DCF context, but peer valuation remains blocked until trusted peer mappings and peer fundamentals exist.",
+            "badges": ["peer valuation blocked", "manual peers"],
+            "command": "make peer-mapping-queue TOP_N=25",
+        },
+        {
+            "kicker": "INPUT PATH",
+            "title": "SEC staging" if sec_configured else "Manual CSV fallback",
+            "body": (
+                "Use make sec-stage TICKERS=<ticker> for staged SEC fundamentals, or fill data/imports/fundamentals.csv with trusted rows. "
+                "Always run make imports-validate, make imports-preview, and make imports-apply before claiming readiness improved."
+            ),
+            "badges": ["source/freshness audit", "copy only"],
+            "command": "make imports-validate",
         },
     ]
 
@@ -10764,6 +10864,11 @@ def render_market_command_center(
         "Known universe is not the same as analysis-ready universe. Missing prices, fundamentals, peers, earnings, or estimates block conclusions; ETFs and index proxies stay excluded from operating-company DCF.",
         tone="warning" if summary.get("blocked_by_data", 0) else "neutral",
     )
+    render_section_header(
+        "Fundamentals / DCF Unlock Diagnostics",
+        "Price-ready companies that still need trusted fundamentals, missing DCF fields, and DCF-ready names blocked only by peer context.",
+    )
+    render_signal_cards(fundamentals_dcf_diagnostic_cards(ticker_readiness_frame, dcf_readiness_frame))
     render_section_header("Next Action Console", "Grouped feature-level actions with source/freshness notes. These cards are copyable commands only; the dashboard does not run them.")
     action_console = build_next_action_console_frame(
         ticker_readiness_frame,

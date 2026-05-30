@@ -874,10 +874,17 @@ def build_ticker_readiness_report(
         if "price" in blocked:
             next_action = str(price.get("next_action") or f"Import staged price rows or refresh price provider for {ticker}.")
         elif "dcf" in blocked:
-            next_action = (
-                f"Import trusted fundamentals for {ticker}. If SEC_USER_AGENT is configured, use SEC staging; "
-                "otherwise use the manual fundamentals import workflow."
-            )
+            missing_fundamentals = str(fund.get("missing_fundamentals_fields", "") or "").strip()
+            if bool(fund.get("has_fundamentals", False)) and missing_fundamentals:
+                next_action = (
+                    f"Complete trusted fundamentals for {ticker}; missing fields: {missing_fundamentals}. "
+                    f"Run make focus-fundamentals TICKER={ticker}, then use SEC staging or the manual fundamentals import workflow."
+                )
+            else:
+                next_action = (
+                    f"Import trusted fundamentals for {ticker}. If SEC_USER_AGENT is configured, use SEC staging; "
+                    "otherwise use the manual fundamentals import workflow."
+                )
         elif "peer" in blocked:
             next_action = f"Add source-backed peer mappings and peer metrics for {ticker}."
         elif blocked:
