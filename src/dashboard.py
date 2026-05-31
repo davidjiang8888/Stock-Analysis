@@ -150,6 +150,24 @@ ACTIVE_UNLOCK_COCKPIT_COLUMNS = [
     "source_freshness_note",
     "copy_only_note",
 ]
+ACTIVE_UNLOCK_DRILLDOWN_COLUMNS = [
+    "priority",
+    "ticker",
+    "asset_type",
+    "blocker_area",
+    "why_blocked",
+    "missing_fields",
+    "trusted_input_needed",
+    "staged_folder",
+    "canonical_import_file",
+    "rejected_report",
+    "rejected_status",
+    "rejected_row_count",
+    "validation_sequence",
+    "exact_command",
+    "source_freshness_note",
+    "copy_only_note",
+]
 DATA_ONBOARDING_FILES = {
     "ticker_data_coverage.csv": "Ticker Data Coverage",
     "data_onboarding_actions.csv": "Data Onboarding Actions",
@@ -2661,6 +2679,14 @@ def _import_health_lookup(import_frame: pd.DataFrame | None) -> dict[str, dict[s
     return {format_missing(row.get("dataset"), "").lower(): row.to_dict() for _, row in frame.iterrows()}
 
 
+def _row_lookup_by_ticker(frame: pd.DataFrame | None) -> dict[str, dict[str, object]]:
+    if frame is None or frame.empty or "ticker" not in frame.columns:
+        return {}
+    lookup_frame = frame.copy()
+    lookup_frame["ticker"] = lookup_frame["ticker"].astype(str).str.upper().str.strip()
+    return {str(row.get("ticker")): row.to_dict() for _, row in lookup_frame.iterrows()}
+
+
 def active_unlock_dataset_for_blocker(blocker: object, blocked_features: object = "") -> str:
     primary_text = format_missing(blocker, "").lower()
     text = f"{primary_text} {format_missing(blocked_features, '')}".lower()
@@ -2707,6 +2733,42 @@ def active_unlock_command(ticker: object, dataset: str, asset_type: object = "")
     return f"make stock-report TICKER={ticker_text}"
 
 
+def active_unlock_validation_sequence(ticker: object, dataset: str, asset_type: object = "") -> str:
+    ticker_text = format_missing(ticker, "TICKER").upper()
+    asset_text = format_missing(asset_type, "").lower()
+    if dataset == "prices":
+        return f"make focus-price TICKER={ticker_text} -> make imports-validate -> make imports-preview -> make imports-apply"
+    if dataset == "fundamentals":
+        if asset_text in {"etf", "fund", "index", "index_proxy"}:
+            return "make readiness -> confirm ETF/index DCF exclusion; no operating-company fundamentals import is required"
+        return f"make focus-fundamentals TICKER={ticker_text} -> make sec-stage-queue TOP_N=25 or stage trusted fundamentals -> make imports-validate -> make imports-preview -> make imports-apply"
+    if dataset == "peers":
+        return f"make focus-peers TICKER={ticker_text} -> make templates -> fill data/imports/peers.csv with source-backed mappings -> make imports-validate -> make imports-preview -> make imports-apply"
+    if dataset == "earnings":
+        return "make templates -> make import-earnings -> make imports-validate -> make imports-preview -> make imports-apply"
+    if dataset == "analyst_estimates":
+        return "make templates -> make import-analyst-estimates -> make imports-validate -> make imports-preview -> make imports-apply"
+    return "make readiness -> make project-status"
+
+
+def active_unlock_trusted_input_needed(dataset: str, ticker: object, asset_type: object = "") -> str:
+    ticker_text = format_missing(ticker, "ticker").upper()
+    asset_text = format_missing(asset_type, "").lower()
+    if dataset == "prices":
+        return f"Trusted OHLCV rows for {ticker_text}; use capped provider refresh or verified local price CSV."
+    if dataset == "fundamentals":
+        if asset_text in {"etf", "fund", "index", "index_proxy"}:
+            return "No operating-company DCF input required; ETF/index proxy remains excluded from company DCF."
+        return f"Trusted fundamentals for {ticker_text}, preferably SEC-staged or manually sourced with required DCF fields."
+    if dataset == "peers":
+        return f"Source-backed peer mappings and, when valuation is needed, peer fundamentals or market metrics for {ticker_text}."
+    if dataset == "earnings":
+        return "Trusted local earnings rows only; schema examples are not data."
+    if dataset == "analyst_estimates":
+        return "Trusted local analyst-estimate rows only; consensus context stays unavailable while empty."
+    return "Refresh readiness outputs before changing local CSVs."
+
+
 def active_unlock_priority(dataset: str, readiness_state: object, asset_type: object = "") -> int:
     state_text = format_missing(readiness_state, "").lower()
     asset_text = format_missing(asset_type, "").lower()
@@ -2719,6 +2781,45 @@ def active_unlock_priority(dataset: str, readiness_state: object, asset_type: ob
     if dataset in {"earnings", "analyst_estimates"}:
         return 5
     return 4 if state_text == "partial" else 6
+
+
+def active_unlock_drilldown_missing_fields(
+    dataset: str,
+    ticker: object,
+    readiness_row: dict[str, object],
+    dcf_row: dict[str, object] | None = None,
+    peer_row: dict[str, object] | None = None,
+    earnings_row: dict[str, object] | None = None,
+    analyst_row: dict[str, object] | None = None,
+    coverage_row: dict[str, object] | None = None,
+) -> str:
+    dcf_row = dcf_row or {}
+    peer_row = peer_row or {}
+    earnings_row = earnings_row or {}
+    analyst_row = analyst_row or {}
+    coverage_row = coverage_row or {}
+    if dataset == "prices":
+        return format_missing(coverage_row.get("missing_price_reason") or readiness_row.get("missing_data"), "price rows / OHLCV coverage")
+    if dataset == "fundamentals":
+        missing = format_missing(dcf_row.get("missing_dcf_fields") or readiness_row.get("missing_data"), "")
+        reason = format_missing(dcf_row.get("reason_not_ready"), "")
+        return "; ".join(part for part in [missing, reason] if part and part != "Not available") or "fundamentals / DCF fields"
+    if dataset == "peers":
+        parts = [
+            format_missing(peer_row.get("missing_peer_reason"), ""),
+            format_missing(peer_row.get("peer_missing_fundamentals_tickers"), ""),
+            format_missing(peer_row.get("peer_missing_valuation_tickers"), ""),
+        ]
+        trend_ready = str(peer_row.get("peer_trend_comparison_ready", "")).strip().lower() in {"true", "1", "yes"}
+        valuation_ready = str(peer_row.get("peer_valuation_comparison_ready", "")).strip().lower() in {"true", "1", "yes"}
+        if trend_ready and not valuation_ready:
+            parts.append("peer trend possible; peer valuation blocked until peer valuation inputs are present")
+        return "; ".join(part for part in parts if part and part != "Not available") or "source-backed peer mappings / peer metrics"
+    if dataset == "earnings":
+        return format_missing(earnings_row.get("missing_fields") or earnings_row.get("reason_not_ready"), "trusted_local_earnings_row")
+    if dataset == "analyst_estimates":
+        return format_missing(analyst_row.get("missing_fields") or analyst_row.get("reason_not_ready"), "trusted_local_analyst_estimate_row")
+    return format_missing(readiness_row.get("missing_data"), "readiness blocker")
 
 
 def build_active_universe_unlock_frame(
@@ -2800,6 +2901,88 @@ def build_active_universe_unlock_frame(
         return cockpit
     cockpit["priority"] = pd.to_numeric(cockpit["priority"], errors="coerce").fillna(999).astype(int)
     return cockpit.sort_values(["priority", "ticker"], kind="stable").head(limit).reset_index(drop=True)
+
+
+def build_active_universe_drilldown_frame(
+    ticker_readiness_frame: pd.DataFrame | None,
+    decisions_frame: pd.DataFrame | None = None,
+    import_frame: pd.DataFrame | None = None,
+    dcf_readiness_frame: pd.DataFrame | None = None,
+    peer_readiness_frame: pd.DataFrame | None = None,
+    earnings_readiness_frame: pd.DataFrame | None = None,
+    analyst_readiness_frame: pd.DataFrame | None = None,
+    coverage_frame: pd.DataFrame | None = None,
+    *,
+    limit: int = 25,
+) -> pd.DataFrame:
+    cockpit = build_active_universe_unlock_frame(
+        ticker_readiness_frame,
+        decisions_frame,
+        import_frame,
+        limit=limit,
+    )
+    if cockpit.empty or ticker_readiness_frame is None or ticker_readiness_frame.empty:
+        return pd.DataFrame(columns=ACTIVE_UNLOCK_DRILLDOWN_COLUMNS)
+
+    readiness_lookup = _row_lookup_by_ticker(ticker_readiness_frame)
+    dcf_lookup = _row_lookup_by_ticker(dcf_readiness_frame)
+    peer_lookup = _row_lookup_by_ticker(peer_readiness_frame)
+    earnings_lookup = _row_lookup_by_ticker(earnings_readiness_frame)
+    analyst_lookup = _row_lookup_by_ticker(analyst_readiness_frame)
+    coverage_lookup = _row_lookup_by_ticker(coverage_frame)
+    import_lookup = _import_health_lookup(import_frame)
+
+    rows: list[dict[str, object]] = []
+    for _, cockpit_row in cockpit.iterrows():
+        ticker = format_missing(cockpit_row.get("ticker"), "").upper()
+        dataset = format_missing(cockpit_row.get("import_dataset"), "prices")
+        readiness_row = readiness_lookup.get(ticker, {})
+        import_row = import_lookup.get(dataset, {})
+        asset_type = format_missing(cockpit_row.get("asset_type") or readiness_row.get("asset_type"), "unknown")
+        missing_fields = active_unlock_drilldown_missing_fields(
+            dataset,
+            ticker,
+            readiness_row,
+            dcf_lookup.get(ticker),
+            peer_lookup.get(ticker),
+            earnings_lookup.get(ticker),
+            analyst_lookup.get(ticker),
+            coverage_lookup.get(ticker),
+        )
+        why_blocked = compact_reason(
+            cockpit_row.get("next_best_action") or readiness_row.get("next_action") or readiness_row.get("missing_data"),
+            max_sentences=2,
+            max_chars=220,
+        )
+        rows.append(
+            {
+                "priority": int(cockpit_row.get("priority") or 999),
+                "ticker": ticker,
+                "asset_type": asset_type,
+                "blocker_area": dataset,
+                "why_blocked": why_blocked,
+                "missing_fields": missing_fields,
+                "trusted_input_needed": active_unlock_trusted_input_needed(dataset, ticker, asset_type),
+                "staged_folder": format_missing(import_row.get("staged_folder"), "data/imports/peers.csv" if dataset == "peers" else "Not available"),
+                "canonical_import_file": format_missing(import_row.get("canonical_import_file"), "Not available"),
+                "rejected_report": format_missing(import_row.get("rejected_report"), "Not available"),
+                "rejected_status": format_missing(import_row.get("rejected_status"), "Not available"),
+                "rejected_row_count": int(import_row.get("rejected_row_count") or 0),
+                "validation_sequence": active_unlock_validation_sequence(ticker, dataset, asset_type),
+                "exact_command": format_missing(cockpit_row.get("exact_command"), active_unlock_command(ticker, dataset, asset_type)),
+                "source_freshness_note": (
+                    f"Readiness updated {format_missing(readiness_row.get('updated_at'), 'not available')}; "
+                    f"rejected-row status from {format_missing(import_row.get('rejected_report'), 'dataset report')}."
+                ),
+                "copy_only_note": "Copy-only drilldown; the dashboard does not execute imports or refreshes.",
+            }
+        )
+
+    frame = pd.DataFrame(rows, columns=ACTIVE_UNLOCK_DRILLDOWN_COLUMNS)
+    if frame.empty:
+        return frame
+    frame["priority"] = pd.to_numeric(frame["priority"], errors="coerce").fillna(999).astype(int)
+    return frame.sort_values(["priority", "ticker"], kind="stable").head(limit).reset_index(drop=True)
 
 
 def first_blocker_from_text(text: object) -> str:
@@ -11241,6 +11424,21 @@ def render_market_command_center(
     else:
         st.caption("Active-universe commands are copy-only. Review validation, preview, and rejected-row status before applying trusted local CSV changes.")
         st.dataframe(clean_display_frame(active_unlock), width="stretch", hide_index=True)
+        active_drilldown = build_active_universe_drilldown_frame(
+            ticker_readiness_frame,
+            decisions_frame,
+            import_health,
+            dcf_readiness_frame,
+            peer_readiness_frame,
+            earnings_readiness_frame,
+            analyst_readiness_frame,
+            coverage_frame,
+        )
+        with st.expander("Active ticker drilldown: missing fields, trusted input, and validation path", expanded=False):
+            st.caption(
+                "One row per active ticker. These are copy-only instructions; validate and preview trusted local CSV rows before applying them."
+            )
+            st.dataframe(clean_display_frame(active_drilldown), width="stretch", hide_index=True)
     render_section_header("Feature Readiness", "Which product modules are usable today, partially usable, blocked, or excluded.")
     render_signal_cards(feature_readiness_cards(feature_summary_frame))
     render_section_header("Decision Workflow", "Readiness-gated decision buckets, primary blockers, and next actions without unsupported recommendations.")

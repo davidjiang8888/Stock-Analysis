@@ -9076,6 +9076,161 @@ def test_active_universe_unlock_cockpit_joins_import_health_and_copy_only_comman
     assert "sell" not in rendered
 
 
+def test_active_universe_drilldown_surfaces_missing_fields_and_validation_paths():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "asset_type": "company",
+                "in_active_universe": True,
+                "overall_readiness_state": "partial",
+                "price_ready": True,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "earnings_ready": False,
+                "analyst_estimates_ready": False,
+                "blocked_features": "fundamentals, dcf, peer, earnings, analyst_estimates",
+                "missing_data": "fundamentals: shares_outstanding",
+                "next_action": "Complete trusted fundamentals for META.",
+                "updated_at": "2026-05-31T00:00:00+00:00",
+            },
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "in_active_universe": True,
+                "overall_readiness_state": "partial",
+                "price_ready": True,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "earnings_ready": False,
+                "analyst_estimates_ready": False,
+                "blocked_features": "fundamentals, dcf, peer, earnings, analyst_estimates",
+                "missing_data": "peer mapping",
+                "next_action": "Add source-backed peer mappings and peer metrics for QQQ.",
+                "updated_at": "2026-05-31T00:00:00+00:00",
+            },
+            {
+                "ticker": "BROAD",
+                "asset_type": "company",
+                "in_active_universe": False,
+                "overall_readiness_state": "blocked",
+                "price_ready": False,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "earnings_ready": False,
+                "analyst_estimates_ready": False,
+                "blocked_features": "price",
+                "missing_data": "price rows",
+                "next_action": "Should not render.",
+            },
+        ]
+    )
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "decision_bucket": "Blocked by Data",
+                "decision_subtype": "Blocked by Data - Missing Fundamentals",
+                "primary_blocker": "fundamentals",
+                "next_best_action": "Run make focus-fundamentals TICKER=META.",
+            },
+            {
+                "ticker": "QQQ",
+                "decision_bucket": "Monitor",
+                "decision_subtype": "ETF / Index Proxy - Peer Inputs Missing",
+                "primary_blocker": "peers",
+                "next_best_action": "Add source-backed peer mappings and peer metrics for QQQ.",
+            },
+        ]
+    )
+    import_health = pd.DataFrame(
+        [
+            {
+                "dataset": "fundamentals",
+                "staged_folder": "data/staged/fundamentals/",
+                "canonical_import_file": "data/imports/fundamentals.csv",
+                "rejected_report": "data/rejected/fundamentals_import_rejected.csv",
+                "rejected_status": "clean/header-only",
+                "rejected_row_count": 0,
+            },
+            {
+                "dataset": "peers",
+                "staged_folder": "",
+                "canonical_import_file": "data/imports/peers.csv",
+                "rejected_report": "data/rejected/peers_import_rejected.csv",
+                "rejected_status": "missing report",
+                "rejected_row_count": 0,
+            },
+        ]
+    )
+    dcf = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "missing_dcf_fields": "shares_outstanding, revenue",
+                "reason_not_ready": "missing shares_outstanding, revenue",
+            },
+            {
+                "ticker": "QQQ",
+                "missing_dcf_fields": "fundamentals unavailable",
+                "reason_not_ready": "ETF/index proxies are excluded from operating-company DCF.",
+            },
+        ]
+    )
+    peers = pd.DataFrame(
+        [
+            {
+                "ticker": "QQQ",
+                "missing_peer_reason": "needs at least 2 source-backed peer mappings",
+                "peer_trend_comparison_ready": True,
+                "peer_valuation_comparison_ready": False,
+                "next_peer_action": "Add at least 2 source-backed peer mappings for QQQ in data/imports/peers.csv.",
+            }
+        ]
+    )
+    earnings = pd.DataFrame({"ticker": ["META", "QQQ"], "missing_fields": ["trusted_local_earnings_row", "trusted_local_earnings_row"]})
+    estimates = pd.DataFrame(
+        {"ticker": ["META", "QQQ"], "missing_fields": ["trusted_local_analyst_estimate_row", "trusted_local_analyst_estimate_row"]}
+    )
+    coverage = pd.DataFrame({"ticker": ["META", "QQQ"], "price_rows": [300, 25], "missing_price_reason": ["", ""]})
+
+    drilldown = dashboard.build_active_universe_drilldown_frame(
+        readiness,
+        decisions,
+        import_health,
+        dcf,
+        peers,
+        earnings,
+        estimates,
+        coverage,
+    )
+    rendered = " ".join(drilldown.astype(str).to_numpy().ravel().tolist()).lower()
+
+    assert list(drilldown["ticker"]) == ["META", "QQQ"]
+    assert "BROAD" not in set(drilldown["ticker"])
+    assert drilldown.loc[drilldown["ticker"].eq("META"), "blocker_area"].iloc[0] == "fundamentals"
+    assert "shares_outstanding" in drilldown.loc[drilldown["ticker"].eq("META"), "missing_fields"].iloc[0]
+    assert "data/staged/fundamentals/" in rendered
+    assert "data/imports/fundamentals.csv" in rendered
+    assert "make focus-fundamentals ticker=meta" in rendered
+    assert drilldown.loc[drilldown["ticker"].eq("QQQ"), "blocker_area"].iloc[0] == "peers"
+    assert "peer trend possible; peer valuation blocked" in rendered
+    assert "data/imports/peers.csv" in rendered
+    assert "make focus-peers ticker=qqq" in rendered
+    assert "make imports-validate" in rendered
+    assert "make imports-preview" in rendered
+    assert "make imports-apply" in rendered
+    assert "copy-only drilldown" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_feature_readiness_cards_show_feature_level_product_status():
     feature_summary = pd.DataFrame(
         [
