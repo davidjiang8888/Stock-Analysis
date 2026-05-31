@@ -5635,6 +5635,98 @@ def decision_workflow_summary_cards(decisions_frame: pd.DataFrame | None) -> lis
     ]
 
 
+ACTIVE_RESEARCH_BRIEF_COLUMNS = [
+    "ticker",
+    "decision_bucket",
+    "decision_subtype",
+    "purpose_thesis",
+    "setup_evaluation",
+    "valuation_evaluation",
+    "risk_watchpoint",
+    "invalidation_condition",
+    "next_research_question",
+    "confidence_explanation",
+    "exact_command",
+]
+
+
+def active_research_brief_frame(
+    ticker_readiness_frame: pd.DataFrame | None,
+    decisions_frame: pd.DataFrame | None,
+    *,
+    limit: int = 12,
+) -> pd.DataFrame:
+    if (
+        ticker_readiness_frame is None
+        or ticker_readiness_frame.empty
+        or decisions_frame is None
+        or decisions_frame.empty
+        or "ticker" not in ticker_readiness_frame.columns
+        or "ticker" not in decisions_frame.columns
+    ):
+        return pd.DataFrame(columns=ACTIVE_RESEARCH_BRIEF_COLUMNS)
+
+    active = ticker_readiness_frame.copy()
+    active["ticker"] = active["ticker"].astype(str).str.upper().str.strip()
+    active = active.loc[bool_series(active, "in_active_universe"), ["ticker"]].drop_duplicates()
+    if active.empty:
+        return pd.DataFrame(columns=ACTIVE_RESEARCH_BRIEF_COLUMNS)
+
+    decisions = decisions_frame.copy()
+    decisions["ticker"] = decisions["ticker"].astype(str).str.upper().str.strip()
+    frame = active.merge(decisions, on="ticker", how="left")
+    for column in ACTIVE_RESEARCH_BRIEF_COLUMNS:
+        if column not in frame.columns and column != "exact_command":
+            frame[column] = "Not available"
+    frame["exact_command"] = frame["ticker"].apply(lambda ticker: f"make stock-report TICKER={ticker}")
+    return frame[ACTIVE_RESEARCH_BRIEF_COLUMNS].head(limit).reset_index(drop=True)
+
+
+def active_research_brief_cards(brief_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if brief_frame is None or brief_frame.empty:
+        return [
+            {
+                "kicker": "RESEARCH BRIEFS",
+                "title": "Not available",
+                "body": "Run make pipeline and make readiness before reviewing active-universe research briefs.",
+                "badges": ["analysis gated"],
+                "command": "make pipeline",
+            }
+        ]
+    frame = brief_frame.copy()
+    bucket_counts = frame.get("decision_bucket", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
+    top_row = frame.iloc[0]
+    research_now = int(bucket_counts.get("Research Now", 0))
+    monitor = int(bucket_counts.get("Monitor", 0))
+    blocked = int(bucket_counts.get("Blocked by Data", 0))
+    return [
+        {
+            "kicker": "ACTIVE BRIEFS",
+            "title": f"{len(frame)} active ticker(s)",
+            "body": f"Research Now: {research_now}. Monitor: {monitor}. Blocked: {blocked}. Briefs explain purpose, setup, valuation, risk, and next research question.",
+            "badges": ["analysis layer", "row-limited"],
+            "command": "make stock-report TICKER=META",
+        },
+        {
+            "kicker": "FIRST BRIEF",
+            "title": format_missing(top_row.get("ticker"), "Ticker"),
+            "body": compact_reason(top_row.get("purpose_thesis"), max_sentences=1, max_chars=180),
+            "badges": [
+                format_missing(top_row.get("decision_bucket"), "bucket"),
+                format_missing(top_row.get("decision_subtype"), "subtype"),
+            ],
+            "command": format_missing(top_row.get("exact_command"), "make stock-report TICKER=META"),
+        },
+        {
+            "kicker": "RISK / INVALIDATION",
+            "title": "Watchpoints included",
+            "body": "Each brief includes a risk watchpoint and invalidation condition so supported analysis stays separated from unsupported recommendations.",
+            "badges": ["research-only", "no execution"],
+            "command": "make project-status",
+        },
+    ]
+
+
 def _text_contains(frame: pd.DataFrame, column: str, token: str) -> pd.Series:
     if column not in frame.columns:
         return pd.Series(False, index=frame.index)
@@ -11443,6 +11535,14 @@ def render_market_command_center(
     render_signal_cards(feature_readiness_cards(feature_summary_frame))
     render_section_header("Decision Workflow", "Readiness-gated decision buckets, primary blockers, and next actions without unsupported recommendations.")
     render_signal_cards(decision_workflow_summary_cards(decisions_frame))
+    render_section_header("Active Universe Research Briefs", "Purpose, setup, valuation, risk, invalidation, and next research questions for active tickers using current trusted outputs.")
+    active_briefs = active_research_brief_frame(ticker_readiness_frame, decisions_frame)
+    render_signal_cards(active_research_brief_cards(active_briefs))
+    if active_briefs.empty:
+        st.info("Active-universe research briefs are unavailable. Run make pipeline and make readiness first.")
+    else:
+        st.caption("Briefs are interpretation aids only. They are row-limited, research-only, and do not provide direct instructions.")
+        st.dataframe(clean_display_frame(active_briefs), width="stretch", hide_index=True)
     render_section_header("Peer Readiness Workflow", "Specific peer blockers for mapping, peer prices, peer fundamentals, and peer valuation context.")
     render_signal_cards(peer_readiness_product_cards(peer_readiness_frame, peer_mapping_queue_frame))
     render_section_header("Peer Mapping Studio", "Filtered peer unlock queue for DCF-ready names, missing mappings, and peer metric follow-through.")

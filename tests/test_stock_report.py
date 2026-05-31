@@ -247,6 +247,13 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
                 "primary_blocker": "none",
                 "main_reason": "ETF market proxy.",
                 "next_best_action": "Use as market/risk context.",
+                "purpose_thesis": "Purpose: ETF / Defensive / Hedge. Use as market, theme, liquidity, or risk context; operating-company valuation remains excluded.",
+                "setup_evaluation": "Setup status: Setup Forming; final state: Setup Forming.",
+                "valuation_evaluation": "Operating-company DCF is excluded for this asset type; use market/risk context instead of valuation conclusions.",
+                "risk_watchpoint": "Risk watchpoint: monitor liquidity, correlation, and theme exposure; company-specific DCF does not apply.",
+                "invalidation_condition": "Invalidate market-proxy usefulness if liquidity, correlation, or theme trend no longer supports the intended monitoring role.",
+                "next_research_question": "What market, sector, or hedge signal is this proxy intended to monitor, and is that signal still supported by local price/risk data?",
+                "confidence_explanation": "Confidence is medium: monitoring is supported by price, momentum, market_direction, while optional context remains unavailable.",
             },
             "dcf": {"reason_not_ready": "DCF excluded for etf."},
             "peer": {
@@ -268,6 +275,11 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "Research-only local report" in markdown
     assert "DCF: excluded" in markdown
     assert "Optional earnings or analyst-estimate context is unavailable" in markdown
+    assert "## Research Evaluation" in markdown
+    assert "Purpose thesis" in markdown
+    assert "market, theme, liquidity, or risk context" in markdown
+    assert "Operating-company DCF is excluded" in markdown
+    assert "Invalidate market-proxy usefulness" in markdown
     assert "## Source/Freshness Audit" in markdown
     assert "data/staged/earnings/" in markdown
     assert "make import-analyst-estimates" in markdown
@@ -298,6 +310,13 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
                 "primary_blocker": "price",
                 "main_reason": "Missing usable price data.",
                 "next_best_action": "Import staged price rows or refresh price provider for APLD.",
+                "purpose_thesis": "Purpose: Speculative Optionality. Interpretation is blocked until price history is available.",
+                "setup_evaluation": "Setup cannot be evaluated because usable price history is missing.",
+                "valuation_evaluation": "Valuation conclusion is blocked until trusted DCF/fundamental inputs are complete.",
+                "risk_watchpoint": "Primary risk is analytical blindness from missing price history; do not interpret trend or volatility yet.",
+                "invalidation_condition": "Invalidate any setup read until price history is available and passes readiness checks.",
+                "next_research_question": "Can trusted local price rows be staged for APLD so trend, liquidity, and downstream analysis become testable?",
+                "confidence_explanation": "Confidence is low because the primary blocker is price; current output is an unlock checklist, not analysis.",
             },
             "price_coverage": {"price_rows": 0, "missing_price_reason": "needs at least 5 valid price rows"},
             "peer": {
@@ -316,6 +335,10 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Primary blocker: price" in markdown
     assert "Blocked by Data - Missing Price" in markdown
     assert "DCF: blocked" in markdown
+    assert "## Research Evaluation" in markdown
+    assert "Setup cannot be evaluated because usable price history is missing" in markdown
+    assert "analytical blindness" in markdown
+    assert "primary blocker is price" in markdown
     assert "## Source/Freshness Audit" in markdown
     assert "data/staged/prices/" in markdown
     assert "data/rejected/price_import_rejected.csv" in markdown

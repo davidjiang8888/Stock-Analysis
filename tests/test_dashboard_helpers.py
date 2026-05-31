@@ -11563,3 +11563,72 @@ def test_overview_bundle_handoff_cards_surface_peer_manual_follow_through():
     assert "make status-check top_n=5" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_active_research_brief_frame_surfaces_evaluation_without_execution_language():
+    readiness = pd.DataFrame(
+        [
+            {"ticker": "META", "in_active_universe": True},
+            {"ticker": "QQQ", "in_active_universe": True},
+            {"ticker": "BROAD", "in_active_universe": False},
+        ]
+    )
+    decisions = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "decision_bucket": "Research Now",
+                "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "purpose_thesis": "Purpose: Core Compounder. Available data supports a research brief, not a recommendation.",
+                "setup_evaluation": "Setup status: Watch; final state: Watch.",
+                "valuation_evaluation": "DCF inputs are ready, but interpretation is constrained by insufficient peer context.",
+                "risk_watchpoint": "Risk watchpoint: peer-relative context is incomplete.",
+                "invalidation_condition": "Invalidate the research brief if fundamentals or DCF inputs no longer pass readiness checks.",
+                "next_research_question": "Which source-backed peers should be added to test valuation comparison?",
+                "confidence_explanation": "Confidence is medium-high because core price, fundamentals, and DCF are ready.",
+            },
+            {
+                "ticker": "QQQ",
+                "decision_bucket": "Monitor",
+                "decision_subtype": "Monitor - ETF Market Proxy",
+                "purpose_thesis": "Purpose: ETF / Defensive / Hedge. Use as market, theme, liquidity, or risk context.",
+                "setup_evaluation": "Setup status: Setup Forming; final state: Setup Forming.",
+                "valuation_evaluation": "Operating-company DCF is excluded for this asset type.",
+                "risk_watchpoint": "Risk watchpoint: monitor liquidity, correlation, and theme exposure.",
+                "invalidation_condition": "Invalidate market-proxy usefulness if liquidity or theme trend no longer supports the intended monitoring role.",
+                "next_research_question": "What market signal is this proxy intended to monitor?",
+                "confidence_explanation": "Confidence is medium because monitoring uses ready market data.",
+            },
+            {
+                "ticker": "BROAD",
+                "decision_bucket": "Blocked by Data",
+                "decision_subtype": "Blocked by Data - Missing Price",
+                "purpose_thesis": "Inactive broad-universe row should not appear.",
+            },
+        ]
+    )
+
+    brief = dashboard.active_research_brief_frame(readiness, decisions, limit=12)
+    cards = dashboard.active_research_brief_cards(brief)
+    rendered = " ".join(str(value) for value in brief.to_numpy().ravel()).lower()
+    rendered_cards = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert list(brief["ticker"]) == ["META", "QQQ"]
+    assert "BROAD" not in set(brief["ticker"])
+    assert brief.loc[brief["ticker"].eq("META"), "exact_command"].iloc[0] == "make stock-report TICKER=META"
+    assert "research brief" in rendered
+    assert "peer-relative context is incomplete" in rendered
+    assert "operating-company dcf is excluded" in rendered
+    assert cards[0]["title"] == "2 active ticker(s)"
+    assert "purpose, setup, valuation, risk" in rendered_cards
+    assert "make stock-report ticker=meta" in rendered_cards
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+    assert "broker" not in rendered_cards
+    assert "order" not in rendered_cards
+    assert "trading" not in rendered_cards
+    assert "buy" not in rendered_cards
+    assert "sell" not in rendered_cards
