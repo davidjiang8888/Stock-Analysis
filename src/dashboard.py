@@ -5723,6 +5723,22 @@ ACTIVE_RESEARCH_BRIEF_COLUMNS = [
     "unlock_command",
 ]
 
+ACTIVE_EVALUATION_QUEUE_COLUMNS = [
+    "priority",
+    "ticker",
+    "evaluation_lane",
+    "decision_bucket",
+    "purpose_family",
+    "primary_blocker",
+    "data_confidence",
+    "next_research_question",
+    "next_operator_step",
+    "exact_command",
+    "source_freshness_note",
+    "copy_only_note",
+    "reason",
+]
+
 
 def active_research_brief_frame(
     ticker_readiness_frame: pd.DataFrame | None,
@@ -5896,6 +5912,189 @@ def active_research_brief_cards(brief_frame: pd.DataFrame | None) -> list[dict[s
             "title": "Watchpoints included",
             "body": "Each brief includes a risk watchpoint and invalidation condition so supported analysis stays separated from unsupported recommendations.",
             "badges": ["research-only", "no execution"],
+            "command": "make project-status",
+        },
+    ]
+
+
+def active_evaluation_lane(row: pd.Series) -> str:
+    bucket = format_missing(row.get("decision_bucket"), "").lower()
+    blocker = format_missing(row.get("primary_blocker"), "").lower().replace(" ", "_")
+    family = format_missing(row.get("purpose_family"), "").lower()
+    if bucket == "research now" and blocker in {"peers", "peer"}:
+        return "Review standalone thesis, then unlock peers"
+    if bucket == "research now":
+        return "Review now with supported local evidence"
+    if bucket == "monitor" and ("etf" in family or "hedge" in family):
+        return "Monitor ETF / market proxy"
+    if blocker in {"fundamentals", "dcf"}:
+        return "Unlock fundamentals / DCF"
+    if blocker == "price":
+        return "Unlock price coverage"
+    if blocker in {"peers", "peer"}:
+        return "Unlock peer mapping"
+    if blocker in {"earnings", "analyst_estimates", "analyst"}:
+        return "Optional context locked"
+    if bucket == "blocked by data":
+        return "Resolve primary data blocker"
+    return "Open single-stock review"
+
+
+def active_evaluation_priority(row: pd.Series) -> int:
+    lane = active_evaluation_lane(row).lower()
+    bucket = format_missing(row.get("decision_bucket"), "").lower()
+    if "standalone thesis" in lane:
+        return 1
+    if bucket == "research now":
+        return 2
+    if "monitor etf" in lane:
+        return 3
+    if "fundamentals" in lane or "dcf" in lane:
+        return 4
+    if "price" in lane:
+        return 5
+    if "peer" in lane:
+        return 6
+    if "optional" in lane:
+        return 7
+    if bucket == "blocked by data":
+        return 8
+    return 9
+
+
+def active_evaluation_next_step(row: pd.Series) -> str:
+    ticker = format_missing(row.get("ticker"), "TICKER").upper()
+    lane = active_evaluation_lane(row).lower()
+    if "standalone thesis" in lane:
+        return f"Open {ticker}'s stock report first; then add source-backed peer rows in data/imports/peers.csv if the thesis still needs peer context."
+    if "review now" in lane or "monitor etf" in lane or "single-stock" in lane:
+        return f"Open {ticker}'s stock report and compare purpose, setup, valuation limits, risk watchpoint, and invalidation condition."
+    if "fundamentals" in lane or "dcf" in lane:
+        return f"Import or stage trusted fundamentals for {ticker}; validate, preview, and apply only after rejected-row reports are clean."
+    if "price" in lane:
+        return f"Repair local price coverage for {ticker} with a ticker-targeted refresh or staged manual OHLCV import."
+    if "peer" in lane:
+        return f"Add at least two source-backed peer mappings for {ticker} in data/imports/peers.csv, then validate and preview."
+    if "optional" in lane:
+        return "Use schema-only templates for earnings or analyst estimates, then validate trusted local rows before applying them."
+    return f"Open {ticker}'s stock report and follow the primary blocker before drawing conclusions."
+
+
+def build_active_evaluation_queue_frame(
+    active_brief_frame: pd.DataFrame | None,
+    ticker_readiness_frame: pd.DataFrame | None = None,
+    *,
+    limit: int = 12,
+) -> pd.DataFrame:
+    if active_brief_frame is None or active_brief_frame.empty:
+        return pd.DataFrame(columns=ACTIVE_EVALUATION_QUEUE_COLUMNS)
+
+    frame = active_brief_frame.copy()
+    if "ticker" not in frame.columns:
+        return pd.DataFrame(columns=ACTIVE_EVALUATION_QUEUE_COLUMNS)
+    frame["ticker"] = frame["ticker"].fillna("").astype(str).str.upper().str.strip()
+    frame = frame.loc[frame["ticker"].ne("")].copy()
+    if frame.empty:
+        return pd.DataFrame(columns=ACTIVE_EVALUATION_QUEUE_COLUMNS)
+
+    if ticker_readiness_frame is not None and not ticker_readiness_frame.empty and "ticker" in ticker_readiness_frame.columns:
+        readiness = ticker_readiness_frame.copy()
+        readiness["ticker"] = readiness["ticker"].fillna("").astype(str).str.upper().str.strip()
+        readiness_columns = ["ticker"]
+        for column in ["overall_readiness_state", "updated_at"]:
+            if column in readiness.columns:
+                readiness_columns.append(column)
+        frame = frame.merge(readiness[readiness_columns].drop_duplicates("ticker"), on="ticker", how="left")
+
+    for column in [
+        "decision_bucket",
+        "purpose_family",
+        "primary_blocker",
+        "data_confidence",
+        "next_research_question",
+        "review_priority_reason",
+        "exact_command",
+        "unlock_command",
+        "overall_readiness_state",
+        "updated_at",
+    ]:
+        if column not in frame.columns:
+            frame[column] = ""
+
+    frame["evaluation_lane"] = frame.apply(active_evaluation_lane, axis=1)
+    frame["priority"] = frame.apply(active_evaluation_priority, axis=1)
+    frame["next_operator_step"] = frame.apply(active_evaluation_next_step, axis=1)
+    frame["exact_command"] = frame.apply(
+        lambda row: format_missing(row.get("unlock_command"), row.get("exact_command", f"make stock-report TICKER={row.get('ticker')}")),
+        axis=1,
+    )
+    frame["source_freshness_note"] = frame.apply(
+        lambda row: (
+            f"Readiness state {format_missing(row.get('overall_readiness_state'), 'unknown')} "
+            f"from local CSV outputs updated {format_missing(row.get('updated_at'), 'not available')}."
+        ),
+        axis=1,
+    )
+    frame["copy_only_note"] = "Copy-only command; the dashboard does not execute refreshes, imports, or external account actions."
+    frame["reason"] = frame.apply(
+        lambda row: compact_reason(
+            first_meaningful_text(
+                row.get("review_priority_reason"),
+                row.get("next_research_question"),
+                row.get("purpose_status"),
+                fallback=f"{format_missing(row.get('ticker'), 'Ticker')} is queued by current local readiness and decision outputs.",
+            ),
+            max_sentences=1,
+            max_chars=180,
+        ),
+        axis=1,
+    )
+    frame = frame.sort_values(["priority", "ticker"], kind="stable")
+    return frame[ACTIVE_EVALUATION_QUEUE_COLUMNS].head(limit).reset_index(drop=True)
+
+
+def active_evaluation_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if queue_frame is None or queue_frame.empty:
+        return [
+            {
+                "kicker": "ACTIVE QUEUE",
+                "title": "Not available",
+                "body": "Run make pipeline and make readiness to rebuild active-universe decisions before evaluating tickers.",
+                "badges": ["readiness first", "copy only"],
+                "command": "make pipeline",
+            }
+        ]
+    frame = queue_frame.copy()
+    lane_counts = frame.get("evaluation_lane", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
+    top_row = frame.iloc[0]
+    top_ticker = format_missing(top_row.get("ticker"), "Ticker")
+    return [
+        {
+            "kicker": "ACTIVE QUEUE",
+            "title": f"{len(frame)} active ticker(s) ranked",
+            "body": "Queue is ranked by current local readiness, decision bucket, purpose family, and primary blocker. It is an evaluation workflow, not a recommendation list.",
+            "badges": ["operator workflow", "row-limited"],
+            "command": "make project-status",
+        },
+        {
+            "kicker": "NEXT EVALUATION",
+            "title": f"{top_ticker}: {format_missing(top_row.get('evaluation_lane'), 'Review')}",
+            "body": compact_reason(top_row.get("next_operator_step"), max_sentences=1, max_chars=190),
+            "badges": [format_missing(top_row.get("decision_bucket"), "decision"), format_missing(top_row.get("data_confidence"), "confidence")],
+            "command": format_missing(top_row.get("exact_command"), "make project-status"),
+        },
+        {
+            "kicker": "QUEUE MIX",
+            "title": ", ".join(f"{lane}: {int(count)}" for lane, count in list(lane_counts.items())[:3]),
+            "body": "Research Now rows stay separated from monitor rows and data-unlock rows so missing inputs do not look like weak conclusions.",
+            "badges": ["readiness gated", "data-honest"],
+            "command": "make readiness",
+        },
+        {
+            "kicker": "COPY ONLY",
+            "title": "No dashboard execution",
+            "body": "Commands are displayed for copying into a terminal after reviewing source/freshness notes; the dashboard does not run refreshes or imports.",
+            "badges": ["research-only", "local CSV"],
             "command": "make project-status",
         },
     ]
@@ -11854,6 +12053,19 @@ def render_market_command_center(
     else:
         st.caption("Briefs are interpretation aids only. They are row-limited, research-only, and do not provide direct instructions.")
         st.dataframe(clean_display_frame(active_briefs), width="stretch", hide_index=True)
+    render_section_header(
+        "Active Evaluation Queue",
+        "Ranked active-universe next steps that separate supported review, monitoring, and data-unlock work.",
+    )
+    active_evaluation_queue = build_active_evaluation_queue_frame(active_briefs, ticker_readiness_frame)
+    render_signal_cards(active_evaluation_queue_cards(active_evaluation_queue))
+    if active_evaluation_queue.empty:
+        st.info("Active evaluation queue is unavailable. Run make pipeline and make readiness first.")
+    else:
+        st.caption(
+            "One row per active ticker, capped for readability. Commands are copy-only and sourced from current local readiness and decision outputs."
+        )
+        st.dataframe(clean_display_frame(active_evaluation_queue), width="stretch", hide_index=True)
     render_section_header(
         "Purpose Evaluation Summary",
         "Purpose-family and decision-bucket counts generated from current local decisions and readiness. This summarizes analysis status, not transaction guidance.",
