@@ -11577,8 +11577,10 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
         [
             {
                 "ticker": "META",
+                "asset_type": "company",
                 "decision_bucket": "Research Now",
                 "decision_subtype": "Research Candidate - DCF Ready But Peer Blocked",
+                "primary_blocker": "peers",
                 "purpose_thesis": "Purpose: Core Compounder. Available data supports a research brief, not a recommendation.",
                 "purpose_alignment": "Purpose alignment needs review: current local outputs show `Review Thesis` for Core Compounder.",
                 "setup_evaluation": "Setup status: Watch; final state: Watch.",
@@ -11593,8 +11595,10 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
             },
             {
                 "ticker": "QQQ",
+                "asset_type": "etf",
                 "decision_bucket": "Monitor",
                 "decision_subtype": "Monitor - ETF Market Proxy",
+                "primary_blocker": "none",
                 "purpose_thesis": "Purpose: ETF / Defensive / Hedge. Use as market, theme, liquidity, or risk context.",
                 "purpose_alignment": "Purpose alignment: ETF / Defensive / Hedge is evaluated as market/risk context.",
                 "setup_evaluation": "Setup status: Setup Forming; final state: Setup Forming.",
@@ -11624,6 +11628,10 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
     assert list(brief["ticker"]) == ["META", "QQQ"]
     assert "BROAD" not in set(brief["ticker"])
     assert brief.loc[brief["ticker"].eq("META"), "exact_command"].iloc[0] == "make stock-report TICKER=META"
+    assert brief.loc[brief["ticker"].eq("META"), "purpose_family"].iloc[0] == "Compounder"
+    assert brief.loc[brief["ticker"].eq("META"), "purpose_status"].iloc[0] == "Purpose review needed"
+    assert brief.loc[brief["ticker"].eq("META"), "unlock_command"].iloc[0] == "make focus-peers TICKER=META"
+    assert brief.loc[brief["ticker"].eq("QQQ"), "purpose_family"].iloc[0] == "ETF / Hedge"
     assert "research brief" in rendered
     assert "purpose alignment needs review" in rendered
     assert "supported analysis" in rendered
@@ -11633,6 +11641,9 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
     assert cards[0]["title"] == "2 active ticker(s)"
     assert "purpose, setup, valuation, supported and unsupported analysis" in rendered_cards
     assert "purpose check" in rendered_cards
+    assert "purpose groups" in rendered_cards
+    assert "next question" in rendered_cards
+    assert "make focus-peers ticker=meta" in rendered_cards
     assert "peer-limited" in rendered_cards
     assert "make stock-report ticker=meta" in rendered_cards
     assert "broker" not in rendered

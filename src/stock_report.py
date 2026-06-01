@@ -375,6 +375,14 @@ def _sentence_value(value: Any, fallback: str = "Not available") -> str:
     return _display_value(value, fallback).rstrip(".")
 
 
+def _brief_value(value: Any, *prefixes: str, fallback: str = "Not available") -> str:
+    text = _display_value(value, fallback)
+    for prefix in prefixes:
+        if text.lower().startswith(prefix.lower()):
+            return text[len(prefix) :].strip()
+    return text
+
+
 def _stock_report_source_audit_lines(
     *,
     ticker: str,
@@ -510,14 +518,21 @@ def build_stock_report_markdown(report: StockReport, local_context: dict[str, An
         f"- Main reason: {_display_value(decision.get('main_reason'))}",
         f"- Next action: {_display_value(decision.get('next_best_action') or decision.get('next_action') or readiness.get('next_action'))}",
         "",
-        "## Research Evaluation",
-        f"- Purpose thesis: {_display_value(decision.get('purpose_thesis'))}",
-        f"- Purpose alignment: {_display_value(decision.get('purpose_alignment'))}",
-        f"- Setup evaluation: {_display_value(decision.get('setup_evaluation'))}",
-        f"- Valuation interpretation: {_display_value(decision.get('valuation_evaluation'))}",
-        f"- Supported analysis: {_display_value(decision.get('supported_analysis'))}",
-        f"- Unsupported analysis: {_display_value(decision.get('unsupported_analysis'))}",
-        f"- Risk watchpoint: {_display_value(decision.get('risk_watchpoint'))}",
+        "## Purpose Evaluation",
+        "Research-only purpose brief. It separates what local data supports from what remains locked or excluded.",
+        f"- Thesis: {_brief_value(decision.get('purpose_thesis'), 'Purpose:')}",
+        f"- Alignment: {_brief_value(decision.get('purpose_alignment'), 'Purpose alignment:')}",
+        f"- Setup: {_brief_value(decision.get('setup_evaluation'), 'Setup status:')}",
+        f"- Valuation boundary: {_display_value(decision.get('valuation_evaluation'))}",
+        "",
+        "### Supported Now",
+        f"- Supported analysis: {_brief_value(decision.get('supported_analysis'), 'Supported analysis:')}",
+        "",
+        "### Locked / Unsupported",
+        f"- Unsupported analysis: {_brief_value(decision.get('unsupported_analysis'), 'Unsupported analysis:')}",
+        "",
+        "### Risk, Invalidation, and Next Question",
+        f"- Risk watchpoint: {_brief_value(decision.get('risk_watchpoint'), 'Risk watchpoint:')}",
         f"- Invalidation condition: {_display_value(decision.get('invalidation_condition'))}",
         f"- Next research question: {_display_value(decision.get('next_research_question'))}",
         f"- Review priority: {_display_value(decision.get('review_priority_reason'))}",
@@ -615,14 +630,21 @@ def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], fa
         f"- Main reason: {_display_value(decision.get('main_reason') or readiness.get('missing_data'))}",
         f"- Next action: {_display_value(decision.get('next_best_action') or decision.get('next_action') or readiness.get('next_action'))}",
         "",
-        "## Research Evaluation",
-        f"- Purpose thesis: {_display_value(decision.get('purpose_thesis'))}",
-        f"- Purpose alignment: {_display_value(decision.get('purpose_alignment'))}",
-        f"- Setup evaluation: {_display_value(decision.get('setup_evaluation'))}",
-        f"- Valuation interpretation: {_display_value(decision.get('valuation_evaluation'))}",
-        f"- Supported analysis: {_display_value(decision.get('supported_analysis'))}",
-        f"- Unsupported analysis: {_display_value(decision.get('unsupported_analysis'))}",
-        f"- Risk watchpoint: {_display_value(decision.get('risk_watchpoint'))}",
+        "## Purpose Evaluation",
+        "Research-only purpose brief. It separates what local data supports from what remains locked or excluded.",
+        f"- Thesis: {_brief_value(decision.get('purpose_thesis'), 'Purpose:')}",
+        f"- Alignment: {_brief_value(decision.get('purpose_alignment'), 'Purpose alignment:')}",
+        f"- Setup: {_brief_value(decision.get('setup_evaluation'), 'Setup status:')}",
+        f"- Valuation boundary: {_display_value(decision.get('valuation_evaluation'))}",
+        "",
+        "### Supported Now",
+        f"- Supported analysis: {_brief_value(decision.get('supported_analysis'), 'Supported analysis:')}",
+        "",
+        "### Locked / Unsupported",
+        f"- Unsupported analysis: {_brief_value(decision.get('unsupported_analysis'), 'Unsupported analysis:')}",
+        "",
+        "### Risk, Invalidation, and Next Question",
+        f"- Risk watchpoint: {_brief_value(decision.get('risk_watchpoint'), 'Risk watchpoint:')}",
         f"- Invalidation condition: {_display_value(decision.get('invalidation_condition'))}",
         f"- Next research question: {_display_value(decision.get('next_research_question'))}",
         f"- Review priority: {_display_value(decision.get('review_priority_reason'))}",

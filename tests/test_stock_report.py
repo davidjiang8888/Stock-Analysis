@@ -279,9 +279,13 @@ def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_pa
     assert "Research-only local report" in markdown
     assert "DCF: excluded" in markdown
     assert "Optional earnings or analyst-estimate context is unavailable" in markdown
-    assert "## Research Evaluation" in markdown
-    assert "Purpose thesis" in markdown
-    assert "Purpose alignment" in markdown
+    assert "## Purpose Evaluation" in markdown
+    assert "Research-only purpose brief" in markdown
+    assert "Thesis" in markdown
+    assert "Alignment" in markdown
+    assert "### Supported Now" in markdown
+    assert "### Locked / Unsupported" in markdown
+    assert "### Risk, Invalidation, and Next Question" in markdown
     assert "market, theme, liquidity, or risk context" in markdown
     assert "Operating-company DCF is excluded" in markdown
     assert "Supported analysis" in markdown
@@ -348,9 +352,12 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "Primary blocker: price" in markdown
     assert "Blocked by Data - Missing Price" in markdown
     assert "DCF: blocked" in markdown
-    assert "## Research Evaluation" in markdown
+    assert "## Purpose Evaluation" in markdown
+    assert "Research-only purpose brief" in markdown
     assert "Purpose alignment for Speculative Optionality cannot be checked" in markdown
     assert "Setup cannot be evaluated because usable price history is missing" in markdown
+    assert "### Supported Now" in markdown
+    assert "### Locked / Unsupported" in markdown
     assert "Supported analysis: none yet" in markdown
     assert "Unsupported analysis: trend, setup, liquidity" in markdown
     assert "analytical blindness" in markdown

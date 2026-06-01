@@ -2380,7 +2380,7 @@ def compact_reason(value: object, max_sentences: int = 2, max_chars: int = 260) 
         return text
     sentences = [part.strip() for part in text.replace("\n", " ").split(". ") if part.strip()]
     compact = ". ".join(sentences[:max_sentences])
-    if compact and not compact.endswith("."):
+    if compact and not compact.endswith((".", "?", "!")):
         compact += "."
     if len(compact) > max_chars:
         compact = compact[: max_chars - 1].rstrip() + "..."
@@ -5635,10 +5635,76 @@ def decision_workflow_summary_cards(decisions_frame: pd.DataFrame | None) -> lis
     ]
 
 
+def purpose_family_label(asset_type: object, purpose_text: object = "", alignment_text: object = "") -> str:
+    asset_kind = format_missing(asset_type, "").lower()
+    if asset_kind in {"etf", "index_proxy", "fund"}:
+        return "ETF / Hedge"
+    combined = " ".join(
+        part.lower()
+        for part in [asset_kind, format_missing(purpose_text, ""), format_missing(alignment_text, "")]
+        if part
+    )
+    if any(token in combined for token in ["etf", "index proxy", "index_proxy", "hedge", "defensive"]):
+        return "ETF / Hedge"
+    if "momentum" in combined:
+        return "Momentum"
+    if "pullback" in combined:
+        return "Pullback"
+    if "compounder" in combined or "core" in combined:
+        return "Compounder"
+    if any(token in combined for token in ["re-rating", "undervalued", "value"]):
+        return "Re-rating"
+    if "speculative" in combined or "optionality" in combined:
+        return "Speculative"
+    if "broken" in combined or "avoid" in combined:
+        return "Broken / Avoid"
+    return "General"
+
+
+def purpose_status_label(alignment_text: object, decision_bucket: object) -> str:
+    alignment = format_missing(alignment_text, "").lower()
+    bucket = format_missing(decision_bucket, "").lower()
+    if "needs review" in alignment:
+        return "Purpose review needed"
+    if any(token in alignment for token in ["cannot be checked", "not testable", "is blocked"]):
+        return "Purpose locked by data"
+    if "monitor" in bucket:
+        return "Monitor context"
+    if "blocked" in bucket:
+        return "Data unlock first"
+    return "Purpose supported by current local data"
+
+
+def purpose_unlock_command(ticker: object, primary_blocker: object, exact_command: object) -> str:
+    symbol = format_missing(ticker, "").upper()
+    blocker = format_missing(primary_blocker, "").lower()
+    if not symbol:
+        return format_missing(exact_command, "make project-status")
+    if blocker == "price":
+        return f"make focus-price TICKER={symbol}"
+    if blocker in {"fundamentals", "dcf"}:
+        return f"make focus-fundamentals TICKER={symbol}"
+    if blocker in {"peer", "peers"}:
+        return f"make focus-peers TICKER={symbol}"
+    if blocker in {"earnings", "analyst_estimates", "analyst estimates"}:
+        return "make templates"
+    return format_missing(exact_command, f"make stock-report TICKER={symbol}")
+
+
+def first_meaningful_text(*values: object, fallback: str = "Not available") -> str:
+    for value in values:
+        text = format_missing(value, "")
+        if text and text.lower() not in {"not available", "nan", "none", "null"}:
+            return text
+    return fallback
+
+
 ACTIVE_RESEARCH_BRIEF_COLUMNS = [
     "ticker",
     "decision_bucket",
     "decision_subtype",
+    "purpose_family",
+    "purpose_status",
     "purpose_thesis",
     "purpose_alignment",
     "setup_evaluation",
@@ -5650,7 +5716,9 @@ ACTIVE_RESEARCH_BRIEF_COLUMNS = [
     "next_research_question",
     "review_priority_reason",
     "confidence_explanation",
+    "primary_blocker",
     "exact_command",
+    "unlock_command",
 ]
 
 
@@ -5680,9 +5748,21 @@ def active_research_brief_frame(
     decisions["ticker"] = decisions["ticker"].astype(str).str.upper().str.strip()
     frame = active.merge(decisions, on="ticker", how="left")
     for column in ACTIVE_RESEARCH_BRIEF_COLUMNS:
-        if column not in frame.columns and column != "exact_command":
+        if column not in frame.columns and column not in {"exact_command", "purpose_family", "purpose_status", "unlock_command"}:
             frame[column] = "Not available"
     frame["exact_command"] = frame["ticker"].apply(lambda ticker: f"make stock-report TICKER={ticker}")
+    frame["purpose_family"] = frame.apply(
+        lambda row: purpose_family_label(row.get("asset_type"), row.get("purpose_thesis"), row.get("purpose_alignment")),
+        axis=1,
+    )
+    frame["purpose_status"] = frame.apply(
+        lambda row: purpose_status_label(row.get("purpose_alignment"), row.get("decision_bucket")),
+        axis=1,
+    )
+    frame["unlock_command"] = frame.apply(
+        lambda row: purpose_unlock_command(row.get("ticker"), row.get("primary_blocker"), row.get("exact_command")),
+        axis=1,
+    )
     return frame[ACTIVE_RESEARCH_BRIEF_COLUMNS].head(limit).reset_index(drop=True)
 
 
@@ -5711,11 +5791,33 @@ def active_research_brief_cards(brief_frame: pd.DataFrame | None) -> list[dict[s
         .sum()
     )
     peer_limited_count = int(
-        frame.get("review_priority_reason", pd.Series(dtype=object))
-        .fillna("")
-        .astype(str)
-        .str.contains("peer-relative context", case=False, na=False)
-        .sum()
+        (
+            frame.get("review_priority_reason", pd.Series(dtype=object))
+            .fillna("")
+            .astype(str)
+            .str.contains("peer-relative context|peer-limited", case=False, na=False)
+            | frame.get("primary_blocker", pd.Series(dtype=object))
+            .fillna("")
+            .astype(str)
+            .str.contains("^peers?$", case=False, na=False)
+        ).sum()
+    )
+    family_counts = frame.get("purpose_family", pd.Series(dtype=object)).fillna("General").astype(str).value_counts()
+    status_counts = frame.get("purpose_status", pd.Series(dtype=object)).fillna("Unknown").astype(str).value_counts()
+    next_question = next(
+        (
+            value
+            for value in frame.get("next_research_question", pd.Series(dtype=object)).fillna("").astype(str)
+            if value.strip() and value.strip().lower() not in {"not available", "nan", "none"}
+        ),
+        next(
+            (
+                value
+                for value in frame.get("review_priority_reason", pd.Series(dtype=object)).fillna("").astype(str)
+                if value.strip() and value.strip().lower() not in {"not available", "nan", "none"}
+            ),
+            "Open a ticker report to inspect the next research question.",
+        ),
     )
     return [
         {
@@ -5728,9 +5830,32 @@ def active_research_brief_cards(brief_frame: pd.DataFrame | None) -> list[dict[s
         {
             "kicker": "PURPOSE CHECK",
             "title": f"{purpose_review_count} need alignment review",
-            "body": compact_reason(top_row.get("purpose_alignment") or top_row.get("purpose_thesis"), max_sentences=1, max_chars=180),
+            "body": compact_reason(
+                first_meaningful_text(
+                    top_row.get("purpose_alignment"),
+                    top_row.get("purpose_thesis"),
+                    top_row.get("purpose_status"),
+                    top_row.get("decision_subtype"),
+                ),
+                max_sentences=1,
+                max_chars=180,
+            ),
             "badges": ["purpose alignment", format_missing(top_row.get("decision_bucket"), "bucket")],
             "command": format_missing(top_row.get("exact_command"), "make stock-report TICKER=META"),
+        },
+        {
+            "kicker": "PURPOSE GROUPS",
+            "title": ", ".join(f"{key}: {int(value)}" for key, value in list(family_counts.items())[:3]),
+            "body": ", ".join(f"{key}: {int(value)}" for key, value in list(status_counts.items())[:3]),
+            "badges": ["active universe", "purpose-family"],
+            "command": "make project-status",
+        },
+        {
+            "kicker": "NEXT QUESTION",
+            "title": "Manual research prompt",
+            "body": compact_reason(next_question, max_sentences=1, max_chars=180),
+            "badges": ["copy-only", "research question"],
+            "command": format_missing(top_row.get("unlock_command"), top_row.get("exact_command", "make project-status")),
         },
         {
             "kicker": "PEER-LIMITED",
