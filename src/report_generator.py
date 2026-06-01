@@ -13,6 +13,7 @@ from src.optional_context_readiness import build_optional_context_readiness_repo
 from src.portfolio_review import review_holdings
 from src.providers.csv_provider import CSVDataFetcher
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.purpose_evaluation import write_purpose_evaluation_summary
 from src.purpose_router import route_purposes
 from src.readiness_engine import build_ticker_readiness_report
 from src.research_decisions import write_research_decisions
@@ -171,6 +172,7 @@ def run(
         "undervalued_candidates": outputs_dir / "undervalued_candidates.csv",
         "final_watchlist": outputs_dir / "final_watchlist.csv",
         "research_decisions": outputs_dir / "research_decisions.csv",
+        "purpose_evaluation_summary": outputs_dir / "purpose_evaluation_summary.csv",
         "data_quality_wizard": outputs_dir / "data_quality_wizard.csv",
         "liquidity_risk": outputs_dir / "liquidity_risk.csv",
         "correlation_risk": outputs_dir / "correlation_risk.csv",
@@ -192,6 +194,7 @@ def run(
     optional_context_readiness = build_optional_context_readiness_reports(base_dir, data_dir=data_dir)
     readiness_reports = build_ticker_readiness_report(base_dir, data_dir=data_dir, output_dir=output_dir)
     research_decisions_df = write_research_decisions(base_dir, data_dir=data_dir, output_dir=output_dir)
+    purpose_evaluation_summary_df = write_purpose_evaluation_summary(base_dir, data_dir=data_dir, output_dir=output_dir)
 
     warnings = sorted(set(loaded.warnings + indicator_warnings + backfill_warnings))
     return {
@@ -206,6 +209,7 @@ def run(
             "undervalued_candidates": len(value_df),
             "final_watchlist": len(final_watchlist_df),
             "research_decisions": len(research_decisions_df),
+            "purpose_evaluation_summary": len(purpose_evaluation_summary_df),
             **{name: len(frame) for name, frame in research_health_outputs.items()},
             "dcf_readiness": len(dcf_readiness_df),
             **{name: len(frame) for name, frame in optional_context_readiness.items()},

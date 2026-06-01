@@ -423,12 +423,15 @@ def test_project_status_write_output_persists_machine_readable_files(tmp_path: P
     summary_path = outputs_dir / "project_status_summary.csv"
     top_actions_path = outputs_dir / "project_status_top_actions.csv"
     next_steps_path = outputs_dir / "project_status_next_steps.csv"
+    purpose_summary_path = outputs_dir / "purpose_evaluation_summary.csv"
 
     assert json_path.exists()
     assert summary_path.exists()
     assert top_actions_path.exists()
     assert next_steps_path.exists()
+    assert purpose_summary_path.exists()
     assert payload["written_files"]["project_status_json"] == str(json_path)
+    assert payload["written_files"]["purpose_evaluation_summary"] == str(purpose_summary_path)
 
     written_payload = json.loads(json_path.read_text(encoding="utf-8"))
     assert written_payload["summary"]["tickers_total"] == 1

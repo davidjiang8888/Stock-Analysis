@@ -21,6 +21,7 @@ from src.report_generator import run as run_report_generator
 from src.research_health import run as run_research_health
 from src.paths import path_context
 from src.project_status import build_project_status_payload
+from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV
 from src.stock_report import build_provider, build_stock_report, export_stock_report_json
 from src.track_record import calculate_monthly_track_record
 from src.universe_builder import SOURCE_PRESETS, summarize_universe_manager
@@ -37,6 +38,7 @@ PIPELINE_FILES = {
     "undervalued_candidates.csv": "Value / Re-rating",
     "final_watchlist.csv": "Final Watchlist",
     "research_decisions.csv": "Research Decisions",
+    PURPOSE_EVALUATION_SUMMARY_CSV: "Purpose Evaluation Summary",
 }
 MONTHLY_FILES = {
     "monthly_research_picks.csv": "Monthly Research Picks",
@@ -5874,6 +5876,75 @@ def active_research_brief_cards(brief_frame: pd.DataFrame | None) -> list[dict[s
     ]
 
 
+def purpose_evaluation_summary_cards(summary_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+    if summary_frame is None or summary_frame.empty:
+        return [
+            {
+                "kicker": "PURPOSE SUMMARY",
+                "title": "Not generated yet",
+                "body": "Run make pipeline or make project-status to generate outputs/purpose_evaluation_summary.csv from current research decisions and readiness.",
+                "badges": ["current outputs only", "no fabricated data"],
+                "command": "make pipeline",
+            }
+        ]
+    frame = summary_frame.copy()
+    for column in [
+        "total_count",
+        "active_universe_count",
+        "research_now_count",
+        "monitor_count",
+        "blocked_count",
+        "purpose_review_needed_count",
+        "data_unlock_first_count",
+        "peer_limited_count",
+        "fundamentals_limited_count",
+        "optional_context_locked_count",
+    ]:
+        if column not in frame.columns:
+            frame[column] = 0
+        frame[column] = pd.to_numeric(frame[column], errors="coerce").fillna(0).astype(int)
+    top_row = frame.iloc[0]
+    total = int(frame["total_count"].sum())
+    active_groups = int((frame["active_universe_count"] > 0).sum())
+    research_now = int(frame["research_now_count"].sum())
+    monitor = int(frame["monitor_count"].sum())
+    blocked = int(frame["blocked_count"].sum())
+    peer_limited = int(frame["peer_limited_count"].sum())
+    fundamentals_limited = int(frame["fundamentals_limited_count"].sum())
+    optional_locked = int(frame["optional_context_locked_count"].sum())
+    top_unlock_command = format_missing(top_row.get("top_unlock_command"), "make project-status")
+    return [
+        {
+            "kicker": "PURPOSE SUMMARY",
+            "title": f"{total} ticker(s) grouped",
+            "body": f"Research Now: {research_now}. Monitor: {monitor}. Blocked by Data: {blocked}. Groups are generated from current local decision/readiness CSVs.",
+            "badges": ["analysis layer", "deterministic CSV"],
+            "command": "make project-status",
+        },
+        {
+            "kicker": "ACTIVE PURPOSE",
+            "title": f"{active_groups} active group(s)",
+            "body": f"Top group: {format_missing(top_row.get('purpose_family'), 'General')} / {format_missing(top_row.get('decision_bucket'), 'Unknown')}; sample tickers: {format_missing(top_row.get('sample_tickers'), 'Not available')}.",
+            "badges": ["active universe", "row-limited"],
+            "command": top_unlock_command,
+        },
+        {
+            "kicker": "DATA LIMITS",
+            "title": f"{peer_limited} peer-limited, {fundamentals_limited} fundamentals-limited",
+            "body": "Purpose evaluation separates supported analysis from blocked valuation, peer, fundamentals, earnings, and estimate context.",
+            "badges": ["readiness first", "no overclaiming"],
+            "command": "make readiness",
+        },
+        {
+            "kicker": "OPTIONAL CONTEXT",
+            "title": f"{optional_locked} optional-context lock(s)",
+            "body": "Earnings and analyst-estimate context stays locked until trusted local rows are imported, validated, previewed, and applied.",
+            "badges": ["schema-only until trusted rows", "copy-only"],
+            "command": "make templates",
+        },
+    ]
+
+
 def _text_contains(frame: pd.DataFrame, column: str, token: str) -> pd.Series:
     if column not in frame.columns:
         return pd.Series(False, index=frame.index)
@@ -11631,6 +11702,7 @@ def render_market_command_center(
     dcf_readiness_frame: pd.DataFrame | None,
     earnings_readiness_frame: pd.DataFrame | None,
     analyst_readiness_frame: pd.DataFrame | None,
+    purpose_evaluation_summary_frame: pd.DataFrame | None,
 ) -> None:
     render_section_header(
         "Market-Wide Command Center",
@@ -11690,6 +11762,16 @@ def render_market_command_center(
     else:
         st.caption("Briefs are interpretation aids only. They are row-limited, research-only, and do not provide direct instructions.")
         st.dataframe(clean_display_frame(active_briefs), width="stretch", hide_index=True)
+    render_section_header(
+        "Purpose Evaluation Summary",
+        "Purpose-family and decision-bucket counts generated from current local decisions and readiness. This summarizes analysis status, not transaction guidance.",
+    )
+    render_signal_cards(purpose_evaluation_summary_cards(purpose_evaluation_summary_frame))
+    if purpose_evaluation_summary_frame is None or purpose_evaluation_summary_frame.empty:
+        st.info("Purpose evaluation summary is unavailable. Run make pipeline or make project-status to regenerate it.")
+    else:
+        st.caption("Summary rows are capped for readability and reflect only current trusted local CSV outputs.")
+        st.dataframe(clean_display_frame(purpose_evaluation_summary_frame.head(25)), width="stretch", hide_index=True)
     render_section_header("Peer Readiness Workflow", "Specific peer blockers for mapping, peer prices, peer fundamentals, and peer valuation context.")
     render_signal_cards(peer_readiness_product_cards(peer_readiness_frame, peer_mapping_queue_frame))
     render_section_header("Peer Mapping Studio", "Filtered peer unlock queue for DCF-ready names, missing mappings, and peer metric follow-through.")
@@ -11954,6 +12036,9 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
     peer_readiness_frame, peer_readiness_message = load_peer_readiness_report()
     peer_unlock_worklist_frame, peer_unlock_worklist_message = load_peer_unlock_worklist()
     decisions_frame, decisions_message = load_output(OUTPUTS_DIR / "research_decisions.csv")
+    purpose_evaluation_summary_frame, purpose_evaluation_summary_message = load_output(
+        OUTPUTS_DIR / PURPOSE_EVALUATION_SUMMARY_CSV
+    )
     staged_imports = validate_imports(base_dir=BASE_DIR)
     universe_summary = summarize_universe_manager(BASE_DIR)
     staged_universe = universe_summary["staged_universe"]
@@ -11982,6 +12067,7 @@ def render_data_health(provider, project_status_payload: dict[str, Any] | None =
         dcf_readiness_frame,
         earnings_readiness_frame,
         analyst_readiness_frame,
+        purpose_evaluation_summary_frame,
     )
     if feature_summary_frame is None and feature_summary_message:
         render_notice_card(

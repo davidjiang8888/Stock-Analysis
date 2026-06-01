@@ -11656,3 +11656,59 @@ def test_active_research_brief_frame_surfaces_evaluation_without_execution_langu
     assert "trading" not in rendered_cards
     assert "buy" not in rendered_cards
     assert "sell" not in rendered_cards
+
+
+def test_purpose_evaluation_summary_cards_are_copy_only_and_data_honest():
+    summary = pd.DataFrame(
+        [
+            {
+                "purpose_family": "Compounder",
+                "decision_bucket": "Research Now",
+                "total_count": 3,
+                "active_universe_count": 2,
+                "research_now_count": 3,
+                "monitor_count": 0,
+                "blocked_count": 0,
+                "purpose_review_needed_count": 1,
+                "data_unlock_first_count": 0,
+                "peer_limited_count": 2,
+                "fundamentals_limited_count": 0,
+                "optional_context_locked_count": 0,
+                "top_unlock_command": "make focus-peers TICKER=META",
+                "top_next_research_question": "Which source-backed peers should be added?",
+                "sample_tickers": "META, NVDA",
+            },
+            {
+                "purpose_family": "ETF / Hedge",
+                "decision_bucket": "Monitor",
+                "total_count": 1,
+                "active_universe_count": 1,
+                "research_now_count": 0,
+                "monitor_count": 1,
+                "blocked_count": 0,
+                "purpose_review_needed_count": 0,
+                "data_unlock_first_count": 0,
+                "peer_limited_count": 0,
+                "fundamentals_limited_count": 0,
+                "optional_context_locked_count": 0,
+                "top_unlock_command": "make stock-report TICKER=QQQ",
+                "top_next_research_question": "What market signal is this proxy intended to monitor?",
+                "sample_tickers": "QQQ",
+            },
+        ]
+    )
+
+    cards = dashboard.purpose_evaluation_summary_cards(summary)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert cards[0]["title"] == "4 ticker(s) grouped"
+    assert "research now: 3" in rendered
+    assert "active group" in rendered
+    assert "make focus-peers ticker=meta" in rendered
+    assert "schema-only until trusted rows" in rendered
+    assert "no overclaiming" in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "trading" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
