@@ -10753,6 +10753,45 @@ def test_single_stock_status_cards_surface_badges_sources_and_next_actions():
     assert "sell" not in rendered
 
 
+def test_single_stock_status_cards_route_core_data_ready_optional_lock_to_worklist():
+    snapshot = {
+        "ticker": "AMD",
+        "status": "partial",
+        "decision_subtype": "Research Candidate - Core Data Ready",
+        "confidence": "medium",
+        "main_reason": "Core data is ready for a supported research pass.",
+        "next_action": "Optional context missing for AMD; leave unavailable unless trusted local CSVs exist.",
+        "ready_features": "price, momentum, fundamentals, dcf, peer",
+        "blocked_features": "earnings, analyst_estimates",
+        "excluded_features": "portfolio",
+        "missing_data": "earnings: trusted local CSV input; analyst_estimates: trusted local CSV input",
+        "price_ready": True,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "dcf_status": "ready",
+        "peer_ready": True,
+        "peer_trend_comparison_ready": True,
+        "peer_valuation_comparison_ready": True,
+        "price_first_date": "2025-01-01",
+        "price_last_date": "2026-05-22",
+        "updated_at": "2026-05-28T00:00:00+00:00",
+    }
+
+    cards = dashboard.single_stock_status_cards(snapshot)
+    status_card = next(card for card in cards if card["kicker"] == "TICKER STATUS")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert status_card["command"] == "make optional-context-worklist TOP_N=25"
+    assert "research candidate - core data ready" in rendered
+    assert "optional context missing for amd" in rendered
+    assert "trusted local csv input" in rendered
+    assert "make templates" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_single_stock_source_audit_frame_surfaces_paths_credentials_and_safe_commands(monkeypatch):
     monkeypatch.setenv("SEC_USER_AGENT", "Research Tester tester@example.com")
     monkeypatch.delenv("STOOQ_API_KEY", raising=False)

@@ -8103,7 +8103,7 @@ def single_stock_next_command(snapshot: dict[str, object]) -> str:
     if dcf_status == "ready" and not snapshot.get("peer_ready") and "peer" in format_missing(snapshot.get("missing_data"), "").lower():
         return f"make focus-peers TICKER={ticker}"
     if not snapshot.get("earnings_ready") or not snapshot.get("analyst_estimates_ready"):
-        return "make templates"
+        return "make optional-context-worklist TOP_N=25"
     return f"make stock-report TICKER={ticker}"
 
 
@@ -8290,6 +8290,12 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
         peer_title = "blocked until fundamentals / DCF"
         peer_body = "Peer-relative valuation should wait until trusted fundamentals and DCF inputs are ready."
         peer_command = f"make stock-report TICKER={ticker}"
+    next_command = single_stock_next_command(snapshot)
+    status_body = format_missing(snapshot.get("main_reason"), "Readiness state available.")
+    if next_command == "make optional-context-worklist TOP_N=25":
+        next_action_text = compact_reason(snapshot.get("next_action"), max_sentences=1, max_chars=160)
+        if next_action_text != "Not available" and next_action_text.lower() not in status_body.lower():
+            status_body = f"{status_body} {next_action_text}"
 
     return [
         {
@@ -8302,12 +8308,12 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
         {
             "kicker": "TICKER STATUS",
             "title": f"{format_missing(snapshot.get('ticker'))}: {format_missing(snapshot.get('status'))}",
-            "body": format_missing(snapshot.get("main_reason"), "Readiness state available."),
+            "body": status_body,
             "badges": [
                 f"decision: {format_missing(snapshot.get('decision_subtype'))}",
                 f"confidence: {format_missing(snapshot.get('confidence'))}",
             ],
-            "command": single_stock_next_command(snapshot),
+            "command": next_command,
         },
         {
             "kicker": "FEATURE BADGES",
