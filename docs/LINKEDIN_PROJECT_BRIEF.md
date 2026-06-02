@@ -28,7 +28,7 @@ Current features:
 
 This was a great project for practicing product thinking, deterministic data workflows, test coverage, and financial-analysis guardrails in Python.
 
-GitHub: <add your repo link here>
+GitHub: https://github.com/YuzeJ21/Stock-Analysis
 
 ## Resume Bullet Options
 
