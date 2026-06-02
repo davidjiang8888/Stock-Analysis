@@ -119,6 +119,11 @@ def _normalize_fundamentals(frame: pd.DataFrame) -> pd.DataFrame:
         "ev_to_ebitda",
         "price_to_fcf",
         "fcf_yield",
+        "net_income",
+        "free_cash_flow",
+        "fcf",
+        "revenue",
+        "shares_outstanding",
     ]
     for column in numeric_columns:
         if column in frame.columns:

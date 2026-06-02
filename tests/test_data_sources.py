@@ -98,7 +98,8 @@ def test_data_source_registry_contains_required_datasets():
     assert "make verify" in local_outputs_entry.fallback_action
 
 
-def test_data_source_check_handles_missing_optional_files_without_network(tmp_path: Path):
+def test_data_source_check_handles_missing_optional_files_without_network(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
     _write_minimal_local_data(tmp_path)
 
     payload = build_data_source_payload(tmp_path)
@@ -160,12 +161,57 @@ def test_data_source_check_handles_missing_optional_files_without_network(tmp_pa
     assert price_gap["target_file"] == "data/imports/prices.csv"
     fundamentals_gap = next(gap for gap in payload["data_gaps"] if gap["dataset"] == "fundamentals" and gap["ticker"] == "MSFT")
     assert fundamentals_gap["recommended_action"] == (
-        "Run make focus-fundamentals TICKER=MSFT, or stage explicit local "
-        "fundamentals with make sec-stage TICKERS=MSFT."
+        "Run make focus-fundamentals TICKER=MSFT. If SEC_USER_AGENT is configured, run "
+        "make sec-stage TICKERS=MSFT; otherwise stage trusted manual fundamentals in "
+        "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
+        "and make imports-apply."
     )
     assert fundamentals_gap["focus_command"] == "make focus-fundamentals TICKER=MSFT"
     assert fundamentals_gap["example_command"] == "make sec-stage TICKERS=MSFT"
     assert fundamentals_gap["target_file"] == "data/imports/fundamentals.csv"
+    assert fundamentals_gap["credential_required"] == "SEC_USER_AGENT"
+    assert fundamentals_gap["credential_present"] is False
+    assert fundamentals_gap["manual_fallback_command"] == "make templates"
+    assert "data/imports/fundamentals.csv" in fundamentals_gap["command_safety_note"]
+
+
+def test_data_gap_report_excludes_etfs_from_company_fundamentals_queue(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    (data_dir / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-02,NVDA,100,1000\n"
+        "2026-01-02,QQQ,400,1000\n",
+        encoding="utf-8",
+    )
+    (data_dir / "fundamentals.csv").write_text(
+        "ticker,revenue,free_cash_flow,shares_outstanding\n"
+        "NVDA,100,20,10\n",
+        encoding="utf-8",
+    )
+    (data_dir / "universe_master.csv").write_text(
+        "ticker,name,exchange,asset_type,source\n"
+        "NVDA,NVIDIA,NASDAQ,company,fixture\n"
+        "QQQ,Invesco QQQ,NASDAQ,etf,fixture\n",
+        encoding="utf-8",
+    )
+    (data_dir / "universe.csv").write_text(
+        "ticker,theme,sectoretf,defaultpurpose,marketcapbucket,notes\n"
+        "NVDA,AI,SMH,Momentum Leader,Large,fixture\n"
+        "QQQ,Market Proxy,QQQ,ETF / Defensive / Hedge,Large,fixture\n",
+        encoding="utf-8",
+    )
+
+    payload = build_data_source_payload(tmp_path)
+    fundamentals_gaps = {
+        gap["ticker"]
+        for gap in payload["data_gaps"]
+        if gap["dataset"] == "fundamentals" and gap["ticker"]
+    }
+
+    assert "QQQ" not in fundamentals_gaps
 
 
 def test_write_data_source_outputs_creates_csvs(tmp_path: Path):

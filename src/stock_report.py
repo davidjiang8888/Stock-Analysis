@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -361,6 +362,367 @@ def export_stock_report_json(report: StockReport, output_path: Path | None = Non
     return payload
 
 
+def _display_value(value: Any, fallback: str = "Not available") -> str:
+    if value is None:
+        return fallback
+    if not isinstance(value, (list, tuple, dict, set)) and pd.isna(value):
+        return fallback
+    text = str(value).strip()
+    return fallback if not text or text.lower() in {"nan", "none", "nat", "null"} else text
+
+
+def _sentence_value(value: Any, fallback: str = "Not available") -> str:
+    return _display_value(value, fallback).rstrip(".")
+
+
+def _brief_value(value: Any, *prefixes: str, fallback: str = "Not available") -> str:
+    text = _display_value(value, fallback)
+    for prefix in prefixes:
+        if text.lower().startswith(prefix.lower()):
+            return text[len(prefix) :].strip()
+    return text
+
+
+def _stock_report_source_audit_lines(
+    *,
+    ticker: str,
+    readiness: dict[str, Any],
+    coverage: dict[str, Any],
+    dcf: dict[str, Any],
+    peer: dict[str, Any],
+    earnings_ready: Any,
+    estimates_ready: Any,
+    dcf_status_text: str,
+) -> list[str]:
+    sec_status = "present" if os.environ.get("SEC_USER_AGENT", "").strip() else "missing"
+    stooq_status = "present" if (os.environ.get("STOOQ_API_KEY", "").strip() or os.environ.get("STOQ_API_KEY", "").strip()) else "missing"
+    price_window = (
+        f"{_display_value(coverage.get('first_price_date'), 'unknown')} to "
+        f"{_display_value(coverage.get('last_price_date'), 'unknown')}; "
+        f"rows={_display_value(coverage.get('price_rows'))}"
+    )
+    peer_status = _display_value(peer.get("peer_blocker_type") or peer.get("missing_peer_reason"), "ready")
+    return [
+        f"- Prices: {_display_value(readiness.get('price_ready'))}; local source `data/prices.csv`; coverage {price_window}; staged path `data/staged/prices/` or `data/imports/prices.csv`; rejected rows `data/rejected/price_import_rejected.csv`.",
+        f"- Fundamentals / DCF: {dcf_status_text}; local source `data/fundamentals.csv`; reason {_display_value(dcf.get('reason_not_ready') or dcf.get('missing_dcf_fields'))}; SEC_USER_AGENT {sec_status}; staged path `data/staged/fundamentals/` or `data/imports/fundamentals.csv`; rejected rows `data/rejected/fundamentals_import_rejected.csv`.",
+        f"- Peers: {peer_status}; local source `data/peers.csv`; staged path `data/imports/peers.csv`; next peer action {_sentence_value(peer.get('next_peer_action') or peer.get('missing_peer_reason'))}.",
+        f"- Earnings: {_display_value(earnings_ready)}; trusted local CSV only; staged path `data/staged/earnings/`; command `make import-earnings`; rejected rows `data/rejected/earnings_import_rejected.csv`.",
+        f"- Analyst estimates: {_display_value(estimates_ready)}; trusted local CSV only; staged path `data/staged/analyst_estimates/`; command `make import-analyst-estimates`; rejected rows `data/rejected/analyst_estimates_import_rejected.csv`.",
+        f"- Credentials: SEC_USER_AGENT {sec_status}; STOOQ_API_KEY {stooq_status}; missing remote credentials should not break local CSV reports or staged import workflows.",
+        f"- Report command: `make stock-report TICKER={ticker}`. Research-only output; no transaction execution.",
+    ]
+
+
+def _load_local_context(ticker: str, output_dir: Path, data_dir: Path) -> dict[str, Any]:
+    symbol = ticker.upper().strip()
+
+    def row_from(path: Path) -> dict[str, Any]:
+        if not path.exists():
+            return {}
+        frame = pd.read_csv(path)
+        if "ticker" not in frame.columns:
+            return {}
+        matches = frame.loc[frame["ticker"].astype(str).str.upper().str.strip().eq(symbol)]
+        if matches.empty:
+            return {}
+        return matches.iloc[-1].to_dict()
+
+    return {
+        "readiness": row_from(data_dir / "reports" / "ticker_readiness_report.csv"),
+        "decision": row_from(output_dir / "research_decisions.csv"),
+        "price_coverage": row_from(data_dir / "price_coverage_report.csv"),
+        "dcf": row_from(data_dir / "dcf_readiness.csv"),
+        "peer": row_from(data_dir / "reports" / "peer_readiness_report.csv"),
+        "earnings": row_from(data_dir / "earnings_readiness.csv"),
+        "analyst_estimates": row_from(data_dir / "analyst_estimates_readiness.csv"),
+    }
+
+
+def build_stock_report_markdown(report: StockReport, local_context: dict[str, Any] | None = None) -> str:
+    payload = report.to_dict()
+    local_context = local_context or {}
+    readiness = local_context.get("readiness", {})
+    decision = local_context.get("decision", {})
+    coverage = local_context.get("price_coverage", {})
+    dcf = local_context.get("dcf", {})
+    peer = local_context.get("peer", {})
+    earnings = local_context.get("earnings", {})
+    estimates = local_context.get("analyst_estimates", {})
+    valuation_readiness = payload.get("valuation_readiness", {})
+    freshness = payload.get("data_freshness", [])
+    source_lines = []
+    for item in freshness:
+        provider = _display_value(item.get("provider"))
+        official = "official" if item.get("official") else "research-grade / local"
+        retrieved = _display_value(item.get("retrieved_at"))
+        notes = "; ".join(str(note) for note in item.get("notes", []) if str(note).strip())
+        source_lines.append(f"- {provider}: {official}, retrieved {retrieved}" + (f"; {notes}" if notes else ""))
+    if not source_lines:
+        source_lines.append("- Not available")
+
+    missing_lines = [f"- {warning}" for warning in payload.get("missing_data_warnings", [])[:20]]
+    if not missing_lines:
+        missing_lines.append("- None reported by the local provider.")
+
+    dcf_ready = readiness.get("dcf_ready") if "dcf_ready" in readiness else valuation_readiness.get("dcf_ready")
+    peer_ready = readiness.get("peer_ready") if "peer_ready" in readiness else valuation_readiness.get("peer_ready")
+    earnings_ready = (
+        readiness.get("earnings_ready") if "earnings_ready" in readiness else earnings.get("has_trusted_earnings")
+    )
+    estimates_ready = (
+        readiness.get("analyst_estimates_ready")
+        if "analyst_estimates_ready" in readiness
+        else estimates.get("has_trusted_analyst_estimates")
+    )
+    asset_type = _display_value(readiness.get("asset_type"))
+    dcf_status_text = "excluded" if "dcf" in str(readiness.get("excluded_features", "")).lower() or asset_type.lower() in {"etf", "index_proxy", "fund"} else "ready" if dcf_ready else "blocked"
+    optional_locked = not earnings_ready or not estimates_ready
+    one_minute_parts = [
+        f"{report.ticker} state: {_display_value(readiness.get('overall_readiness_state'))}.",
+        f"Decision: {_display_value(decision.get('decision_subtype') or decision.get('decision_bucket'))}.",
+        f"Primary blocker: {_display_value(decision.get('primary_blocker'))}.",
+        f"DCF: {dcf_status_text}.",
+    ]
+    peer_blocker = peer.get("peer_blocker_type") or peer.get("missing_peer_reason")
+    if peer_blocker:
+        one_minute_parts.append(f"Peer workflow: {_display_value(peer_blocker)}.")
+    if optional_locked:
+        one_minute_parts.append("Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist.")
+    one_minute_next = decision.get("next_best_action") or decision.get("next_action") or readiness.get("next_action")
+    if one_minute_next:
+        one_minute_parts.append(f"Next: {_sentence_value(one_minute_next)}.")
+    one_minute_summary = " ".join(part for part in one_minute_parts if part)
+    source_audit_lines = _stock_report_source_audit_lines(
+        ticker=report.ticker,
+        readiness=readiness,
+        coverage=coverage,
+        dcf=dcf,
+        peer=peer,
+        earnings_ready=earnings_ready,
+        estimates_ready=estimates_ready,
+        dcf_status_text=dcf_status_text,
+    )
+
+    report_lines = [
+        f"# {report.ticker} Research Readiness Report",
+        "",
+        "Research-only local report. This is not a trade instruction and cannot execute transactions.",
+        "",
+        "## One-Minute Status",
+        one_minute_summary,
+        "",
+        "## Decision",
+        f"- Bucket: {_display_value(decision.get('decision_bucket'))}",
+        f"- Subtype: {_display_value(decision.get('decision_subtype'))}",
+        f"- Primary blocker: {_display_value(decision.get('primary_blocker'))}",
+        f"- Main reason: {_display_value(decision.get('main_reason'))}",
+        f"- Next action: {_display_value(decision.get('next_best_action') or decision.get('next_action') or readiness.get('next_action'))}",
+        "",
+        "## Purpose Evaluation",
+        "Research-only purpose brief. It separates what local data supports from what remains locked or excluded.",
+        f"- Thesis: {_brief_value(decision.get('purpose_thesis'), 'Purpose:')}",
+        f"- Alignment: {_brief_value(decision.get('purpose_alignment'), 'Purpose alignment:')}",
+        f"- Setup: {_brief_value(decision.get('setup_evaluation'), 'Setup status:')}",
+        f"- Valuation boundary: {_display_value(decision.get('valuation_evaluation'))}",
+        "",
+        "### Supported Now",
+        f"- Supported analysis: {_brief_value(decision.get('supported_analysis'), 'Supported analysis:')}",
+        "",
+        "### Locked / Unsupported",
+        f"- Unsupported analysis: {_brief_value(decision.get('unsupported_analysis'), 'Unsupported analysis:')}",
+        "",
+        "### Risk, Invalidation, and Next Question",
+        f"- Risk watchpoint: {_brief_value(decision.get('risk_watchpoint'), 'Risk watchpoint:')}",
+        f"- Invalidation condition: {_display_value(decision.get('invalidation_condition'))}",
+        f"- Next research question: {_display_value(decision.get('next_research_question'))}",
+        f"- Review priority: {_display_value(decision.get('review_priority_reason'))}",
+        f"- Confidence explanation: {_display_value(decision.get('confidence_explanation'))}",
+        "",
+        "## Readiness",
+        f"- Overall state: {_display_value(readiness.get('overall_readiness_state'))}",
+        f"- Price ready: {_display_value(readiness.get('price_ready'))}",
+        f"- Momentum ready: {_display_value(readiness.get('momentum_ready'))}",
+        f"- Liquidity ready: {_display_value(readiness.get('liquidity_ready'))}",
+        f"- Correlation ready: {_display_value(readiness.get('correlation_ready'))}",
+        f"- Fundamentals ready: {_display_value(readiness.get('fundamentals_ready'))}",
+        f"- DCF ready: {_display_value(dcf_ready)}",
+        f"- Peer ready: {_display_value(peer_ready)}",
+        f"- Earnings ready: {_display_value(earnings_ready)}",
+        f"- Analyst estimates ready: {_display_value(estimates_ready)}",
+        f"- Blocked features: {_display_value(readiness.get('blocked_features'))}",
+        f"- Excluded features: {_display_value(readiness.get('excluded_features'))}",
+        "",
+        "## Price Coverage",
+        f"- Price rows: {_display_value(coverage.get('price_rows'))}",
+        f"- First date: {_display_value(coverage.get('first_price_date'))}",
+        f"- Last date: {_display_value(coverage.get('last_price_date'))}",
+        f"- Missing price reason: {_display_value(coverage.get('missing_price_reason'))}",
+        "",
+        "## Valuation And DCF",
+        f"- DCF status: {_display_value(payload.get('valuation_snapshot', {}).get('status'))}",
+        f"- DCF missing fields: {_display_value(dcf.get('missing_dcf_fields') or ', '.join(valuation_readiness.get('dcf_missing_fields', [])))}",
+        f"- Reason not ready: {_display_value(dcf.get('reason_not_ready'))}",
+        "",
+        "## Peer Workflow",
+        f"- Peer blocker type: {_display_value(peer.get('peer_blocker_type'))}",
+        f"- Mapping status: {_display_value(peer.get('mapping_status'))}",
+        f"- Peer count: {_display_value(peer.get('peer_count'))}",
+        f"- Trend comparison ready: {_display_value(peer.get('peer_trend_comparison_ready'))}",
+        f"- Valuation comparison ready: {_display_value(peer.get('peer_valuation_comparison_ready'))}",
+        f"- DCF peer comparison ready: {_display_value(peer.get('peer_dcf_comparison_ready'))}",
+        f"- Sample peers: {_display_value(peer.get('sample_peers'))}",
+        f"- Next peer action: {_display_value(peer.get('next_peer_action') or peer.get('missing_peer_reason'))}",
+        "",
+        "## Missing Data",
+        *missing_lines,
+        "",
+        "## Sources And Freshness",
+        *source_lines,
+        "",
+        "## Source/Freshness Audit",
+        *source_audit_lines,
+        "",
+    ]
+    return "\n".join(report_lines)
+
+
+def build_readiness_only_markdown(ticker: str, local_context: dict[str, Any], failure_reason: str = "") -> str:
+    symbol = ticker.upper().strip()
+    readiness = local_context.get("readiness", {})
+    decision = local_context.get("decision", {})
+    coverage = local_context.get("price_coverage", {})
+    dcf = local_context.get("dcf", {})
+    peer = local_context.get("peer", {})
+    if not readiness:
+        raise LookupError(f"No readiness row was found for {symbol}.")
+    asset_type = _display_value(readiness.get("asset_type"))
+    dcf_status_text = "excluded" if "dcf" in str(readiness.get("excluded_features", "")).lower() or asset_type.lower() in {"etf", "index_proxy", "fund"} else "ready" if readiness.get("dcf_ready") else "blocked"
+    earnings_ready = readiness.get("earnings_ready")
+    estimates_ready = readiness.get("analyst_estimates_ready")
+    one_minute_summary = " ".join(
+        part
+        for part in [
+            f"{symbol} state: {_display_value(readiness.get('overall_readiness_state'))}.",
+            f"Decision: {_display_value(decision.get('decision_subtype') or decision.get('decision_bucket'))}.",
+            f"Primary blocker: {_display_value(decision.get('primary_blocker'))}.",
+            f"DCF: {dcf_status_text}.",
+            f"Peer workflow: {_display_value(peer.get('peer_blocker_type') or peer.get('missing_peer_reason'))}.",
+            "Optional earnings or analyst-estimate context is unavailable until trusted local CSV rows exist.",
+            f"Next: {_sentence_value(decision.get('next_best_action') or decision.get('next_action') or readiness.get('next_action'))}.",
+        ]
+        if part and "Not available" not in part
+    )
+    lines = [
+        f"# {symbol} Research Readiness Report",
+        "",
+        "Research-only local report. This is not a trade instruction and cannot execute transactions.",
+        "",
+        "This is a readiness-only report because the full stock-report provider could not assemble price-backed analysis.",
+        f"Provider blocker: {_display_value(failure_reason)}",
+        "",
+        "## One-Minute Status",
+        one_minute_summary,
+        "",
+        "## Decision",
+        f"- Bucket: {_display_value(decision.get('decision_bucket'))}",
+        f"- Subtype: {_display_value(decision.get('decision_subtype'))}",
+        f"- Primary blocker: {_display_value(decision.get('primary_blocker'))}",
+        f"- Main reason: {_display_value(decision.get('main_reason') or readiness.get('missing_data'))}",
+        f"- Next action: {_display_value(decision.get('next_best_action') or decision.get('next_action') or readiness.get('next_action'))}",
+        "",
+        "## Purpose Evaluation",
+        "Research-only purpose brief. It separates what local data supports from what remains locked or excluded.",
+        f"- Thesis: {_brief_value(decision.get('purpose_thesis'), 'Purpose:')}",
+        f"- Alignment: {_brief_value(decision.get('purpose_alignment'), 'Purpose alignment:')}",
+        f"- Setup: {_brief_value(decision.get('setup_evaluation'), 'Setup status:')}",
+        f"- Valuation boundary: {_display_value(decision.get('valuation_evaluation'))}",
+        "",
+        "### Supported Now",
+        f"- Supported analysis: {_brief_value(decision.get('supported_analysis'), 'Supported analysis:')}",
+        "",
+        "### Locked / Unsupported",
+        f"- Unsupported analysis: {_brief_value(decision.get('unsupported_analysis'), 'Unsupported analysis:')}",
+        "",
+        "### Risk, Invalidation, and Next Question",
+        f"- Risk watchpoint: {_brief_value(decision.get('risk_watchpoint'), 'Risk watchpoint:')}",
+        f"- Invalidation condition: {_display_value(decision.get('invalidation_condition'))}",
+        f"- Next research question: {_display_value(decision.get('next_research_question'))}",
+        f"- Review priority: {_display_value(decision.get('review_priority_reason'))}",
+        f"- Confidence explanation: {_display_value(decision.get('confidence_explanation'))}",
+        "",
+        "## Readiness",
+        f"- Overall state: {_display_value(readiness.get('overall_readiness_state'))}",
+        f"- Asset type: {_display_value(readiness.get('asset_type'))}",
+        f"- Price ready: {_display_value(readiness.get('price_ready'))}",
+        f"- Momentum ready: {_display_value(readiness.get('momentum_ready'))}",
+        f"- Fundamentals ready: {_display_value(readiness.get('fundamentals_ready'))}",
+        f"- DCF ready: {_display_value(readiness.get('dcf_ready'))}",
+        f"- Peer ready: {_display_value(readiness.get('peer_ready'))}",
+        f"- Earnings ready: {_display_value(readiness.get('earnings_ready'))}",
+        f"- Analyst estimates ready: {_display_value(readiness.get('analyst_estimates_ready'))}",
+        f"- Blocked features: {_display_value(readiness.get('blocked_features'))}",
+        f"- Excluded features: {_display_value(readiness.get('excluded_features'))}",
+        "",
+        "## Price Coverage",
+        f"- Price rows: {_display_value(coverage.get('price_rows'))}",
+        f"- Missing price reason: {_display_value(coverage.get('missing_price_reason'))}",
+        "",
+        "## DCF",
+        f"- Missing fields: {_display_value(dcf.get('missing_dcf_fields'))}",
+        f"- Reason not ready: {_display_value(dcf.get('reason_not_ready'))}",
+        "",
+        "## Peer Workflow",
+        f"- Peer blocker type: {_display_value(peer.get('peer_blocker_type'))}",
+        f"- Mapping status: {_display_value(peer.get('mapping_status'))}",
+        f"- Peer count: {_display_value(peer.get('peer_count'))}",
+        f"- Trend comparison ready: {_display_value(peer.get('peer_trend_comparison_ready'))}",
+        f"- Valuation comparison ready: {_display_value(peer.get('peer_valuation_comparison_ready'))}",
+        f"- Next peer action: {_display_value(peer.get('next_peer_action') or peer.get('missing_peer_reason'))}",
+        "",
+        "## Missing Data",
+        f"- {_display_value(readiness.get('missing_data'))}",
+        "",
+        "## Source/Freshness Audit",
+        *_stock_report_source_audit_lines(
+            ticker=symbol,
+            readiness=readiness,
+            coverage=coverage,
+            dcf=dcf,
+            peer=peer,
+            earnings_ready=earnings_ready,
+            estimates_ready=estimates_ready,
+            dcf_status_text=dcf_status_text,
+        ),
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def export_readiness_only_markdown(
+    ticker: str,
+    output_path: Path,
+    *,
+    local_context: dict[str, Any],
+    failure_reason: str = "",
+) -> str:
+    payload = build_readiness_only_markdown(ticker, local_context, failure_reason)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(payload + "\n", encoding="utf-8")
+    return payload
+
+
+def export_stock_report_markdown(
+    report: StockReport,
+    output_path: Path,
+    *,
+    local_context: dict[str, Any] | None = None,
+) -> str:
+    payload = build_stock_report_markdown(report, local_context)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(payload + "\n", encoding="utf-8")
+    return payload
+
+
 def build_provider(
     provider_name: str,
     base_dir: Path | None = None,
@@ -465,6 +827,8 @@ def main() -> None:
     parser.add_argument("--ticker", help="Ticker symbol to analyze")
     parser.add_argument("--provider", default="local", choices=["local", "mock", "yfinance"], help="Research data provider")
     parser.add_argument("--output", help="Optional JSON output path")
+    parser.add_argument("--markdown-output", help="Optional Markdown report path. Defaults to outputs/stock_reports/{TICKER}.md for ticker reports.")
+    parser.add_argument("--no-markdown", action="store_true", help="Do not write the default Markdown single-stock report.")
     parser.add_argument("--project-root", help="Project root for config.yaml and default data/output directories.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
@@ -663,6 +1027,7 @@ def main() -> None:
     if not args.ticker:
         raise SystemExit("--ticker is required unless --list-local-tickers is used.")
 
+    markdown_path = None
     try:
         report = build_stock_report(
             args.ticker,
@@ -679,9 +1044,51 @@ def main() -> None:
                 else cli_output_dir / raw_output
             )
         payload = export_stock_report_json(report, output_path)
+        if not args.no_markdown:
+            raw_markdown = Path(args.markdown_output) if args.markdown_output else Path("stock_reports") / f"{report.ticker.lower()}.md"
+            markdown_path = (
+                raw_markdown
+                if raw_markdown.is_absolute()
+                else cli_base_dir / raw_markdown
+                if raw_markdown.parts and raw_markdown.parts[0] == "outputs"
+                else cli_output_dir / raw_markdown
+            )
+            export_stock_report_markdown(
+                report,
+                markdown_path,
+                local_context=_load_local_context(report.ticker, cli_output_dir, cli_data_dir),
+            )
     except (FileNotFoundError, LookupError, RuntimeError, ValueError) as exc:
+        local_context = _load_local_context(args.ticker, cli_output_dir, cli_data_dir)
+        if (
+            args.provider == "local"
+            and isinstance(exc, LookupError)
+            and "No local price rows were found" in str(exc)
+            and local_context.get("readiness")
+            and not args.no_markdown
+        ):
+            raw_markdown = Path(args.markdown_output) if args.markdown_output else Path("stock_reports") / f"{args.ticker.upper().lower()}.md"
+            markdown_path = (
+                raw_markdown
+                if raw_markdown.is_absolute()
+                else cli_base_dir / raw_markdown
+                if raw_markdown.parts and raw_markdown.parts[0] == "outputs"
+                else cli_output_dir / raw_markdown
+            )
+            export_readiness_only_markdown(
+                args.ticker,
+                markdown_path,
+                local_context=local_context,
+                failure_reason=str(exc),
+            )
+            print_paths()
+            print(f"Readiness-only Markdown report: {markdown_path}")
+            print(f"Full stock report blocked: {exc}")
+            return
         raise SystemExit(f"Stock report generation failed: {exc}") from exc
     print_paths()
+    if markdown_path is not None:
+        print(f"Markdown report: {markdown_path}")
     print(payload)
 
 

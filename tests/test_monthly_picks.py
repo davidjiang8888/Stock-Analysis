@@ -34,13 +34,13 @@ def _write_monthly_fixture(base: Path) -> None:
         encoding="utf-8",
     )
     (base / "outputs" / "final_watchlist.csv").write_text(
-        "Ticker,Theme,SectorETF,PrimaryPurpose,SetupStatus,FinalState,WatchlistScore,RankReason,Reason\n"
-        "AAA,AI,QQQ,Momentum Leader,Watch,Watch,82,Strong local rank,Transparent reason\n"
-        "BBB,Cloud,QQQ,Core Compounder,Setup Forming,Setup Forming,70,Constructive setup,Transparent reason\n"
-        "CCC,Semis,SMH,Momentum Leader,Avoid,Review Thesis,42,Needs review,Transparent reason\n"
-        "DDD,Fintech,ARKF,Re-rating / Undervalued,Watch,Watch,61,Watchlist context,Transparent reason\n"
-        "EEE,Software,QQQ,Core Compounder,Extended / No Chase,Extended / No Chase,58,Extended,Transparent reason\n"
-        "FFF,EV,QQQ,Speculative Optionality,Broken,Broken,5,Broken,Transparent reason\n",
+        "Ticker,Theme,SectorETF,PrimaryPurpose,SetupStatus,FinalState,ValuationStatus,WatchlistScore,WatchlistRank,RankReason,Reason\n"
+        "AAA,AI,QQQ,Momentum Leader,Watch,Watch,ready,82,1,Strong local rank,Transparent reason\n"
+        "BBB,Cloud,QQQ,Core Compounder,Setup Forming,Setup Forming,ready,70,2,Constructive setup,Transparent reason\n"
+        "CCC,Semis,SMH,Momentum Leader,Avoid,Review Thesis,ready,42,3,Needs review,Transparent reason\n"
+        "DDD,Fintech,ARKF,Re-rating / Undervalued,Watch,Watch,ready,61,4,Watchlist context,Transparent reason\n"
+        "EEE,Software,QQQ,Core Compounder,Extended / No Chase,Extended / No Chase,ready,58,5,Extended,Transparent reason\n"
+        "FFF,EV,QQQ,Speculative Optionality,Broken,Broken,ready,5,6,Broken,Transparent reason\n",
         encoding="utf-8",
     )
     (base / "outputs" / "momentum_leaders.csv").write_text(
@@ -110,3 +110,18 @@ def test_missing_data_reduces_monthly_pick_confidence(tmp_path: Path):
 
     assert rows["CCC"]["CompositeScore"] < rows["AAA"]["CompositeScore"]
     assert "fundamentals unavailable" in rows["CCC"]["MissingDataFields"]
+
+
+def test_monthly_picks_skip_unranked_or_not_ready_final_watchlist_rows(tmp_path: Path):
+    _write_monthly_fixture(tmp_path)
+    (tmp_path / "outputs" / "final_watchlist.csv").write_text(
+        "Ticker,Theme,SectorETF,PrimaryPurpose,SetupStatus,FinalState,ValuationStatus,WatchlistScore,WatchlistRank,RankReason,Reason\n"
+        "AAA,AI,QQQ,Momentum Leader,Watch,Watch,not_ready,50,,Blocked valuation,Transparent reason\n"
+        "BBB,Cloud,QQQ,Core Compounder,Setup Forming,Setup Forming,ready,70,,Unranked,Transparent reason\n",
+        encoding="utf-8",
+    )
+
+    result = build_monthly_research_picks(tmp_path, top_n=5)
+
+    assert result["row_count"] == 0
+    assert "No monthly research candidates" in result["warnings"][0]

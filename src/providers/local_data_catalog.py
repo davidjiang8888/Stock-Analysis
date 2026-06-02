@@ -17,6 +17,8 @@ DATASET_CANDIDATES: dict[str, tuple[str, ...]] = {
     "peers": ("data/peers.csv",),
     "holdings": ("data/holdings.csv",),
     "universe": ("data/universe.csv",),
+    "universe_master": ("data/universe_master.csv",),
+    "universe_active": ("data/universe_active.csv",),
     "custom_universe": ("data/custom_universe.csv",),
     "theme_map": ("data/theme_map.csv",),
     "purpose_classification": ("outputs/purpose_classification.csv",),
@@ -25,6 +27,8 @@ DATASET_CANDIDATES: dict[str, tuple[str, ...]] = {
     "portfolio_review": ("outputs/portfolio_review.csv",),
     "undervalued_candidates": ("outputs/undervalued_candidates.csv",),
     "final_watchlist": ("outputs/final_watchlist.csv",),
+    "research_decisions": ("outputs/research_decisions.csv", "data/outputs/research_decisions.csv"),
+    "ticker_readiness": ("data/reports/ticker_readiness_report.csv",),
 }
 
 
@@ -46,6 +50,7 @@ def _detect_date_column(columns: list[str]) -> str | None:
         "as_of_date",
         "market_time",
         "reported_date",
+        "report_date",
         "earnings_date",
         "last_earnings_date",
         "next_earnings_date",

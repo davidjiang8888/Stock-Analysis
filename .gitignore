@@ -11,6 +11,16 @@ data/raw/prices/*
 !data/raw/prices/.gitkeep
 data/imports/*.csv
 !data/imports/.gitkeep
+data/staged/prices/*.csv
+!data/staged/prices/.gitkeep
+data/staged/fundamentals/*.csv
+!data/staged/fundamentals/.gitkeep
+data/staged/earnings/*.csv
+!data/staged/earnings/.gitkeep
+data/staged/analyst_estimates/*.csv
+!data/staged/analyst_estimates/.gitkeep
+data/staged/universe/*.csv
+!data/staged/universe/.gitkeep
 outputs/*stock_report.json
 outputs/*_stock_report.json
 outputs/data_source_status.csv

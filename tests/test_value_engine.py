@@ -27,6 +27,31 @@ def test_value_engine_flags_insufficient_data_when_fundamentals_missing():
     assert result["MissingDataFields"] == "fundamentals unavailable"
 
 
+def test_value_engine_does_not_emit_avoid_when_dcf_is_not_ready():
+    config = AppConfig.load(Path("config.yaml"))
+    snapshot_row = pd.Series(
+        {
+            "ticker": "META",
+            "close": 440.0,
+            "sma_50": 500.0,
+            "sma_200": 520.0,
+            "ema_21": 460.0,
+            "relative_return_vs_spy": -0.10,
+            "relative_return_vs_qqq": -0.08,
+            "relative_return_vs_sector_etf": -0.05,
+            "return_3m": -0.20,
+        }
+    )
+    purpose_row = pd.Series({"FinalPrimaryPurpose": "Core Compounder"})
+
+    result = classify_value_row(snapshot_row, purpose_row, pd.Series(dtype=object), config)
+
+    assert result["ValuationStatus"] == "not_ready"
+    assert result["FinalValueCategory"] == "Insufficient Data"
+    assert "valuation_status=not_ready" in result["Reason"]
+    assert "fundamentals unavailable" in result["MissingDataFields"]
+
+
 def test_value_engine_identifies_possible_value_trap():
     config = AppConfig.load(Path("config.yaml"))
     snapshot_row = pd.Series(
@@ -46,7 +71,9 @@ def test_value_engine_identifies_possible_value_trap():
     fundamentals_row = pd.Series(
         {
             "revenue_growth": -0.05,
+            "revenue": 100_000_000,
             "eps_growth": -0.10,
+            "free_cash_flow": -2_000_000,
             "fcf_margin": -0.02,
             "gross_margin": 0.18,
             "operating_margin": 0.03,
@@ -57,6 +84,7 @@ def test_value_engine_identifies_possible_value_trap():
             "ev_to_ebitda": 7.0,
             "price_to_fcf": 12.0,
             "fcf_yield": -0.01,
+            "shares_outstanding": 10_000_000,
         }
     )
     result = classify_value_row(snapshot_row, purpose_row, fundamentals_row, config)

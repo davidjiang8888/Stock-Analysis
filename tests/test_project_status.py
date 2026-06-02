@@ -48,6 +48,22 @@ def test_project_status_payload_is_read_only_and_summarizes_local_gaps(tmp_path:
     assert not (tmp_path / "outputs" / "project_status.json").exists()
 
 
+def test_project_status_prefers_central_readiness_dcf_count(tmp_path: Path):
+    _write_minimal_local_data(tmp_path)
+    reports_dir = tmp_path / "data" / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(
+        [
+            {"ticker": "NVDA", "dcf_ready": False},
+            {"ticker": "AMD", "dcf_ready": True},
+        ]
+    ).to_csv(reports_dir / "ticker_readiness_report.csv", index=False)
+
+    payload = build_project_status_payload(tmp_path, top_n=3)
+
+    assert payload["summary"]["tickers_dcf_ready"] == 1
+
+
 def test_project_status_payload_respects_ticker_slice_for_read_only_views(tmp_path: Path):
     data_dir = tmp_path / "data"
     outputs_dir = tmp_path / "outputs"
@@ -113,6 +129,40 @@ def test_project_status_prefers_live_price_status_context_for_price_actions(tmp_
     assert top_action["reason"] == "NVDA: parse failed"
     assert top_action["example_command"] == "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"
     assert payload["recommended_next_command_rows"][0]["Reason"] == "NVDA: parse failed"
+
+
+def test_project_status_does_not_let_successful_price_status_hide_remaining_price_work(tmp_path: Path):
+    _write_minimal_local_data(tmp_path)
+    pd.DataFrame(
+        [
+            {
+                "run_timestamp": "2026-05-21T00:00:00+00:00",
+                "ticker": "NVDA",
+                "requested_start": "",
+                "requested_end": "2026-05-21",
+                "provider": "FakePriceSource",
+                "status": "fetched",
+                "rows_fetched": 1,
+                "rows_merged": 1,
+                "error_category": "",
+                "error_message": "",
+                "fallback_used": False,
+                "recommended_action": "No action needed; remote rows were merged into local prices.",
+                "focus_command": float("nan"),
+                "example_command": float("nan"),
+                "target_file": "data/prices.csv",
+            }
+        ]
+    ).to_csv(tmp_path / "outputs" / "price_update_status.csv", index=False)
+
+    payload = build_project_status_payload(tmp_path, top_n=3)
+
+    top_action = payload["top_onboarding_actions"][0]
+    assert top_action["ticker"] == "NVDA"
+    assert top_action["recommended_action"].startswith("Run make focus-price TICKER=NVDA")
+    assert top_action["focus_command"] == "make focus-price TICKER=NVDA"
+    rendered_commands = " ".join(row["Command"] for row in payload["recommended_next_command_rows"])
+    assert "nan" not in rendered_commands.lower()
 
 
 def test_project_status_normalizes_legacy_raw_price_example_command(tmp_path: Path):
@@ -228,6 +278,47 @@ def test_project_status_surfaces_staged_fundamentals_follow_through_in_next_step
     assert "make imports-apply" in staged_row["Reason"]
 
 
+def test_project_status_surfaces_fundamentals_input_path_when_sec_user_agent_missing(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+    pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "date": f"2026-01-{day:02d}",
+                "open": 10 + day,
+                "high": 11 + day,
+                "low": 9 + day,
+                "close": 10 + day,
+                "volume": 1000 + day,
+            }
+            for day in range(1, 23)
+        ]
+    ).to_csv(data_dir / "prices.csv", index=False)
+    pd.DataFrame([{"ticker": "NVDA", "theme": "AI", "sectoretf": "SMH", "defaultpurpose": "Momentum Leader"}]).to_csv(
+        data_dir / "universe.csv",
+        index=False,
+    )
+    pd.DataFrame([{"ticker": "NVDA", "shares": 1, "primarypurpose": "Momentum Leader"}]).to_csv(
+        data_dir / "holdings.csv",
+        index=False,
+    )
+    pd.DataFrame([{"ticker": "NVDA", "theme": "AI"}]).to_csv(data_dir / "fundamentals.csv", index=False)
+
+    payload = build_project_status_payload(tmp_path, top_n=5)
+
+    input_path_row = next(
+        row for row in payload["recommended_next_command_rows"] if row["Step"] == "Choose fundamentals input path"
+    )
+    assert input_path_row["Command"] == "make templates"
+    assert "SEC_USER_AGENT is not configured" in input_path_row["Reason"]
+    assert "data/imports/fundamentals.csv" in input_path_row["Reason"]
+
+
 def test_project_status_combines_staged_fundamentals_and_peer_imports_into_one_follow_through(tmp_path: Path):
     _write_minimal_local_data(tmp_path)
     imports_dir = tmp_path / "data" / "imports"
@@ -332,12 +423,15 @@ def test_project_status_write_output_persists_machine_readable_files(tmp_path: P
     summary_path = outputs_dir / "project_status_summary.csv"
     top_actions_path = outputs_dir / "project_status_top_actions.csv"
     next_steps_path = outputs_dir / "project_status_next_steps.csv"
+    purpose_summary_path = outputs_dir / "purpose_evaluation_summary.csv"
 
     assert json_path.exists()
     assert summary_path.exists()
     assert top_actions_path.exists()
     assert next_steps_path.exists()
+    assert purpose_summary_path.exists()
     assert payload["written_files"]["project_status_json"] == str(json_path)
+    assert payload["written_files"]["purpose_evaluation_summary"] == str(purpose_summary_path)
 
     written_payload = json.loads(json_path.read_text(encoding="utf-8"))
     assert written_payload["summary"]["tickers_total"] == 1
@@ -493,8 +587,10 @@ def test_project_status_prefers_bundle_matching_top_blocker_ticker(tmp_path: Pat
     payload = build_project_status_payload(tmp_path, top_n=5)
 
     assert payload["top_onboarding_actions"][0]["ticker"] == "AMD"
-    assert payload["recommended_next_command_rows"][1]["Step"] == "Open Price Coverage Bundle (Broader Queue) runbook"
-    assert payload["recommended_next_command_rows"][1]["Command"] == "make runbook-prices-broader"
+    assert payload["recommended_next_command_rows"][0]["Step"] == "Refresh next capped missing-price batch"
+    assert payload["recommended_next_command_rows"][0]["Command"] == "make price-refresh TOP_N=25 PROVIDER=yahoo"
+    assert payload["recommended_next_command_rows"][2]["Step"] == "Open Price Coverage Bundle (Broader Queue) runbook"
+    assert payload["recommended_next_command_rows"][2]["Command"] == "make runbook-prices-broader"
 
 
 def test_project_status_prefers_holdings_first_price_blockers_when_priority_matches(tmp_path: Path):

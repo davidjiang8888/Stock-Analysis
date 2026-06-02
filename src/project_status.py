@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ from src.data_update import enrich_price_update_status_frame, refresh_price_upda
 from src.data_sources import build_data_source_payload, write_data_source_outputs
 from src.action_queue import write_action_queue_output
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, write_purpose_evaluation_summary
 from src.research_health import run as run_research_health
 
 
@@ -23,13 +25,35 @@ PROJECT_STATUS_TOP_ACTIONS_CSV = "project_status_top_actions.csv"
 PROJECT_STATUS_NEXT_STEPS_CSV = "project_status_next_steps.csv"
 
 
+def _load_purpose_evaluation_summary(output_path: Path, top_n: int) -> list[dict[str, Any]]:
+    path = output_path / PURPOSE_EVALUATION_SUMMARY_CSV
+    if not path.exists():
+        return []
+    try:
+        frame = pd.read_csv(path)
+    except Exception:
+        return []
+    if frame.empty:
+        return []
+    return frame.head(top_n).fillna("").to_dict("records")
+
+
 def _count_true(rows: list[dict[str, Any]], field: str) -> int:
     return sum(1 for row in rows if bool(row.get(field)))
 
 
 def _first_non_empty(*values: object) -> str:
     for value in values:
+        if value is None:
+            continue
+        try:
+            if pd.isna(value):
+                continue
+        except (TypeError, ValueError):
+            pass
         text = str(value or "").strip()
+        if text.lower() == "nan":
+            continue
         if text:
             return text
     return ""
@@ -48,6 +72,22 @@ def _load_price_status_lookup(output_path: Path) -> dict[str, dict[str, Any]]:
         if ticker:
             lookup[ticker] = row.to_dict()
     return lookup
+
+
+def _count_readiness_true(data_path: Path, field: str) -> int | None:
+    path = data_path / "reports" / "ticker_readiness_report.csv"
+    if not path.exists():
+        return None
+    try:
+        frame = pd.read_csv(path)
+    except Exception:
+        return None
+    if frame.empty or field not in frame.columns:
+        return None
+    values = frame[field]
+    if pd.api.types.is_bool_dtype(values):
+        return int(values.fillna(False).sum())
+    return int(values.fillna("").astype(str).str.strip().str.lower().isin({"true", "1", "yes"}).sum())
 
 
 def _enrich_top_actions(onboarding_payload: dict[str, Any], price_status_lookup: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
@@ -108,11 +148,15 @@ def _enrich_top_actions(onboarding_payload: dict[str, Any], price_status_lookup:
         if dataset == "prices" and ticker:
             price_status_row = price_status_lookup.get(ticker)
             if price_status_row:
+                status = str(price_status_row.get("status") or "").strip().lower()
                 for field in ("status", "recommended_action", "focus_command", "example_command", "target_file"):
+                    if source_row and status in {"fetched", "skipped_fresh"} and field != "status":
+                        continue
                     value = _first_non_empty(price_status_row.get(field), row.get(field))
                     if value:
                         row[field] = value
-                row["reason"] = _first_non_empty(price_status_row.get("error_message"), row.get("reason"))
+                if not (source_row and status in {"fetched", "skipped_fresh"}):
+                    row["reason"] = _first_non_empty(price_status_row.get("error_message"), row.get("reason"))
         enriched.append(row)
     return enriched
 
@@ -220,6 +264,19 @@ def _recommended_next_command_rows(
 
     if actions:
         top_action = actions[0]
+        dataset_key = str(top_action.get("dataset") or "").strip().lower()
+        if dataset_key == "prices" and not bool(top_action.get("is_holding")):
+            rows.append(
+                {
+                    "Step": "Refresh next capped missing-price batch",
+                    "Command": "make price-refresh TOP_N=25 PROVIDER=yahoo",
+                    "Reason": (
+                        "Advance the broad-universe price frontier safely by refreshing only the next "
+                        "25 tickers without local price coverage; Yahoo rows are research-grade and "
+                        "the staged manual import fallback remains available."
+                    ),
+                }
+            )
         command = _first_non_empty(top_action.get("focus_command"), top_action.get("example_command"))
         if command:
             dataset = str(top_action.get("dataset") or "data").replace("_", " ")
@@ -227,6 +284,19 @@ def _recommended_next_command_rows(
             step = f"Fix top {dataset} blocker" + (f" ({ticker})" if ticker else "")
             reason = _first_non_empty(top_action.get("reason"), top_action.get("recommended_action"))
             rows.append({"Step": step, "Command": command, "Reason": reason})
+            if dataset_key in {"fundamentals", "peers"} and not os.environ.get("SEC_USER_AGENT", "").strip():
+                rows.append(
+                    {
+                        "Step": "Choose fundamentals input path",
+                        "Command": "make templates",
+                        "Reason": (
+                            "SEC_USER_AGENT is not configured, so remote SEC staging is unavailable. "
+                            "Either export SEC_USER_AGENT before make sec-stage, or prepare trusted manual "
+                            "fundamentals in data/imports/fundamentals.csv and run make imports-validate, "
+                            "make imports-preview, and make imports-apply."
+                        ),
+                    }
+                )
 
     top_bundle = _select_top_bundle(actions, bundles)
     if top_bundle:
@@ -309,6 +379,8 @@ def build_project_status_payload(
     actions = sorted(enriched_actions, key=_action_rank)
     problem_sources = [row for row in sources if str(row.get("availability_status")) in PROBLEM_SOURCE_STATUSES]
     command_problem_sources = [] if tickers else problem_sources
+    readiness_dcf_ready = None if tickers else _count_readiness_true(data_path, "dcf_ready")
+    purpose_evaluation_rows = [] if tickers else _load_purpose_evaluation_summary(output_path, top_n)
     summary = {
         "data_sources_total": len(sources),
         "data_sources_available": sum(1 for row in sources if row.get("availability_status") == "available"),
@@ -317,10 +389,14 @@ def build_project_status_payload(
         "tickers_total": len(coverage),
         "tickers_with_prices": _count_true(coverage, "has_prices"),
         "tickers_usable_for_momentum": _count_true(coverage, "usable_for_momentum"),
-        "tickers_dcf_ready": _count_true(coverage, "dcf_ready"),
+        "tickers_dcf_ready": readiness_dcf_ready if readiness_dcf_ready is not None else _count_true(coverage, "dcf_ready"),
         "tickers_peer_ready": _count_true(coverage, "peer_ready"),
         "onboarding_actions": len(actions),
         "critical_actions": sum(1 for row in actions if int(row.get("priority") or 999) <= 1),
+        "purpose_evaluation_groups": len(purpose_evaluation_rows),
+        "purpose_evaluation_active_groups": sum(
+            1 for row in purpose_evaluation_rows if int(row.get("active_universe_count") or 0) > 0
+        ),
     }
     command_rows = _recommended_next_command_rows(
         actions,
@@ -337,6 +413,7 @@ def build_project_status_payload(
         "top_onboarding_actions": actions[:top_n],
         "recommended_next_command_rows": command_rows,
         "recommended_next_commands": [row["Command"] for row in command_rows],
+        "purpose_evaluation_summary": purpose_evaluation_rows,
     }
 
 
@@ -357,13 +434,15 @@ def write_project_status_output(
         write_onboarding_outputs(root, data_dir=data_path, output_dir=output_path)
         run_research_health(root, data_dir=data_path, output_dir=output_path)
         write_action_queue_output(root, data_dir=data_path, output_dir=output_path)
-    payload = build_project_status_payload(root, data_dir=data_path, output_dir=output_path, top_n=top_n)
     output_path.mkdir(parents=True, exist_ok=True)
+    write_purpose_evaluation_summary(root, data_dir=data_path, output_dir=output_path)
+    payload = build_project_status_payload(root, data_dir=data_path, output_dir=output_path, top_n=top_n)
 
     json_path = output_path / PROJECT_STATUS_JSON
     summary_path = output_path / PROJECT_STATUS_SUMMARY_CSV
     top_actions_path = output_path / PROJECT_STATUS_TOP_ACTIONS_CSV
     next_steps_path = output_path / PROJECT_STATUS_NEXT_STEPS_CSV
+    purpose_summary_path = output_path / PURPOSE_EVALUATION_SUMMARY_CSV
 
     json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     pd.DataFrame([payload["summary"]]).to_csv(summary_path, index=False)
@@ -377,6 +456,7 @@ def write_project_status_output(
             "project_status_summary": str(summary_path),
             "project_status_top_actions": str(top_actions_path),
             "project_status_next_steps": str(next_steps_path),
+            "purpose_evaluation_summary": str(purpose_summary_path),
         },
     }
 
@@ -392,6 +472,7 @@ def _print_human(payload: dict[str, Any]) -> None:
     print(f"- DCF-ready tickers: {summary['tickers_dcf_ready']}/{summary['tickers_total']}")
     print(f"- Peer-ready tickers: {summary['tickers_peer_ready']}/{summary['tickers_total']}")
     print(f"- Onboarding actions: {summary['onboarding_actions']} ({summary['critical_actions']} critical)")
+    print(f"- Purpose evaluation groups: {summary.get('purpose_evaluation_groups', 0)} ({summary.get('purpose_evaluation_active_groups', 0)} active-universe groups)")
     print("Top onboarding actions:")
     for row in payload["top_onboarding_actions"]:
         ticker = f" {row['ticker']}" if row.get("ticker") else ""
@@ -400,6 +481,11 @@ def _print_human(payload: dict[str, Any]) -> None:
             print(f"  focus: {row['focus_command']}")
         if row.get("example_command"):
             print(f"  command: {row['example_command']}")
+        if row.get("credential_required"):
+            present = "present" if bool(row.get("credential_present")) else "missing"
+            print(f"  credential: {row['credential_required']} ({present})")
+        if row.get("manual_fallback_command"):
+            print(f"  fallback: {row['manual_fallback_command']}")
     print("Recommended next commands:")
     command_rows = payload.get("recommended_next_command_rows") or [
         {"Step": f"Next {index}", "Command": command}

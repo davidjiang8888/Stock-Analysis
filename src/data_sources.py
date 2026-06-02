@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,7 @@ import pandas as pd
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_schemas import validate_local_dataset
+from src.universe_model import infer_asset_type
 
 
 AVAILABILITY_STATUSES = {
@@ -68,7 +70,10 @@ class DataSourceStatus:
     validation_warnings: str
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return {
+            **asdict(self),
+            **_command_safety_fields(self.example_command),
+        }
 
 
 @dataclass
@@ -86,7 +91,32 @@ class DataGap:
     source_name: str
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return {
+            **asdict(self),
+            **_command_safety_fields(self.example_command),
+        }
+
+
+def _command_safety_fields(example_command: object) -> dict[str, object]:
+    command = str(example_command or "").strip().lower()
+    if not command.startswith("make sec-stage"):
+        return {
+            "credential_required": "",
+            "credential_present": "",
+            "manual_fallback_command": "",
+            "command_safety_note": "",
+        }
+    credential_present = bool(os.environ.get("SEC_USER_AGENT", "").strip())
+    return {
+        "credential_required": "SEC_USER_AGENT",
+        "credential_present": credential_present,
+        "manual_fallback_command": "make templates",
+        "command_safety_note": (
+            "SEC staging requires SEC_USER_AGENT. If it is missing, use make templates, fill "
+            "data/imports/fundamentals.csv with trusted manual rows, then run make imports-validate, "
+            "make imports-preview, and make imports-apply."
+        ),
+    }
 
 
 def _gap_focus_command(dataset: str, ticker: str) -> str:
@@ -166,8 +196,10 @@ def _ticker_gap_recommended_action(dataset: str, ticker: str) -> str:
         )
     if dataset == "fundamentals" and ticker:
         return (
-            f"Run make focus-fundamentals TICKER={ticker}, or stage explicit local "
-            f"fundamentals with make sec-stage TICKERS={ticker}."
+            f"Run make focus-fundamentals TICKER={ticker}. If SEC_USER_AGENT is configured, run "
+            f"make sec-stage TICKERS={ticker}; otherwise stage trusted manual fundamentals in "
+            "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
+            "and make imports-apply."
         )
     return ""
 
@@ -583,6 +615,35 @@ def _ticker_set(catalog: LocalDataCatalog, dataset_name: str) -> set[str]:
     return set(frame["ticker"].dropna().astype(str).str.upper().str.strip())
 
 
+DCF_EXCLUDED_ASSET_TYPES = {"etf", "index_proxy", "fund"}
+
+
+def _dcf_excluded_asset(asset_type: object) -> bool:
+    return str(asset_type or "").strip().lower() in DCF_EXCLUDED_ASSET_TYPES
+
+
+def _load_asset_type_map(data_path: Path) -> dict[str, str]:
+    asset_map: dict[str, str] = {}
+    for filename in ("universe_master.csv", "universe.csv"):
+        path = data_path / filename
+        if not path.exists():
+            continue
+        try:
+            frame = pd.read_csv(path)
+        except Exception:
+            continue
+        if frame.empty:
+            continue
+        frame.columns = [str(column).strip().replace(" ", "_").replace("-", "_").lower() for column in frame.columns]
+        if "ticker" not in frame.columns:
+            continue
+        for _, row in frame.iterrows():
+            ticker = str(row.get("ticker", "") or "").strip().upper()
+            if ticker:
+                asset_map[ticker] = infer_asset_type(ticker, row)
+    return asset_map
+
+
 def build_data_gap_report(
     project_root: Path | str | None = None,
     *,
@@ -622,6 +683,7 @@ def build_data_gap_report(
     tickers = _read_tickers(catalog)
     price_tickers = _ticker_set(catalog, "prices")
     fundamentals_tickers = _ticker_set(catalog, "fundamentals")
+    asset_type_by_ticker = _load_asset_type_map(data_path)
     price_status = status_by_dataset["prices"]
     fundamentals_status = status_by_dataset["fundamentals"]
     for ticker in tickers:
@@ -641,7 +703,11 @@ def build_data_gap_report(
                     source_name=price_status.source_name,
                 )
             )
-        if fundamentals_status.availability_status != "missing_file" and ticker not in fundamentals_tickers:
+        if (
+            fundamentals_status.availability_status != "missing_file"
+            and ticker not in fundamentals_tickers
+            and not _dcf_excluded_asset(asset_type_by_ticker.get(ticker, "company"))
+        ):
             gaps.append(
                 DataGap(
                     dataset="fundamentals",
@@ -706,6 +772,11 @@ def _print_human(payload: dict[str, Any], *, top_n: int = 20) -> None:
             print(f"  focus: {row['focus_command']}")
         if row.get("example_command"):
             print(f"  command: {row['example_command']}")
+        if row.get("credential_required"):
+            state = "present" if row.get("credential_present") else "missing"
+            print(f"  credential: {row['credential_required']} ({state})")
+        if row.get("manual_fallback_command"):
+            print(f"  fallback: {row['manual_fallback_command']}")
     print(f"Data gaps: {len(payload['data_gaps'])}")
     for row in payload["data_gaps"][:20]:
         ticker = f" {row['ticker']}" if row["ticker"] else ""
@@ -714,6 +785,11 @@ def _print_human(payload: dict[str, Any], *, top_n: int = 20) -> None:
             print(f"  focus: {row['focus_command']}")
         if row.get("example_command"):
             print(f"  command: {row['example_command']}")
+        if row.get("credential_required"):
+            state = "present" if row.get("credential_present") else "missing"
+            print(f"  credential: {row['credential_required']} ({state})")
+        if row.get("manual_fallback_command"):
+            print(f"  fallback: {row['manual_fallback_command']}")
 
 
 def _filter_data_source_payload(payload: dict[str, Any], tickers: list[str] | None) -> dict[str, Any]:

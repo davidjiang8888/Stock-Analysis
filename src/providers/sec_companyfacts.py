@@ -17,6 +17,8 @@ from src.providers.local_schemas import LOCAL_DATASET_SCHEMAS, normalize_columns
 SEC_TICKER_MAP_URL = "https://www.sec.gov/files/company_tickers.json"
 SEC_COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 SEC_ANNUAL_FORMS = {"10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"}
+MIN_SEC_TICKER_MAP_ROWS = 100
+MIN_SEC_COMPANYFACTS_CACHE_BYTES = 100_000
 
 
 class SECUserAgentError(ValueError):
@@ -68,6 +70,14 @@ def _write_json(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
+def _payload_row_count(payload: Any) -> int:
+    if isinstance(payload, dict):
+        return len(payload)
+    if isinstance(payload, list):
+        return len(payload)
+    return 0
+
+
 def _fetch_json(url: str, user_agent: str, sleep_seconds: float = 0.2) -> Any:
     request = Request(
         url,
@@ -97,6 +107,10 @@ def load_sec_ticker_map(
     cache_path = _cache_path(Path(cache_dir), "company_tickers.json")
     if cache_path.exists() and not refresh:
         payload = _read_json(cache_path)
+        if fetcher is None and _payload_row_count(payload) < MIN_SEC_TICKER_MAP_ROWS:
+            resolved_user_agent = _require_user_agent(user_agent)
+            payload = _fetch_json(SEC_TICKER_MAP_URL, resolved_user_agent, sleep_seconds)
+            _write_json(cache_path, payload)
     else:
         resolved_user_agent = _require_user_agent(user_agent)
         payload = (fetcher or _fetch_json)(SEC_TICKER_MAP_URL, resolved_user_agent, sleep_seconds)
@@ -146,7 +160,8 @@ def fetch_companyfacts(
     cache_root = Path(cache_dir)
     cache_path = _companyfacts_cache_path(cache_root, normalized_cik)
     if cache and cache_path.exists() and not refresh:
-        return _read_json(cache_path)
+        if fetcher is not None or cache_path.stat().st_size >= MIN_SEC_COMPANYFACTS_CACHE_BYTES:
+            return _read_json(cache_path)
     payload = (fetcher or _fetch_json)(
         SEC_COMPANYFACTS_URL.format(cik=normalized_cik),
         resolved_user_agent,
@@ -549,7 +564,9 @@ def write_sec_fundamentals_import(
         overlap = existing.index.intersection(incoming.index)
         if not overlap.empty:
             update_columns = [column for column in columns if column != "ticker"]
-            existing.loc[overlap, update_columns] = incoming.loc[overlap, update_columns]
+            for column in update_columns:
+                existing[column] = existing[column].astype("object")
+                existing.loc[overlap, column] = incoming.loc[overlap, column].astype("object")
         new_rows = incoming.loc[~incoming.index.isin(existing.index)]
         merged = pd.concat([existing, new_rows], axis=0).reset_index(drop=True)[columns]
 

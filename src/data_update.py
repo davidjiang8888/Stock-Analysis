@@ -4,15 +4,16 @@ import json
 import os
 import re
 import shutil
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
 from time import sleep
 from typing import Any, Callable, Protocol
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 import pandas as pd
 
@@ -124,7 +125,7 @@ class StooqDailyPriceSource:
                 pd.DataFrame(columns=PRICE_COLUMNS),
                 [
                     f"{ticker}: Stooq CSV download requires an API key in this environment. "
-                    "Set STOOQ_API_KEY or use staged manual prices."
+                    "Set STOOQ_API_KEY or place verified CSVs in data/staged/prices/ and run make import-prices."
                 ],
             )
 
@@ -152,6 +153,99 @@ class StooqDailyPriceSource:
         frame["ticker"] = ticker.upper()
         frame["adj_close"] = frame["close"]
         return frame[PRICE_COLUMNS].copy(), []
+
+
+class YahooChartDailyPriceSource:
+    """Unofficial research-grade daily OHLCV source using Yahoo's chart endpoint."""
+
+    def __init__(
+        self,
+        base_url: str = "https://query1.finance.yahoo.com/v8/finance/chart",
+        range_days: int = 900,
+        opener: Callable[..., Any] = urlopen,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.range_days = range_days
+        self.opener = opener
+
+    def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
+        ticker = ticker.upper().strip()
+        period2 = int(time.time())
+        period1 = period2 - max(self.range_days, 1) * 86_400
+        params = {
+            "period1": period1,
+            "period2": period2,
+            "interval": "1d",
+            "events": "history",
+            "includeAdjustedClose": "true",
+        }
+        url = f"{self.base_url}/{ticker}?{urlencode(params)}"
+        request = Request(url, headers={"User-Agent": "stock-research-screener/1.0"})
+        try:
+            with self.opener(request, timeout=20) as response:
+                payload = response.read().decode("utf-8")
+        except (HTTPError, URLError) as exc:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: update failed from Yahoo chart endpoint ({exc})"]
+
+        try:
+            parsed = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Yahoo chart response could not be parsed as JSON ({exc})"]
+
+        chart = parsed.get("chart", {}) if isinstance(parsed, dict) else {}
+        error = chart.get("error")
+        if error:
+            description = error.get("description") if isinstance(error, dict) else str(error)
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Yahoo chart endpoint returned an error ({description})"]
+        results = chart.get("result") or []
+        if not results:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Yahoo chart endpoint returned no rows."]
+
+        result = results[0]
+        timestamps = result.get("timestamp") or []
+        indicators = result.get("indicators", {}) or {}
+        quotes = indicators.get("quote") or []
+        if not timestamps or not quotes:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Yahoo chart endpoint returned no OHLCV rows."]
+        quote = quotes[0]
+        adjclose_rows = indicators.get("adjclose") or []
+        adjclose = adjclose_rows[0].get("adjclose", []) if adjclose_rows else []
+        dates = pd.to_datetime(timestamps, unit="s", utc=True, errors="coerce").tz_convert(None).normalize()
+        frame = pd.DataFrame(
+            {
+                "date": dates,
+                "ticker": ticker,
+                "open": quote.get("open", []),
+                "high": quote.get("high", []),
+                "low": quote.get("low", []),
+                "close": quote.get("close", []),
+                "adj_close": adjclose if adjclose and len(adjclose) == len(timestamps) else quote.get("close", []),
+                "volume": quote.get("volume", []),
+            }
+        )
+        for numeric_column in ("open", "high", "low", "close", "adj_close", "volume"):
+            frame[numeric_column] = pd.to_numeric(frame[numeric_column], errors="coerce")
+        frame = frame.loc[
+            frame["date"].notna()
+            & frame["close"].notna()
+            & frame["close"].gt(0)
+            & frame["volume"].notna()
+            & frame["volume"].ge(0)
+        ].copy()
+        if frame.empty:
+            return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: Yahoo chart rows were invalid after normalization."]
+        return frame[PRICE_COLUMNS].copy(), [
+            f"{ticker}: prices refreshed from unofficial Yahoo chart endpoint; treat as research-grade and verify if used for decisions."
+        ]
+
+
+def make_price_source(provider: str) -> PriceHistorySource:
+    normalized = str(provider or "stooq").strip().lower()
+    if normalized == "stooq":
+        return StooqDailyPriceSource()
+    if normalized == "yahoo":
+        return YahooChartDailyPriceSource()
+    raise ValueError(f"Unsupported price provider: {provider}")
 
 
 def _read_csv_if_present(path: Path) -> pd.DataFrame:
@@ -250,6 +344,13 @@ def _fresh_tickers(existing: pd.DataFrame, freshness_days: int) -> set[str]:
     }
 
 
+def _tickers_without_local_prices(tickers: list[str], existing: pd.DataFrame) -> list[str]:
+    if existing.empty or "ticker" not in existing.columns:
+        return tickers
+    existing_tickers = set(existing["ticker"].dropna().astype(str).str.upper().str.strip())
+    return [ticker for ticker in tickers if ticker not in existing_tickers]
+
+
 def _latest_price_date(existing: pd.DataFrame, ticker: str) -> str:
     if existing.empty or "ticker" not in existing.columns or "date" not in existing.columns:
         return ""
@@ -290,6 +391,10 @@ def _normalized_error_message(status: str, ticker: str, error_message: object) -
     message = " ".join(str(error_message or "").split()).strip()
     if not message:
         return ""
+    message = message.replace(
+        "Set STOOQ_API_KEY or use staged manual prices.",
+        "Set STOOQ_API_KEY or place verified CSVs in data/staged/prices/ and run make import-prices.",
+    )
 
     if status != "parse_error":
         return message
@@ -391,6 +496,8 @@ def _error_message_needs_refresh(status: str, error_message: str, ticker: str) -
     normalized = str(error_message or "").strip()
     if not normalized:
         return False
+    if "set stooq_api_key or use staged manual prices" in normalized.lower():
+        return True
     if status != "parse_error":
         return "\n" in normalized
     lowered = normalized.lower()
@@ -506,6 +613,7 @@ def update_local_price_data(
     refresh: bool = False,
     freshness_days: int = 1,
     universe_file: Path | None = None,
+    missing_only: bool = False,
     retry_attempts: int = 1,
     retry_backoff_seconds: float = 0.25,
     progress_callback: Callable[[dict[str, object]], None] | None = None,
@@ -521,10 +629,13 @@ def update_local_price_data(
     requested_end = pd.Timestamp.now(tz="UTC").date().isoformat()
     tickers = tickers or load_update_tickers(base_dir, config, universe_file=universe_file, data_dir=data_dir)
     tickers = _ordered_normalized_tickers(tickers)
+
+    existing = _load_existing_prices(prices_path)
+    if missing_only:
+        tickers = _tickers_without_local_prices(tickers, existing)
     if max_tickers is not None and max_tickers > 0:
         tickers = tickers[:max_tickers]
 
-    existing = _load_existing_prices(prices_path)
     warnings: list[str] = []
     updated: list[str] = []
     missing: list[str] = []
@@ -559,6 +670,11 @@ def update_local_price_data(
 
     if not tickers_to_fetch:
         status_path = write_price_update_status(status_rows, output_dir)
+        no_rows_warning = (
+            "No tickers matched the missing-only price refresh filter; kept the existing local CSV fallback."
+            if missing_only and not tickers
+            else "No remote price rows were added; kept the existing local CSV fallback."
+        )
         return PriceUpdateResult(
             path=prices_path,
             tickers_requested=tickers,
@@ -567,7 +683,7 @@ def update_local_price_data(
             tickers_skipped_fresh=skipped_fresh,
             rows_written=len(existing),
             chunks_processed=0,
-            warnings=warnings + ["No remote price rows were added; kept the existing local CSV fallback."],
+            warnings=warnings + [no_rows_warning],
             status_path=status_path,
             status_rows=status_rows,
         )
@@ -1029,11 +1145,13 @@ def main() -> None:
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
     parser.add_argument("--tickers", help="Comma-separated ticker list for targeted updates.")
-    parser.add_argument("--max-tickers", type=int, help="Limit the number of tickers updated.")
+    parser.add_argument("--max-tickers", type=int, help="Limit the number of tickers updated for broad-universe refreshes.")
     parser.add_argument("--chunk-size", type=int, default=50, help="Tickers per chunk during updates.")
     parser.add_argument("--refresh", action="store_true", help="Refresh even if local ticker data already looks fresh.")
+    parser.add_argument("--missing-only", action="store_true", help="For broad refreshes, select tickers without local price coverage before applying --max-tickers.")
     parser.add_argument("--freshness-days", type=int, default=1, help="Skip tickers updated within this many days unless --refresh is used.")
     parser.add_argument("--universe-file", help="Alternate universe file to derive tickers from.")
+    parser.add_argument("--provider", choices=["stooq", "yahoo"], default="stooq", help="Remote price provider. Yahoo is unofficial/research-grade.")
     parser.add_argument("--validate-price-imports", action="store_true", help="Validate data/imports/prices.csv without mutating data/prices.csv.")
     parser.add_argument("--preview-price-import-merge", action="store_true", help="Preview staged price import changes without mutating data/prices.csv.")
     parser.add_argument("--apply-price-import-merge", action="store_true", help="Apply staged price imports into data/prices.csv with a backup.")
@@ -1043,6 +1161,8 @@ def main() -> None:
     args = parser.parse_args()
     if args.top_n is not None and args.top_n <= 0:
         parser.error("--top-n must be a positive integer")
+    if args.max_tickers is not None and args.max_tickers <= 0:
+        parser.error("--max-tickers must be a positive integer")
 
     explicit_tickers = [ticker.strip() for ticker in args.tickers.split(",") if ticker.strip()] if args.tickers else None
     project_root = resolve_project_root(args.project_root)
@@ -1116,6 +1236,7 @@ def main() -> None:
 
     result = update_local_price_data(
         base_dir=project_root,
+        source=make_price_source(args.provider),
         data_dir=data_dir,
         output_dir=output_dir,
         tickers=explicit_tickers,
@@ -1124,6 +1245,7 @@ def main() -> None:
         refresh=args.refresh,
         freshness_days=args.freshness_days,
         universe_file=Path(args.universe_file) if args.universe_file else None,
+        missing_only=args.missing_only,
         progress_callback=print_progress,
     )
     print(format_path_context(project_root, data_dir, None))

@@ -1,4 +1,4 @@
-.PHONY: help status status-check test pipeline stock-report local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize
+.PHONY: help status status-check test pipeline stock-report local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check action-queue action-queue-check project-status verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue price-validate price-preview price-apply price-refresh price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions
 
 help:
 	@echo "Stock Research Screener convenience commands"
@@ -8,7 +8,7 @@ help:
 	@echo "  make status-check [TICKERS=NVDA,MSFT] [TOP_N=5] Print the current read-only local project status without refreshing artifacts"
 	@echo "  make test             Run unit tests"
 	@echo "  make pipeline         Generate core CSV outputs"
-	@echo "  make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json] Generate one local stock report JSON"
+	@echo "  make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json] [MD_OUTPUT=outputs/stock_reports/nvda.md] Generate one local stock report JSON plus a readable Markdown report"
 	@echo "  make local-tickers    List tickers discoverable from local CSV datasets"
 	@echo "  make verify           Run deterministic local verification"
 	@echo "  make validate-all     Run extended local validation and dashboard smoke check"
@@ -25,6 +25,7 @@ help:
 	@echo "  make track-record     Generate local monthly picks track record"
 	@echo "  make research-health-check [TICKERS=NVDA,MSFT] [TOP_N=10] Print the current read-only research health summary"
 	@echo "  make research-health  Generate data quality, liquidity, and correlation outputs"
+	@echo "  make project-status   Write the dashboard-ready project status summary"
 	@echo "  make action-queue-check [TICKERS=NVDA,MSFT] [TOP_N=10] Print the current read-only action queue summary"
 	@echo "  make action-queue     Generate prioritized data/research actions"
 	@echo ""
@@ -67,10 +68,15 @@ help:
 	@echo "  make templates        Write local CSV templates for peers, earnings, estimates, and manual fallbacks"
 	@echo "  make import-staging   Write header-only staging CSV files under data/imports"
 	@echo "  make validate-data    Validate local CSV datasets"
+	@echo "  make readiness-snapshot Save current ticker readiness as data/reports/ticker_readiness_report.previous.csv before a refresh"
+	@echo "  make readiness        Write central data/reports/ticker_readiness_report.csv"
 	@echo ""
 	@echo "Price fallback:"
-	@echo "  make price-refresh    Attempt free remote price refresh with local fallback"
+	@echo "  make price-refresh [TOP_N=25] [PROVIDER=stooq|yahoo] Attempt a capped missing-price remote refresh with local fallback"
+	@echo "  make price-refresh TICKERS=NVDA,MSFT [PROVIDER=yahoo] Attempt a targeted free remote price refresh"
 	@echo "  make price-status [TICKERS=NVDA,MSFT] [TOP_N=10] Show latest price update status"
+	@echo "  make import-prices    Import verified CSVs from data/staged/prices/ into data/prices.csv"
+	@echo "  make price-coverage   Write data/price_coverage_report.csv with rows per universe ticker"
 	@echo "  Start with make status, then the printed price focus or runbook path"
 	@echo "  make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"
 	@echo "  make price-validate && make price-preview && make price-apply"
@@ -78,9 +84,17 @@ help:
 	@echo "Staged fundamentals and universe:"
 	@echo "  export SEC_USER_AGENT='Name email@example.com'"
 	@echo "  make sec-stage TICKERS=NVDA,MSFT"
+	@echo "  make dcf-readiness   Write data/dcf_readiness.csv"
+	@echo "  make import-fundamentals Import verified CSVs from data/staged/fundamentals/ into data/imports/fundamentals.csv"
+	@echo "  make import-earnings Import verified CSVs from data/staged/earnings/ into data/imports/earnings.csv"
+	@echo "  make import-analyst-estimates Import verified CSVs from data/staged/analyst_estimates/ into data/imports/analyst_estimates.csv"
+	@echo "  make optional-context-readiness Write data/earnings_readiness.csv and data/analyst_estimates_readiness.csv"
 	@echo "  make imports-validate && make imports-preview && make imports-apply"
 	@echo "  make universe-preview"
 	@echo "  make universe-apply"
+	@echo "  make universe-refresh Import staged universe rows and refresh master/active reports"
+	@echo "  make universe-report  Write data/reports/universe_coverage_report.csv"
+	@echo "  make universe-active  Ensure data/universe_active.csv exists"
 
 test:
 	python3 -m pytest tests -q
@@ -98,7 +112,7 @@ stock-report:
 ifndef TICKER
 	$(error TICKER is required, for example: make stock-report TICKER=NVDA)
 endif
-	python3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),)
+	python3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)
 
 local-tickers:
 	python3 -m src.stock_report --list-local-tickers
@@ -129,6 +143,9 @@ action-queue:
 
 action-queue-check:
 	python3 -m src.action_queue --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)
+
+project-status:
+	python3 -m src.project_status --write-output
 
 verify:
 	$(MAKE) test
@@ -236,10 +253,15 @@ endif
 	python3 -m src.data_onboarding --command-bundle-runbook --lane peers --tickers $(TICKER)
 
 onboarding:
+	python3 -m src.manual_price_import --coverage-only --top-n $(or $(TOP_N),20)
+	python3 -m src.dcf_readiness --top-n $(or $(TOP_N),20)
+	python3 -m src.optional_context_readiness
+	python3 -m src.readiness_engine
 	python3 -m src.data_sources --write-output
-	python3 -m src.data_onboarding --write-output
+	python3 -m src.data_onboarding --write-output --top-n $(or $(TOP_N),20)
 	python3 -m src.research_health --write-output
 	python3 -m src.action_queue --write-output
+	python3 -m src.research_decisions
 	python3 -m src.project_status --write-output
 
 templates:
@@ -250,6 +272,12 @@ import-staging:
 
 price-status:
 	python3 -m src.data_update --price-status $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
+
+import-prices:
+	python3 -m src.manual_price_import
+
+price-coverage:
+	python3 -m src.manual_price_import --coverage-only --top-n $(or $(TOP_N),25)
 
 price-worklist:
 	python3 -m src.data_onboarding --price-worklist $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
@@ -277,9 +305,9 @@ price-apply:
 
 price-refresh:
 ifdef TICKERS
-	python3 -m src.data_update --tickers $(TICKERS)
+	python3 -m src.data_update --tickers $(TICKERS) $(if $(PROVIDER),--provider $(PROVIDER),) $(if $(REFRESH),--refresh,)
 else
-	python3 -m src.data_update --universe-file data/universe.csv
+	python3 -m src.data_update --universe-file data/universe.csv --missing-only --max-tickers $(or $(TOP_N),25) $(if $(PROVIDER),--provider $(PROVIDER),) $(if $(REFRESH),--refresh,)
 endif
 
 price-normalize:
@@ -333,9 +361,42 @@ imports-preview:
 imports-apply:
 	python3 -m src.stock_report --apply-import-merge
 
+dcf-readiness:
+	python3 -m src.dcf_readiness
+
+import-fundamentals:
+	python3 -m src.manual_fundamentals_import
+
+optional-context-readiness:
+	python3 -m src.optional_context_readiness
+
+import-earnings:
+	python3 -m src.manual_optional_context_import earnings
+
+import-analyst-estimates:
+	python3 -m src.manual_optional_context_import analyst_estimates
+
+readiness:
+	python3 -m src.readiness_engine
+
+readiness-snapshot:
+	python3 -m src.readiness_engine --snapshot-only
+
+research-decisions:
+	python3 -m src.research_decisions
+
 universe-preview:
 	python3 -m src.universe_builder --preview --preset sp500_smh --max-tickers 50
 
 universe-apply:
 	python3 -m src.universe_builder --write-import --preset sp500_smh --max-tickers 50
 	python3 -m src.universe_builder --apply-import
+
+universe-refresh:
+	python3 -m src.universe_model
+
+universe-report:
+	python3 -m src.universe_model --report-only
+
+universe-active:
+	python3 -m src.universe_model --ensure-only

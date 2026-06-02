@@ -167,6 +167,8 @@ def test_build_ticker_coverage_surfaces_operator_commands(tmp_path: Path):
     assert nvda["target_file"] == "data/imports/fundamentals.csv"
     assert nvda["example_command"] == "make sec-stage TICKERS=AMD"
     assert "missing peer fundamentals needed for NVDA" in nvda["next_best_action"]
+    assert "If SEC_USER_AGENT is configured" in nvda["next_best_action"]
+    assert "stage trusted manual fundamentals" in nvda["next_best_action"]
 
 
 def test_staged_peer_imports_surface_validate_flow_in_coverage_and_wizard(tmp_path: Path):
@@ -252,8 +254,8 @@ def test_staged_fundamentals_surface_validate_flow_in_coverage_and_wizard(tmp_pa
         encoding="utf-8",
     )
     (imports_dir / "fundamentals.csv").write_text(
-        "ticker,revenue,fcf_margin,shares_outstanding,source,as_of_date\n"
-        "AMD,1000,0.2,10,sec_companyfacts,2026-01-02\n",
+        "ticker,revenue,free_cash_flow,fcf_margin,shares_outstanding,source,as_of_date\n"
+        "AMD,1000,200,0.2,10,sec_companyfacts,2026-01-02\n",
         encoding="utf-8",
     )
     (data_dir / "universe.csv").write_text(
@@ -893,6 +895,9 @@ def test_data_onboarding_cli_peer_mapping_queue_text_surfaces_command_and_target
         sys.argv = previous_argv
 
     assert "peer mapping queue" in output
+    assert "group=" in output
+    assert "scope=" in output
+    assert "validation:" in output
     assert "focus: make focus-peers ticker=amd" in output
     assert "command:" in output
     assert "make sec-stage tickers=amd" in output
@@ -908,10 +913,16 @@ def test_peer_mapping_queue_prioritizes_dcf_ready_holdings(tmp_path: Path):
     assert queue["NVDA"]["priority"] == 1
     assert queue["NVDA"]["is_holding"] is True
     assert queue["NVDA"]["dcf_ready"] is True
+    assert queue["NVDA"]["workflow_group"] == "peer_valuation_unlock"
+    assert queue["NVDA"]["workflow_scope"] == "master_universe"
+    assert "peer fundamentals" in queue["NVDA"]["next_action_summary"].lower()
+    assert "make imports-preview" in queue["NVDA"]["validation_sequence"]
     assert queue["NVDA"]["focus_command"] == "make focus-fundamentals TICKER=AMD"
     assert queue["NVDA"]["target_file"] == "data/imports/fundamentals.csv"
     assert "make focus-fundamentals TICKER=AMD" in queue["NVDA"]["recommended_action"]
     assert queue["AMD"]["focus_command"] == "make focus-peers TICKER=AMD"
+    assert queue["AMD"]["workflow_group"] == "price_ready_peer_mapping"
+    assert queue["AMD"]["next_input_file"] == "data/imports/peers.csv"
     assert "make templates" in queue["AMD"]["safe_next_step"]
     assert "make imports-validate" in queue["AMD"]["safe_next_step"]
     assert "make imports-preview" in queue["AMD"]["safe_next_step"]

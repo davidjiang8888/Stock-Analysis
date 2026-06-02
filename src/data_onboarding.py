@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from collections import Counter
 from dataclasses import asdict, dataclass, replace
@@ -13,6 +14,7 @@ import pandas as pd
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.local_schemas import LOCAL_DATASET_SCHEMAS
+from src.universe_model import infer_asset_type
 
 
 COVERAGE_COLUMNS = [
@@ -36,6 +38,7 @@ COVERAGE_COLUMNS = [
     "target_file",
     "focus_command",
     "example_command",
+    "asset_type",
 ]
 
 ACTION_COLUMNS = [
@@ -48,6 +51,10 @@ ACTION_COLUMNS = [
     "target_file",
     "focus_command",
     "example_command",
+    "credential_required",
+    "credential_present",
+    "manual_fallback_command",
+    "command_safety_note",
 ]
 
 PRICE_WORKLIST_COLUMNS = [
@@ -72,6 +79,10 @@ PRICE_WORKLIST_COLUMNS = [
     "focus_command",
     "example_command",
     "safe_next_step",
+    "credential_required",
+    "credential_present",
+    "manual_fallback_command",
+    "command_safety_note",
 ]
 
 FUNDAMENTALS_PEER_WORKLIST_COLUMNS = [
@@ -88,6 +99,10 @@ FUNDAMENTALS_PEER_WORKLIST_COLUMNS = [
     "focus_command",
     "example_command",
     "safe_next_step",
+    "credential_required",
+    "credential_present",
+    "manual_fallback_command",
+    "command_safety_note",
 ]
 
 OPTIONAL_CONTEXT_WORKLIST_COLUMNS = [
@@ -103,6 +118,10 @@ OPTIONAL_CONTEXT_WORKLIST_COLUMNS = [
     "focus_command",
     "example_command",
     "safe_next_step",
+    "credential_required",
+    "credential_present",
+    "manual_fallback_command",
+    "command_safety_note",
 ]
 
 SEC_STAGE_QUEUE_COLUMNS = [
@@ -120,6 +139,10 @@ SEC_STAGE_QUEUE_COLUMNS = [
     "focus_command",
     "example_command",
     "safe_next_step",
+    "credential_required",
+    "credential_present",
+    "manual_fallback_command",
+    "command_safety_note",
 ]
 
 PEER_MAPPING_QUEUE_COLUMNS = [
@@ -132,11 +155,20 @@ PEER_MAPPING_QUEUE_COLUMNS = [
     "dcf_ready",
     "peer_ready",
     "missing_required_for_peer_relative",
+    "workflow_group",
+    "workflow_scope",
+    "next_action_summary",
+    "next_input_file",
+    "validation_sequence",
     "recommended_action",
     "target_file",
     "focus_command",
     "example_command",
     "safe_next_step",
+    "credential_required",
+    "credential_present",
+    "manual_fallback_command",
+    "command_safety_note",
 ]
 
 TICKER_UNLOCK_LADDER_COLUMNS = [
@@ -153,6 +185,10 @@ TICKER_UNLOCK_LADDER_COLUMNS = [
     "focus_command",
     "example_command",
     "safe_next_step",
+    "credential_required",
+    "credential_present",
+    "manual_fallback_command",
+    "command_safety_note",
 ]
 
 UNLOCK_PRIORITY_SUMMARY_COLUMNS = [
@@ -171,6 +207,10 @@ UNLOCK_PRIORITY_SUMMARY_COLUMNS = [
     "recommended_action",
     "focus_command",
     "example_command",
+    "credential_required",
+    "credential_present",
+    "manual_fallback_command",
+    "command_safety_note",
 ]
 
 COMMAND_BUNDLE_COLUMNS = [
@@ -242,9 +282,39 @@ WIZARD_COLUMNS = [
     "focus_command",
     "example_command",
     "safe_next_step",
+    "credential_required",
+    "credential_present",
+    "manual_fallback_command",
+    "command_safety_note",
 ]
 
 TEMPLATE_DATASETS = ("prices", "peers", "fundamentals", "earnings", "analyst_estimates", "custom_universe")
+
+
+def _command_safety_fields(example_command: object) -> dict[str, object]:
+    command = str(example_command or "").strip().lower()
+    if not command.startswith("make sec-stage"):
+        return {
+            "credential_required": "",
+            "credential_present": "",
+            "manual_fallback_command": "",
+            "command_safety_note": "",
+        }
+    credential_present = bool(os.environ.get("SEC_USER_AGENT", "").strip())
+    return {
+        "credential_required": "SEC_USER_AGENT",
+        "credential_present": credential_present,
+        "manual_fallback_command": "make templates",
+        "command_safety_note": (
+            "SEC staging requires SEC_USER_AGENT. If it is missing, use make templates, fill "
+            "data/imports/fundamentals.csv with trusted manual rows, then run make imports-validate, "
+            "make imports-preview, and make imports-apply."
+        ),
+    }
+
+
+def _with_command_safety(row: dict[str, Any]) -> dict[str, Any]:
+    return {**row, **_command_safety_fields(row.get("example_command"))}
 
 
 def focus_command_for_ticker(lane: str, ticker: str) -> str:
@@ -275,6 +345,8 @@ def bundle_shortcut_for_scope(lane: str, scope: str, view: str) -> str:
         return ""
     return f"make {prefix}-{lane_key}{suffix}"
 PRICE_TEMPLATE_COLUMNS = ["date", "ticker", "open", "high", "low", "close", "volume", "adjusted_close", "source", "as_of_date", "notes"]
+DCF_EXCLUDED_ASSET_TYPES = {"etf", "index_proxy", "fund"}
+DEFAULT_MIN_READY_PEERS = 2
 
 
 @dataclass
@@ -299,6 +371,7 @@ class TickerCoverage:
     target_file: str
     focus_command: str
     example_command: str
+    asset_type: str = "company"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -386,7 +459,7 @@ class OnboardingAction:
     example_command: str
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return _with_command_safety(asdict(self))
 
 
 @dataclass
@@ -434,7 +507,7 @@ class FundamentalsPeerWorklistRow:
     safe_next_step: str
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return _with_command_safety(asdict(self))
 
 
 @dataclass
@@ -474,7 +547,7 @@ class SecStageQueueRow:
     safe_next_step: str
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return _with_command_safety(asdict(self))
 
 
 @dataclass
@@ -488,6 +561,11 @@ class PeerMappingQueueRow:
     dcf_ready: bool
     peer_ready: bool
     missing_required_for_peer_relative: str
+    workflow_group: str
+    workflow_scope: str
+    next_action_summary: str
+    next_input_file: str
+    validation_sequence: str
     recommended_action: str
     target_file: str
     focus_command: str
@@ -495,7 +573,7 @@ class PeerMappingQueueRow:
     safe_next_step: str
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return _with_command_safety(asdict(self))
 
 
 @dataclass
@@ -515,7 +593,7 @@ class TickerUnlockLadderRow:
     safe_next_step: str
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return _with_command_safety(asdict(self))
 
 
 @dataclass
@@ -537,7 +615,7 @@ class UnlockPrioritySummaryRow:
     example_command: str
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return _with_command_safety(asdict(self))
 
 
 @dataclass
@@ -555,7 +633,7 @@ class DataCoverageWizardRow:
     safe_next_step: str
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return _with_command_safety(asdict(self))
 
 
 def _load_frame(catalog: LocalDataCatalog, dataset_name: str) -> pd.DataFrame:
@@ -596,10 +674,39 @@ def _has_number(row: pd.Series, *columns: str) -> bool:
 def _dcf_ready(row: pd.Series) -> bool:
     if row.empty:
         return False
-    has_fcf_base = _has_number(row, "free_cash_flow", "fcf")
-    has_revenue_margin_base = _has_number(row, "revenue") and _has_number(row, "fcf_margin")
-    has_shares = _has_number(row, "shares_outstanding")
-    return (has_fcf_base or has_revenue_margin_base) and has_shares
+    return (
+        _has_number(row, "free_cash_flow", "fcf")
+        and _has_number(row, "revenue")
+        and _has_number(row, "fcf_margin")
+        and _has_number(row, "shares_outstanding")
+    )
+
+
+def _dcf_excluded_asset(asset_type: object) -> bool:
+    return str(asset_type or "").strip().lower() in DCF_EXCLUDED_ASSET_TYPES
+
+
+def _load_asset_type_map(data_path: Path) -> dict[str, str]:
+    asset_map: dict[str, str] = {}
+    for filename in ("universe_master.csv", "universe.csv"):
+        path = data_path / filename
+        if not path.exists():
+            continue
+        try:
+            frame = pd.read_csv(path)
+        except Exception:
+            continue
+        if frame.empty:
+            continue
+        frame.columns = [str(column).strip().replace(" ", "_").replace("-", "_").lower() for column in frame.columns]
+        if "ticker" not in frame.columns:
+            continue
+        for _, row in frame.iterrows():
+            ticker = str(row.get("ticker", "") or "").strip().upper()
+            if not ticker:
+                continue
+            asset_map[ticker] = infer_asset_type(ticker, row)
+    return asset_map
 
 
 def _peer_ready(ticker: str, peers: pd.DataFrame, fundamentals: pd.DataFrame, prices: pd.DataFrame) -> bool:
@@ -611,9 +718,8 @@ def _peer_ready(ticker: str, peers: pd.DataFrame, fundamentals: pd.DataFrame, pr
     peer_tickers = sorted(set(peer_rows["peer_ticker"].dropna().astype(str).str.upper().str.strip()) - {ticker})
     if not peer_tickers:
         return False
-    fundamental_tickers = _ticker_set(fundamentals)
-    price_tickers = _ticker_set(prices)
-    return any(peer in fundamental_tickers and (peer in price_tickers or _has_number(_select_row(fundamentals, peer), "market_cap")) for peer in peer_tickers)
+    ready_peers = [peer for peer in peer_tickers if _price_history_days(prices, peer) >= 21]
+    return len(peer_tickers) >= DEFAULT_MIN_READY_PEERS and len(ready_peers) >= DEFAULT_MIN_READY_PEERS
 
 
 def _price_history_days(prices: pd.DataFrame, ticker: str) -> int:
@@ -661,8 +767,10 @@ def _price_action_text(ticker: str) -> str:
 
 def _fundamentals_action_text(ticker: str) -> str:
     return (
-        f"Run make focus-fundamentals TICKER={ticker}, or stage explicit local fundamentals with "
-        f"make sec-stage TICKERS={ticker}."
+        f"Run make focus-fundamentals TICKER={ticker}. If SEC_USER_AGENT is configured, run "
+        f"make sec-stage TICKERS={ticker}; otherwise stage trusted manual fundamentals in "
+        "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
+        "and make imports-apply."
     )
 
 
@@ -682,6 +790,13 @@ def _peer_action_text(ticker: str, *, missing_mapping: bool) -> str:
     return (
         f"Run make focus-peers TICKER={ticker}, then add peer fundamentals/prices through the staged local import "
         "workflows so peer-relative valuation can calculate transparently."
+    )
+
+
+def _peer_metric_action_text(ticker: str) -> str:
+    return (
+        f"Run make focus-peers TICKER={ticker}, then add verified local fundamentals or market metrics "
+        "for at least 2 mapped peers before relying on peer-relative analysis."
     )
 
 
@@ -784,6 +899,14 @@ def _has_staged_fundamentals_follow_through(row: TickerCoverage) -> bool:
     return (not row.dcf_ready) and str(row.focus_command or "").strip() == "make imports-validate"
 
 
+def _has_staged_peer_follow_through(row: TickerCoverage) -> bool:
+    return (
+        (not row.peer_ready)
+        and str(row.focus_command or "").strip() == "make imports-validate"
+        and "staged peer mappings" in str(row.missing_required_for_peer_relative or "").lower()
+    )
+
+
 def _peer_support_follow_through(
     ticker: str,
     peers: pd.DataFrame,
@@ -807,7 +930,11 @@ def _peer_support_follow_through(
         peer_row = _select_row(fundamentals, peer)
         if peer not in fundamental_tickers:
             return (
-                f"Run make focus-fundamentals TICKER={peer} to stage missing peer fundamentals needed for {ticker}'s peer-relative context.",
+                f"Run make focus-fundamentals TICKER={peer} to inspect missing peer fundamentals needed for "
+                f"{ticker}'s peer-relative context. If SEC_USER_AGENT is configured, run "
+                f"make sec-stage TICKERS={peer}; otherwise stage trusted manual fundamentals in "
+                "data/imports/fundamentals.csv and run make imports-validate, make imports-preview, "
+                "and make imports-apply.",
                 "data/imports/fundamentals.csv",
                 focus_command_for_ticker("fundamentals", peer),
                 f"make sec-stage TICKERS={peer}",
@@ -951,6 +1078,7 @@ def build_ticker_coverage(
     estimates = _load_frame(catalog, "analyst_estimates")
     final_watchlist = _load_frame(catalog, "final_watchlist")
     momentum = _load_frame(catalog, "momentum_leaders")
+    asset_type_map = _load_asset_type_map(data_path)
 
     price_tickers = _ticker_set(prices)
     fundamental_tickers = _ticker_set(fundamentals)
@@ -962,13 +1090,15 @@ def build_ticker_coverage(
 
     rows: list[TickerCoverage] = []
     for ticker in _discover_tickers(catalog, tickers):
+        asset_type = asset_type_map.get(ticker, "company")
+        dcf_excluded = _dcf_excluded_asset(asset_type)
         history_days = _price_history_days(prices, ticker)
         has_prices = ticker in price_tickers
         has_fundamentals = ticker in fundamental_tickers
         financial_row = _select_row(fundamentals, ticker)
-        dcf_ready = _dcf_ready(financial_row)
+        dcf_ready = False if dcf_excluded else _dcf_ready(financial_row)
         staged_financial_row = _select_row(staged_fundamentals, ticker)
-        has_staged_fundamentals = not staged_financial_row.empty and _dcf_ready(staged_financial_row) and not dcf_ready
+        has_staged_fundamentals = False if dcf_excluded else not staged_financial_row.empty and _dcf_ready(staged_financial_row) and not dcf_ready
         has_canonical_peer_mapping = ticker in peer_subject_tickers
         has_staged_peer_mapping = ticker in staged_peer_subject_tickers and not has_canonical_peer_mapping
         has_peer_mapping = has_canonical_peer_mapping or has_staged_peer_mapping
@@ -987,14 +1117,18 @@ def build_ticker_coverage(
             missing_momentum.append("at least 21 price rows")
 
         missing_dcf = []
-        if has_staged_fundamentals:
+        if dcf_excluded:
+            missing_dcf.append(f"excluded from company DCF: {asset_type}")
+        elif has_staged_fundamentals:
             missing_dcf.append("staged fundamentals still need make imports-validate, make imports-preview, and make imports-apply")
         elif not has_fundamentals:
             missing_dcf.append("fundamentals row")
-        if has_fundamentals and not has_staged_fundamentals and not (
-            _has_number(financial_row, "free_cash_flow", "fcf") or (_has_number(financial_row, "revenue") and _has_number(financial_row, "fcf_margin"))
-        ):
-            missing_dcf.append("free_cash_flow or revenue plus fcf_margin")
+        if has_fundamentals and not has_staged_fundamentals and not _has_number(financial_row, "free_cash_flow", "fcf"):
+            missing_dcf.append("free_cash_flow")
+        if has_fundamentals and not has_staged_fundamentals and not _has_number(financial_row, "revenue"):
+            missing_dcf.append("revenue")
+        if has_fundamentals and not has_staged_fundamentals and not _has_number(financial_row, "fcf_margin"):
+            missing_dcf.append("fcf_margin")
         if has_fundamentals and not has_staged_fundamentals and not _has_number(financial_row, "shares_outstanding"):
             missing_dcf.append("shares_outstanding")
 
@@ -1028,6 +1162,7 @@ def build_ticker_coverage(
             target_file="",
             focus_command="",
             example_command="",
+            asset_type=asset_type,
         )
         provisional.next_best_action = _action_for_coverage(provisional)
         if not provisional.has_prices or provisional.price_history_days < 21:
@@ -1037,6 +1172,11 @@ def build_ticker_coverage(
                 f"make price-normalize INPUT=data/raw/prices/{provisional.ticker}.csv "
                 f"TICKER={provisional.ticker} SOURCE=yahoo_manual"
             )
+        elif dcf_excluded:
+            provisional.next_best_action = f"{provisional.ticker} is {asset_type}; skip company DCF and use market/risk monitoring instead."
+            provisional.target_file = ""
+            provisional.focus_command = ""
+            provisional.example_command = ""
         elif has_staged_fundamentals:
             provisional.next_best_action = _staged_fundamentals_action_text()
             provisional.target_file = "data/imports/fundamentals.csv"
@@ -1092,7 +1232,7 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     example_command=f"make price-normalize INPUT=data/raw/prices/{row.ticker}.csv TICKER={row.ticker} SOURCE=yahoo_manual",
                 )
             )
-        if not row.dcf_ready:
+        if not row.dcf_ready and not _dcf_excluded_asset(row.asset_type):
             recommended_action = row.next_best_action if _has_staged_fundamentals_follow_through(row) else _fundamentals_action_text(row.ticker)
             focus_command = row.focus_command if _has_staged_fundamentals_follow_through(row) else focus_command_for_ticker("fundamentals", row.ticker)
             example_command = _normalized_fundamentals_example_command(
@@ -1128,6 +1268,16 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                 )
             )
         elif not row.peer_ready:
+            if _has_staged_peer_follow_through(row):
+                recommended_action = row.next_best_action
+                target_file = row.target_file
+                focus_command = row.focus_command
+                example_command = row.example_command
+            else:
+                recommended_action = _peer_metric_action_text(row.ticker)
+                target_file = "data/imports/peers.csv, data/imports/fundamentals.csv, data/imports/prices.csv"
+                focus_command = focus_command_for_ticker("peers", row.ticker)
+                example_command = "make templates"
             actions.append(
                 OnboardingAction(
                     priority=3,
@@ -1135,10 +1285,10 @@ def build_onboarding_actions(coverage_rows: list[TickerCoverage]) -> list[Onboar
                     dataset="peers",
                     status="partial",
                     reason=_peer_onboarding_reason(row),
-                    recommended_action=row.next_best_action,
-                    target_file=row.target_file,
-                    focus_command=row.focus_command,
-                    example_command=row.example_command,
+                    recommended_action=recommended_action,
+                    target_file=target_file,
+                    focus_command=focus_command,
+                    example_command=example_command,
                 )
             )
         if not row.has_earnings:
@@ -1227,7 +1377,7 @@ def build_data_coverage_wizard(coverage_rows: list[TickerCoverage]) -> list[Data
                     safe_next_step="Add verified historical OHLCV files locally; do not infer or backfill synthetic returns.",
                 )
             )
-        if not row.usable_for_dcf:
+        if not row.usable_for_dcf and not _dcf_excluded_asset(row.asset_type):
             focus_command = row.focus_command if _has_staged_fundamentals_follow_through(row) else focus_command_for_ticker("fundamentals", row.ticker)
             example_command = _normalized_fundamentals_example_command(
                 focus_command,
@@ -1437,9 +1587,16 @@ def build_price_import_worklist(
 def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> list[FundamentalsPeerWorklistRow]:
     rows: list[FundamentalsPeerWorklistRow] = []
     for coverage in coverage_rows:
+        dcf_excluded = _dcf_excluded_asset(coverage.asset_type)
         if coverage.dcf_ready and coverage.peer_ready:
             priority = 4
             recommended_action = "Coverage is already sufficient for DCF and peer-relative local research."
+        elif dcf_excluded and coverage.peer_ready:
+            priority = 4
+            recommended_action = f"{coverage.ticker} is {coverage.asset_type}; company DCF is excluded and peer context is available."
+        elif dcf_excluded:
+            priority = 3
+            recommended_action = f"{coverage.ticker} is {coverage.asset_type}; skip SEC company DCF and focus only on applicable peer/market context."
         elif not coverage.dcf_ready:
             priority = 1
             recommended_action = coverage.next_best_action if _has_staged_fundamentals_follow_through(coverage) else _fundamentals_action_text(coverage.ticker)
@@ -1450,8 +1607,11 @@ def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> lis
             priority = 3
             recommended_action = "Review local fundamentals and peer inputs for completeness."
 
-        target_file = coverage.target_file if (coverage.dcf_ready or _has_staged_fundamentals_follow_through(coverage)) else "data/imports/fundamentals.csv"
+        target_file = "" if dcf_excluded else coverage.target_file if (coverage.dcf_ready or _has_staged_fundamentals_follow_through(coverage)) else "data/imports/fundamentals.csv"
         example_command = (
+            ""
+            if dcf_excluded
+            else
             _normalized_fundamentals_example_command(coverage.focus_command, coverage.example_command, coverage.ticker)
             if _has_staged_fundamentals_follow_through(coverage)
             else f"make sec-stage TICKERS={coverage.ticker}"
@@ -1459,6 +1619,9 @@ def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> lis
             else coverage.example_command
         )
         safe_next_step = (
+            "Do not run company DCF/SEC staging for ETFs, index proxies, or funds; use applicable market/risk context."
+            if dcf_excluded
+            else
             "Validate staged fundamentals before preview and apply; keep unavailable valuation fields blank."
             if _has_staged_fundamentals_follow_through(coverage)
             else "Review staged SEC-derived fundamentals before import merge; keep unavailable fields blank."
@@ -1480,6 +1643,9 @@ def build_fundamentals_peer_worklist(coverage_rows: list[TickerCoverage]) -> lis
                 recommended_action=recommended_action,
                 target_file=target_file,
                 focus_command=(
+                    ""
+                    if dcf_excluded
+                    else
                     coverage.focus_command
                     if _has_staged_fundamentals_follow_through(coverage)
                     else focus_command_for_ticker("fundamentals", coverage.ticker)
@@ -1556,7 +1722,7 @@ def build_sec_stage_queue(
     context_lookup = _ticker_context_lookup(project_root, data_dir=data_dir, output_dir=output_dir)
     rows: list[SecStageQueueRow] = []
     for coverage in coverage_rows:
-        if coverage.dcf_ready:
+        if coverage.dcf_ready or _dcf_excluded_asset(coverage.asset_type):
             continue
         context = context_lookup.get(coverage.ticker, {})
         is_holding = bool(context.get("is_holding", False))
@@ -1607,6 +1773,16 @@ def build_peer_mapping_queue(
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
 ) -> list[PeerMappingQueueRow]:
+    root = resolve_project_root(project_root)
+    data_path = resolve_data_dir(data_dir, root)
+    output_path = resolve_outputs_dir(output_dir, root)
+    catalog = LocalDataCatalog(root, data_dir=data_path, outputs_dir=output_path)
+    peers = _load_frame(catalog, "peers")
+    fundamentals = _load_frame(catalog, "fundamentals")
+    prices = _load_frame(catalog, "prices")
+    active_path = data_path / "universe_active.csv"
+    active_universe = pd.read_csv(active_path) if active_path.exists() else pd.DataFrame()
+    active_tickers = _ticker_set(active_universe)
     context_lookup = _ticker_context_lookup(project_root, data_dir=data_dir, output_dir=output_dir)
     rows: list[PeerMappingQueueRow] = []
     for coverage in coverage_rows:
@@ -1614,9 +1790,10 @@ def build_peer_mapping_queue(
             continue
         context = context_lookup.get(coverage.ticker, {})
         is_holding = bool(context.get("is_holding", False))
+        workflow_scope = "active_universe" if coverage.ticker in active_tickers else "master_universe"
         theme = str(context.get("theme", "") or "Unclassified")
         sector_etf = str(context.get("sector_etf", "") or "Unclassified")
-        if coverage.dcf_ready and is_holding:
+        if coverage.dcf_ready and (is_holding or workflow_scope == "active_universe"):
             priority = 1
         elif coverage.dcf_ready:
             priority = 2
@@ -1624,6 +1801,16 @@ def build_peer_mapping_queue(
             priority = 3
         else:
             priority = 4
+        if not coverage.has_peer_mapping:
+            workflow_group = "dcf_ready_peer_mapping" if coverage.dcf_ready else "price_ready_peer_mapping" if coverage.has_prices else "peer_mapping_after_price"
+            next_action_summary = "Add at least two trusted, source-backed peer rows; fallback sector/industry context is not trusted peer data."
+            next_input_file = "data/imports/peers.csv"
+            validation_sequence = "make templates -> fill source-backed peers -> make imports-validate -> make imports-preview -> make imports-apply"
+        else:
+            workflow_group = "peer_valuation_unlock" if coverage.dcf_ready else "peer_metric_follow_through"
+            next_action_summary = "Complete trusted peer fundamentals or peer price history before treating peer-relative context as ready."
+            next_input_file = "data/imports/fundamentals.csv, data/imports/prices.csv"
+            validation_sequence = "make focus-peers TICKER=<ticker> -> add verified peer metrics -> make imports-validate -> make imports-preview -> make imports-apply"
         recommended_action = _peer_action_text(coverage.ticker, missing_mapping=not coverage.has_peer_mapping)
         target_file = "data/imports/peers.csv"
         focus_command = focus_command_for_ticker("peers", coverage.ticker)
@@ -1633,11 +1820,23 @@ def build_peer_mapping_queue(
             "make imports-validate, make imports-preview, and make imports-apply before make status refreshes readiness."
         )
         if coverage.has_peer_mapping:
-            recommended_action = coverage.next_best_action
-            target_file = coverage.target_file
-            focus_command = coverage.focus_command
-            example_command = coverage.example_command
-            safe_next_step = "Finish the staged peer-data follow-through for this mapped peer set before relying on peer-relative valuation."
+            if _has_staged_peer_follow_through(coverage):
+                recommended_action = coverage.next_best_action
+                target_file = coverage.target_file
+                focus_command = coverage.focus_command
+                example_command = coverage.example_command
+                safe_next_step = "Finish the staged peer-data follow-through for this mapped peer set before relying on peer-relative valuation."
+                next_input_file = target_file
+                validation_sequence = "make imports-validate -> make imports-preview -> make imports-apply -> make status"
+            else:
+                recommended_action, target_file, focus_command, example_command = _peer_support_follow_through(
+                    coverage.ticker,
+                    peers,
+                    fundamentals,
+                    prices,
+                )
+                safe_next_step = "Add only verified peer metrics; do not infer peer-relative context from incomplete data."
+                next_input_file = target_file
         rows.append(
             PeerMappingQueueRow(
                 priority=priority,
@@ -1649,6 +1848,11 @@ def build_peer_mapping_queue(
                 dcf_ready=coverage.dcf_ready,
                 peer_ready=coverage.peer_ready,
                 missing_required_for_peer_relative=coverage.missing_required_for_peer_relative,
+                workflow_group=workflow_group,
+                workflow_scope=workflow_scope,
+                next_action_summary=next_action_summary,
+                next_input_file=next_input_file,
+                validation_sequence=validation_sequence,
                 recommended_action=recommended_action,
                 target_file=target_file,
                 focus_command=focus_command,
@@ -1656,7 +1860,8 @@ def build_peer_mapping_queue(
                 safe_next_step=safe_next_step,
             )
         )
-    return sorted(rows, key=lambda item: (item.priority, not item.is_holding, item.ticker))
+    scope_rank = {"active_universe": 0, "master_universe": 1}
+    return sorted(rows, key=lambda item: (item.priority, scope_rank.get(item.workflow_scope, 2), not item.is_holding, item.workflow_group, item.ticker))
 
 
 def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[TickerUnlockLadderRow]:
@@ -1671,7 +1876,8 @@ def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[Tick
         else:
             price_stage_status = "missing_prices"
 
-        dcf_stage_status = "dcf_ready" if coverage.dcf_ready else "dcf_blocked"
+        dcf_excluded = _dcf_excluded_asset(coverage.asset_type)
+        dcf_stage_status = "dcf_excluded" if dcf_excluded else "dcf_ready" if coverage.dcf_ready else "dcf_blocked"
         if coverage.peer_ready:
             peer_stage_status = "peer_ready"
         elif coverage.has_peer_mapping:
@@ -1697,7 +1903,7 @@ def build_ticker_unlock_ladder(coverage_rows: list[TickerCoverage]) -> list[Tick
                 "Use data/raw/prices/, then run make price-normalize, make price-validate, "
                 "make price-preview, and make price-apply when the free source is unreliable."
             )
-        elif not coverage.dcf_ready:
+        elif not coverage.dcf_ready and not dcf_excluded:
             current_unlock_stage = "fundamentals"
             next_unlock_goal = "Unlock DCF"
             recommended_action = coverage.next_best_action if _has_staged_fundamentals_follow_through(coverage) else _fundamentals_action_text(coverage.ticker)
@@ -2478,6 +2684,14 @@ def _limited_rows(rows: list[dict[str, Any]], *, top_n: int | None = None, defau
     return rows[:limit]
 
 
+def _print_command_safety(row: dict[str, Any]) -> None:
+    if row.get("credential_required"):
+        present = "present" if bool(row.get("credential_present")) else "missing"
+        print(f"  credential: {row['credential_required']} ({present})")
+    if row.get("manual_fallback_command"):
+        print(f"  fallback: {row['manual_fallback_command']}")
+
+
 def _print_coverage(payload: dict[str, Any], *, top_n: int | None = None) -> None:
     print("Ticker coverage:")
     for row in _limited_rows(payload["ticker_coverage"], top_n=top_n):
@@ -2491,6 +2705,7 @@ def _print_coverage(payload: dict[str, Any], *, top_n: int | None = None) -> Non
         print(f"- P{row['priority']} {row['dataset']}{ticker}: {row['recommended_action']}")
         print(f"  focus: {row.get('focus_command') or '-'}")
         print(f"  command: {row['example_command']}")
+        _print_command_safety(row)
 
 
 def _print_wizard(payload: dict[str, Any], *, top_n: int | None = None) -> None:
@@ -2503,6 +2718,7 @@ def _print_wizard(payload: dict[str, Any], *, top_n: int | None = None) -> None:
         )
         print(f"  focus: {row.get('focus_command') or '-'}")
         print(f"  command: {row['example_command']}")
+        _print_command_safety(row)
     print(f"Wizard rows: {len(payload['data_coverage_wizard'])}")
 
 
@@ -2519,6 +2735,7 @@ def _print_price_worklist(payload: dict[str, Any], *, top_n: int | None = None) 
         print(f"  next: {row['recommended_action']}")
         print(f"  focus: {row.get('focus_command') or '-'}")
         print(f"  command: {row['example_command']}")
+        _print_command_safety(row)
     print(f"Price worklist rows: {len(payload['price_import_worklist'])}")
 
 
@@ -2558,6 +2775,7 @@ def _print_sec_stage_queue(payload: dict[str, Any], *, top_n: int | None = None)
         print(f"  next: {row['recommended_action']}")
         print(f"  focus: {row.get('focus_command') or '-'}")
         print(f"  command: {row['example_command']}")
+        _print_command_safety(row)
         print(f"  target_file: {row['target_file']}")
     print(f"SEC stage queue rows: {len(payload['sec_stage_queue'])}")
 
@@ -2568,11 +2786,17 @@ def _print_peer_mapping_queue(payload: dict[str, Any], *, top_n: int | None = No
         print(
             f"- P{row['priority']} {row['ticker']}: holding={row['is_holding']} "
             f"dcf_ready={row['dcf_ready']} has_peer_mapping={row['has_peer_mapping']} "
+            f"group={row.get('workflow_group') or '-'} scope={row.get('workflow_scope') or '-'} "
             f"missing_peer={row['missing_required_for_peer_relative'] or '-'}"
         )
+        if row.get("next_action_summary"):
+            print(f"  action_summary: {row['next_action_summary']}")
+        if row.get("validation_sequence"):
+            print(f"  validation: {row['validation_sequence']}")
         print(f"  next: {row['recommended_action']}")
         print(f"  focus: {row.get('focus_command') or '-'}")
         print(f"  command: {row['example_command']}")
+        _print_command_safety(row)
         print(f"  target_file: {row['target_file']}")
     print(f"Peer mapping queue rows: {len(payload['peer_mapping_queue'])}")
 
@@ -2588,6 +2812,7 @@ def _print_ticker_unlock_ladder(payload: dict[str, Any], *, top_n: int | None = 
         print(f"  next: {row['recommended_action']}")
         print(f"  focus: {row.get('focus_command') or '-'}")
         print(f"  command: {row.get('example_command') or '-'}")
+        _print_command_safety(row)
     print(f"Ticker unlock ladder rows: {len(payload['ticker_unlock_ladder'])}")
 
 
@@ -2601,6 +2826,7 @@ def _print_unlock_priority_summary(payload: dict[str, Any], *, top_n: int | None
         print(f"  next: {row['recommended_action']}")
         print(f"  focus: {row.get('focus_command') or '-'}")
         print(f"  command: {row.get('example_command') or '-'}")
+        _print_command_safety(row)
     print(f"Unlock priority summary rows: {len(payload['unlock_priority_summary'])}")
 
 

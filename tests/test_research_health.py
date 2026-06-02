@@ -334,6 +334,37 @@ def test_data_quality_wizard_normalizes_stale_enrichment_actions():
     assert amd["ExampleCommand"] == "make templates"
 
 
+def test_data_quality_wizard_routes_etfs_away_from_company_dcf():
+    coverage = [
+        {
+            "ticker": "QQQ",
+            "asset_type": "etf",
+            "has_prices": True,
+            "price_history_days": 80,
+            "has_fundamentals": False,
+            "dcf_ready": False,
+            "has_peer_mapping": False,
+            "peer_ready": False,
+            "has_earnings": False,
+            "has_analyst_estimates": False,
+            "usable_for_momentum": True,
+            "usable_for_monthly_picks": True,
+            "next_best_action": "QQQ is etf; skip company DCF and use market/risk monitoring instead.",
+        },
+    ]
+
+    frame = build_data_quality_wizard(coverage)
+    qqq = frame.loc[frame["Ticker"] == "QQQ"].iloc[0]
+
+    assert qqq["ReadinessStatus"] == "Partial Coverage"
+    assert "company DCF excluded for etf" in qqq["MissingDataFields"]
+    assert "fundamentals" not in qqq["MissingDataFields"]
+    assert qqq["FocusCommand"] == "make focus-peers TICKER=QQQ"
+    assert qqq["ExampleCommand"] == "make templates"
+    assert "make focus-peers TICKER=QQQ" in qqq["NextBestAction"]
+    assert "make sec-stage" not in qqq["NextBestAction"]
+
+
 def test_data_quality_wizard_preserves_staged_fundamentals_follow_through():
     coverage = [
         {

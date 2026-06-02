@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -5,6 +6,7 @@ import pandas as pd
 
 from src.data_update import (
     StooqDailyPriceSource,
+    YahooChartDailyPriceSource,
     apply_price_import_merge,
     enrich_price_update_status_frame,
     load_update_tickers,
@@ -77,6 +79,46 @@ def test_stooq_source_passes_configured_api_key_to_download_url(monkeypatch):
     assert "apikey=abc123" in seen["url"]
     assert frame.iloc[0]["ticker"] == "META"
     assert frame.iloc[0]["adj_close"] == 101
+
+
+def test_yahoo_chart_source_normalizes_daily_rows():
+    def opener(request, timeout: int):
+        assert timeout == 20
+        assert "query1.finance.yahoo.com" in request.full_url
+        return FakeHTTPResponse(
+            json.dumps(
+                {
+                    "chart": {
+                        "result": [
+                            {
+                                "timestamp": [1767312000, 1767398400],
+                                "indicators": {
+                                    "quote": [
+                                        {
+                                            "open": [100.0, 101.0],
+                                            "high": [102.0, 103.0],
+                                            "low": [99.0, 100.0],
+                                            "close": [101.0, 102.0],
+                                            "volume": [12345, 23456],
+                                        }
+                                    ],
+                                    "adjclose": [{"adjclose": [100.5, 101.5]}],
+                                },
+                            }
+                        ],
+                        "error": None,
+                    }
+                }
+            )
+        )
+
+    frame, warnings = YahooChartDailyPriceSource(opener=opener).fetch_history("AMD")
+
+    assert len(frame) == 2
+    assert list(frame.columns) == ["date", "ticker", "open", "high", "low", "close", "adj_close", "volume"]
+    assert frame.iloc[0]["ticker"] == "AMD"
+    assert frame.iloc[0]["adj_close"] == 100.5
+    assert "unofficial Yahoo chart endpoint" in warnings[0]
 
 
 def test_load_update_tickers_collects_universe_holdings_themes_and_benchmarks(tmp_path: Path):
@@ -246,6 +288,61 @@ def test_update_local_price_data_processes_chunks_and_max_tickers(tmp_path: Path
     assert result.chunks_processed == 1
     assert result.tickers_updated == ["AAA", "BBB"]
     assert source.calls == ["AAA", "BBB"]
+
+
+def test_update_local_price_data_applies_missing_only_before_max_tickers(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    (tmp_path / "data" / "prices.csv").write_text(
+        "date,ticker,adj_close,volume\n"
+        "2026-01-02,AAA,10,1000\n",
+        encoding="utf-8",
+    )
+
+    source = FakePriceSource(
+        {
+            "BBB": pd.DataFrame(
+                [
+                    {
+                        "date": pd.Timestamp("2026-01-03"),
+                        "ticker": "BBB",
+                        "open": 20.0,
+                        "high": 21.0,
+                        "low": 19.0,
+                        "close": 20.5,
+                        "adj_close": 20.5,
+                        "volume": 1200,
+                    }
+                ]
+            ),
+            "CCC": pd.DataFrame(
+                [
+                    {
+                        "date": pd.Timestamp("2026-01-03"),
+                        "ticker": "CCC",
+                        "open": 30.0,
+                        "high": 31.0,
+                        "low": 29.0,
+                        "close": 30.5,
+                        "adj_close": 30.5,
+                        "volume": 1400,
+                    }
+                ]
+            ),
+        }
+    )
+
+    result = update_local_price_data(
+        tmp_path,
+        source=source,
+        tickers=["AAA", "BBB", "CCC"],
+        max_tickers=1,
+        missing_only=True,
+    )
+
+    assert result.tickers_requested == ["BBB"]
+    assert result.tickers_updated == ["BBB"]
+    assert source.calls == ["BBB"]
 
 
 def test_update_local_price_data_skips_fresh_tickers_unless_refresh_requested(tmp_path: Path):

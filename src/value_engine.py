@@ -171,6 +171,36 @@ def _missing_fields(fundamentals: pd.Series) -> list[str]:
     return [DISPLAY_FIELD_NAMES[field] for field in FUNDAMENTAL_FIELDS if pd.isna(fundamentals.get(field))]
 
 
+def _has_numeric(fundamentals: pd.Series, *fields: str) -> bool:
+    for field in fields:
+        value = pd.to_numeric(pd.Series([fundamentals.get(field)]), errors="coerce").iloc[0]
+        if pd.notna(value):
+            return True
+    return False
+
+
+def _dcf_missing_fields(snapshot_row: pd.Series, purpose_row: pd.Series, fundamentals: pd.Series) -> tuple[str, list[str]]:
+    purpose = str(purpose_row.get("FinalPrimaryPurpose", "") or "").lower()
+    ticker = str(snapshot_row.get("ticker", "") or "").upper()
+    if "etf" in purpose or ticker in {"QQQ", "SMH", "SPY"}:
+        return "etf", ["dcf_excluded_etf"]
+    missing: list[str] = []
+    if not _has_numeric(fundamentals, "free_cash_flow", "fcf"):
+        missing.append("free_cash_flow")
+    if not _has_numeric(fundamentals, "shares_outstanding"):
+        missing.append("shares_outstanding")
+    if not _has_numeric(fundamentals, "revenue"):
+        missing.append("revenue")
+    has_fcf_margin = _has_numeric(fundamentals, "fcf_margin") or (
+        _has_numeric(fundamentals, "free_cash_flow", "fcf") and _has_numeric(fundamentals, "revenue")
+    )
+    if not has_fcf_margin:
+        missing.append("fcf_margin")
+    if pd.isna(pd.to_numeric(pd.Series([snapshot_row.get("close")]), errors="coerce").iloc[0]):
+        missing.append("price")
+    return "company", missing
+
+
 def _median(values: list[float]) -> float | None:
     clean = sorted(float(value) for value in values if pd.notna(value))
     if not clean:
@@ -255,6 +285,8 @@ def classify_value_row(
     ticker = snapshot_row["ticker"]
     primary_purpose = purpose_row.get("FinalPrimaryPurpose", "")
     reason_parts: list[str] = []
+    asset_type, dcf_missing_fields = _dcf_missing_fields(snapshot_row, purpose_row, fundamentals_row)
+    valuation_status = "ready" if asset_type == "company" and not dcf_missing_fields else "not_ready"
 
     has_fundamentals = not fundamentals_row.empty and any(pd.notna(fundamentals_row.get(field)) for field in FUNDAMENTAL_FIELDS)
     missing_fields = _missing_fields(fundamentals_row) if has_fundamentals else ["fundamentals unavailable"]
@@ -313,6 +345,16 @@ def classify_value_row(
         category = "Insufficient Data"
         reason_parts.append("Available fundamentals are too incomplete to support a stronger value classification.")
 
+    if valuation_status == "not_ready":
+        if asset_type != "company":
+            category = "Insufficient Data"
+            reason_parts.insert(0, "valuation_status=not_ready: ETF/index proxies are excluded from operating-company DCF.")
+        else:
+            category = "Insufficient Data"
+            reason_parts.insert(0, "valuation_status=not_ready: required DCF inputs are incomplete.")
+        if asset_type == "company" and dcf_missing_fields:
+            reason_parts.append("DCF readiness missing: " + ", ".join(dcf_missing_fields) + ".")
+
     if trap_flags:
         reason_parts.append("Trap flags: " + ", ".join(trap_flags) + ".")
     if peer_context["peer_relative_status"] != "Insufficient Peer Data":
@@ -334,6 +376,7 @@ def classify_value_row(
         "ValuationScore": valuation.score,
         "MomentumConfirmationScore": momentum_score,
         "ValueTrapRiskScore": round(trap_score, 2),
+        "ValuationStatus": valuation_status,
         "PeerCount": peer_context["peer_count"],
         "PeerRelativeStatus": peer_context["peer_relative_status"],
         "RelativeOpportunityScore": peer_context["relative_opportunity_score"],
@@ -349,7 +392,7 @@ def classify_value_row(
         "PeerMedianPriceToFCF": peer_context["peer_medians"].get("price_to_fcf"),
         "FinalValueCategory": category,
         "Reason": " ".join(reason_parts),
-        "MissingDataFields": ", ".join(missing_fields),
+        "MissingDataFields": ", ".join(dict.fromkeys(missing_fields if not has_fundamentals else [*missing_fields, *dcf_missing_fields])),
     }
 
 
@@ -369,6 +412,7 @@ def run(
                 "ValuationScore",
                 "MomentumConfirmationScore",
                 "ValueTrapRiskScore",
+                "ValuationStatus",
                 "PeerCount",
                 "PeerRelativeStatus",
                 "RelativeOpportunityScore",

@@ -3,6 +3,7 @@ import os
 import sys
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from src.providers.local_importer import preview_import_merge, validate_imports
@@ -281,6 +282,43 @@ def test_cache_behavior_avoids_refetch(tmp_path: Path):
     assert payload["entityName"] == "NVIDIA CORP"
 
 
+def test_tiny_sec_ticker_map_cache_refreshes(monkeypatch, tmp_path: Path):
+    cache_dir = tmp_path / "cache"
+    ticker_cache = cache_dir / "company_tickers.json"
+    ticker_cache.parent.mkdir(parents=True, exist_ok=True)
+    ticker_cache.write_text(json.dumps({"0": {"cik_str": 1045810, "ticker": "NVDA", "title": "NVIDIA CORP"}}), encoding="utf-8")
+
+    def fake_fetch(*_args, **_kwargs):
+        rows = {
+            str(index): {"cik_str": 1000000 + index, "ticker": f"T{index}", "title": f"Company {index}"}
+            for index in range(120)
+        }
+        rows["121"] = {"cik_str": 789019, "ticker": "MSFT", "title": "MICROSOFT CORP"}
+        return rows
+
+    monkeypatch.setattr("src.providers.sec_companyfacts._fetch_json", fake_fetch)
+    ticker_map = load_sec_ticker_map(cache_dir=cache_dir, user_agent="Test test@example.com")
+
+    assert ticker_map["MSFT"]["cik"] == "0000789019"
+    assert len(json.loads(ticker_cache.read_text(encoding="utf-8"))) > 100
+
+
+def test_tiny_companyfacts_cache_refreshes(monkeypatch, tmp_path: Path):
+    cache_dir = tmp_path / "cache"
+    facts_cache = cache_dir / "companyfacts" / "CIK0001045810.json"
+    facts_cache.parent.mkdir(parents=True, exist_ok=True)
+    facts_cache.write_text(json.dumps({"entityName": "Fixture Corp", "facts": {}}), encoding="utf-8")
+
+    def fake_fetch(*_args, **_kwargs):
+        return {"entityName": "Refreshed Corp", "facts": {"us-gaap": {}}}
+
+    monkeypatch.setattr("src.providers.sec_companyfacts._fetch_json", fake_fetch)
+    payload = fetch_companyfacts("0001045810", "Test test@example.com", cache_dir=cache_dir)
+
+    assert payload["entityName"] == "Refreshed Corp"
+    assert json.loads(facts_cache.read_text(encoding="utf-8"))["entityName"] == "Refreshed Corp"
+
+
 def test_build_sec_fundamentals_rows_and_write_import_file(tmp_path: Path):
     result = build_sec_fundamentals_rows(
         ["NVDA"],
@@ -299,6 +337,35 @@ def test_build_sec_fundamentals_rows_and_write_import_file(tmp_path: Path):
     preview = preview_import_merge(base_dir=tmp_path)
     assert validation["status"] in {"valid", "valid_with_warnings"}
     assert preview["preview"][0]["new_rows"] == 1
+
+
+def test_write_sec_fundamentals_import_updates_existing_float_rows_with_missing_values(tmp_path: Path):
+    output_path = tmp_path / "data" / "imports" / "fundamentals.csv"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        "ticker,revenue,free_cash_flow,shares_outstanding,source,as_of_date\n"
+        "NVDA,1000,250,24000000000,manual_import,2025-12-31\n",
+        encoding="utf-8",
+    )
+
+    write_result = write_sec_fundamentals_import(
+        [
+            {
+                "ticker": "NVDA",
+                "revenue": 1200,
+                "source": "sec_companyfacts",
+                "as_of_date": "2026-01-31",
+            }
+        ],
+        output_path=output_path,
+    )
+
+    staged = pd.read_csv(output_path)
+    nvda = staged.set_index("ticker").loc["NVDA"]
+    assert write_result["status"] == "written"
+    assert nvda["revenue"] == 1200
+    assert nvda["source"] == "sec_companyfacts"
+    assert pd.isna(nvda["free_cash_flow"])
 
 
 def test_write_sec_fundamentals_import_refuses_canonical_data_path(tmp_path: Path):

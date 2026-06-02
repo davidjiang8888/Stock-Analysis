@@ -1,38 +1,103 @@
-# Stock Research Screener
+# Stock Research Command Center
 
-This project is a local Python stock research screener for watchlist generation, portfolio review, risk discipline, and optional value / re-rating review.
+A local, CSV-first Python command center for stock research, watchlist review, portfolio discipline, and data-readiness auditing.
 
-It is research-only software:
+The project is built around one product rule:
 
-- no auto-trading
-- no broker integration
-- no order routing
-- no direct buy/sell advice
-- no fabricated prices or fundamentals
+> Data readiness first, analysis second, research decision last.
 
-## Active implementation
+Instead of asking whether a stock is simply "good" or "bad", the system asks:
 
-The supported implementation lives in `src/`.
+- What is this ticker's research purpose?
+- Which data is ready enough to trust?
+- Which analysis is blocked, excluded, or incomplete?
+- What exact local input should be added next?
+- What can be reviewed today without fabricating missing information?
 
-- Use `make pipeline` to generate the core local outputs.
-- Use `make dashboard` to run the dashboard.
-- The root `run.py` and `dashboard.py` files are compatibility wrappers that forward to the active `src` implementation.
+## Why This Project Matters
 
-The `stock_analysis/` directory is a documented legacy scaffold kept for reference only. It is not the active pipeline.
+Most stock screeners jump straight to rankings, signals, or recommendations. This project takes a more disciplined approach: every ticker is routed through readiness checks before analysis is shown. If prices, fundamentals, DCF inputs, peer mappings, earnings, or analyst estimates are missing, the app says so directly and turns the row into an unlock checklist instead of pretending the analysis is complete.
 
-## Project layout
+## Highlights
 
-- `config.yaml`: thresholds, benchmark settings, and allowed state labels
-- `data/universe.csv`: screening universe, default purposes, theme metadata, and sector ETFs
-- `data/custom_universe.csv`: optional manual tickers for larger universe builds
-- `data/holdings.csv`: portfolio holdings, declared purposes, sizing, and thesis metadata
-- `data/theme_map.csv`: theme-to-ETF mapping used by Market Direction
-- `data/prices.csv`: local OHLCV source used by the default CSV provider
-- `data/fundamentals.csv`: optional fundamentals for the value / re-rating engine
-- `src/providers/local_data_catalog.py`: detects which local CSV datasets actually exist and what columns/tickers they cover
-- `src/providers/csv_provider.py`: active local CSV data provider
-- `outputs/`: generated research outputs
-- `tests/`: regression and output-contract coverage for the active pipeline
+- Market-wide master universe with a smaller active research universe.
+- Readiness model across price, momentum, liquidity, correlation, fundamentals, DCF, peers, earnings, and analyst estimates.
+- Purpose-aware research decisions such as `Research Now`, `Monitor`, and `Blocked by Data`.
+- Streamlit dashboard for readiness, source/freshness audits, next actions, and single-stock drilldowns.
+- CLI stock reports with operator summaries, supported/unsupported analysis, and exact data-unlock commands.
+- CSV-first local workflow with deterministic outputs and rejected-row reports for imports.
+- Research-only guardrails: no broker integration, no order routing, no auto-trading, no options recommendations, and no direct buy/sell instructions.
+
+## Current Baseline
+
+The current local baseline tracks a broad market universe and exposes coverage honestly:
+
+- Master universe: 3,538 tickers.
+- Active research universe: 12 tickers.
+- Price-ready subset: 240 tickers.
+- Fundamentals/DCF-ready subset: 23 tickers.
+- Peer-ready subset: 3 tickers.
+- Earnings and analyst-estimate context: intentionally locked until trusted local CSV rows are imported.
+
+These numbers are local-output snapshots, not market-data guarantees. The important design choice is that partial coverage stays visible and does not become a fake conclusion.
+
+## Demo Workflow
+
+```bash
+make pipeline
+make readiness
+make project-status
+make stock-report TICKER=NVDA
+make dashboard
+```
+
+For a visitor who wants to inspect the project quickly:
+
+```bash
+make test
+make dashboard-smoke
+make stock-report TICKER=QQQ
+```
+
+## Core Outputs
+
+The active pipeline writes transparent CSV outputs under `outputs/`:
+
+- `purpose_classification.csv`: purpose routing and thesis context.
+- `market_direction.csv`: theme and sector/ETF rotation context.
+- `momentum_leaders.csv`: trend, relative strength, extension, and setup status.
+- `portfolio_review.csv`: holdings review against purpose and risk limits.
+- `undervalued_candidates.csv`: value/re-rating screen with missing-data boundaries.
+- `final_watchlist.csv`: final readiness-aware watchlist output.
+- `research_decisions.csv`: decision bucket, blocker, confidence, and next action.
+
+## Architecture
+
+- `src/`: active implementation.
+- `src/dashboard.py`: Streamlit command center.
+- `src/readiness_engine.py`: ticker and feature readiness checks.
+- `src/research_decisions.py`: readiness-aware research decision model.
+- `src/stock_report.py`: single-stock report renderer.
+- `src/providers/`: local CSV and optional provider interfaces.
+- `data/`: local CSV inputs and generated readiness reports.
+- `outputs/`: generated research outputs and report examples.
+- `tests/`: regression coverage for calculations, readiness gates, dashboard helpers, report wording, and research-only guardrails.
+
+The root `run.py` and `dashboard.py` files are compatibility wrappers that forward to the active `src` implementation. The `stock_analysis/` directory is a documented legacy scaffold kept for reference only and is not the active pipeline.
+
+## Safety And Scope
+
+This is investment research software, not a trading system.
+
+It does not:
+
+- place orders;
+- connect to brokers;
+- route trades;
+- auto-trade;
+- recommend option trades;
+- provide direct buy/sell instructions;
+- fabricate prices, fundamentals, peers, earnings, analyst estimates, or recommendations.
 
 ## Setup
 
@@ -79,6 +144,20 @@ For tests, prefer the bounded command below so pytest never scans your home dire
 ```bash
 python3 -m pytest tests -q
 ```
+
+## Project Layout
+
+- `config.yaml`: thresholds, benchmark settings, and allowed state labels
+- `data/universe.csv`: screening universe, default purposes, theme metadata, and sector ETFs
+- `data/custom_universe.csv`: optional manual tickers for larger universe builds
+- `data/holdings.csv`: portfolio holdings, declared purposes, sizing, and thesis metadata
+- `data/theme_map.csv`: theme-to-ETF mapping used by Market Direction
+- `data/prices.csv`: local OHLCV source used by the default CSV provider
+- `data/fundamentals.csv`: optional fundamentals for the value / re-rating engine
+- `src/providers/local_data_catalog.py`: local CSV coverage and schema detection
+- `src/providers/csv_provider.py`: active local CSV data provider
+- `outputs/`: generated research outputs
+- `tests/`: regression and output-contract coverage for the active pipeline
 
 ## Convenience commands
 
@@ -154,43 +233,6 @@ The active pipeline now owns all generated CSVs:
 - `outputs/portfolio_review.csv`
 - `outputs/undervalued_candidates.csv`
 - `outputs/final_watchlist.csv`
-
-## Agent workflow layer
-
-This repo also includes a Codex/agent workflow layer under:
-
-- `.agents/skills/stock-analysis-core/`
-
-It adapts selected market-analysis concepts from `himself65/finance-skills` for this project:
-
-- `yfinance-data`
-- `company-valuation`
-- `earnings-preview`
-- `earnings-recap`
-- `estimate-analysis`
-
-These are integrated as reusable research workflows only. They are not broker automations, trade execution systems, or production market-data guarantees.
-
-### External skill notes
-
-This project also reviews selected ideas from:
-
-- `himself65/finance-skills`
-- `himself65/trade-skills`
-
-Usage boundaries:
-
-- finance-skills concepts are used only as research workflow inspiration
-- trade-skills concepts are used only as options risk education
-- no trade recommendations are generated
-- no order execution or broker integration is implemented
-- any future options-payoff tooling must stay educational only and require user-supplied legs or clearly labeled examples
-
-Additional open-source product references are documented in:
-
-- `.agents/skills/stock-analysis-core/references/open-source-product-map.md`
-
-QuantGT is used only as product inspiration for a simple monthly research-candidate experience, benchmark comparison, archive, and methodology layout. This project does not copy QuantGT branding, text, pricing, proprietary strategy, or performance claims.
 
 ## Optional stock report workflow
 
@@ -583,7 +625,20 @@ Use `make price-refresh` for the standard operator path. Keep the raw `src.data_
 
 Remote price refresh can fail because the default source is free, unofficial, and outside this repo's control. In some environments Stooq returns an API-key instruction page instead of CSV rows; set `STOOQ_API_KEY` before running `make price-refresh`, or use the staged manual import path below. The app keeps using local CSV fallback data instead of fabricating prices.
 
-When remote refresh fails, use the staged manual import path:
+When remote refresh fails and you already have verified local CSV exports, use the direct staged folder path:
+
+```bash
+make price-coverage
+# Place verified CSV files under data/staged/prices/.
+make import-prices
+make pipeline
+make onboarding
+make research-health
+```
+
+`make import-prices` reads `data/staged/prices/*.csv`, validates tickers against `data/universe.csv`, writes rejected rows to `data/price_import_rejected.csv`, writes coverage details to `data/price_coverage_report.csv`, and merges valid rows into `data/prices.csv` without deleting existing valid prices. It accepts `ticker,date,open,high,low,close,volume,source` and common variants such as `symbol`, `Date`, and `adj_close`. Existing `data/prices.csv` rows are preserved, duplicate `ticker + date` rows keep the last staged row deterministically, and missing or invalid rows are reported instead of silently applied.
+
+If you need to normalize downloaded raw files into the older preview/apply staging file first, use the existing lower-level staged import path:
 
 ```bash
 make status
@@ -598,7 +653,7 @@ make daily
 make dashboard
 ```
 
-Manual staged prices live at `data/imports/prices.csv`.
+Direct manual staged prices live as one or more CSV files under `data/staged/prices/`. The lower-level preview/apply staging file is still `data/imports/prices.csv`.
 
 Required columns:
 
@@ -976,7 +1031,7 @@ Supported sources:
 
 - current local sample universe from `data/universe.csv`
 - current holdings from `data/holdings.csv`
-- S&P 500 companies from the open-source/community `datasets/s-and-p-500-companies` constituent list
+- S&P 500 companies from a public constituent-list dataset
 - Nasdaq-listed securities from the official Nasdaq Trader symbol directory
 - SMH holdings from VanEck’s public holdings surface when accessible
 - manual local tickers from `data/custom_universe.csv`
@@ -1395,6 +1450,62 @@ The project now includes a read-only SEC Companyfacts adapter that can stage can
 - `data/imports/fundamentals.csv`
 
 It never writes directly to `data/fundamentals.csv`. You must still review staged data and run the explicit import workflow.
+
+DCF readiness is tracked explicitly in `data/dcf_readiness.csv`:
+
+```bash
+make dcf-readiness
+```
+
+That file reports `has_free_cash_flow`, `has_shares_outstanding`, `has_revenue`, `has_fcf_margin`, `has_price`, `is_dcf_ready`, and exact missing fields per universe ticker. ETFs such as QQQ and SMH are marked as not applicable for operating-company DCF instead of being treated as failed company valuations.
+
+When SEC staging is unavailable or you already have verified local fundamentals, place CSV files under `data/staged/fundamentals/` and run:
+
+```bash
+make import-fundamentals
+make imports-validate
+make imports-preview
+make imports-apply
+make dcf-readiness
+```
+
+The manual staged fundamentals importer accepts `ticker,period,revenue,net_income,free_cash_flow,shares_outstanding,source,updated_at`, rejects invalid rows to `data/fundamentals_import_rejected.csv`, and stages valid rows into `data/imports/fundamentals.csv` for the existing validate/preview/apply workflow. It never fabricates unavailable fundamentals.
+
+## Trusted earnings and analyst estimate CSVs
+
+Earnings and analyst estimates are manual-only optional context. They should stay visibly unavailable until trusted local rows exist in canonical CSVs.
+
+Use staged raw files first:
+
+```bash
+data/staged/earnings/
+data/staged/analyst_estimates/
+```
+
+Supported staged earnings schema:
+
+```csv
+ticker,fiscal_period,report_date,eps_actual,eps_estimate,revenue_actual,revenue_estimate,source,updated_at
+```
+
+Supported staged analyst-estimate schema:
+
+```csv
+ticker,period,eps_estimate,revenue_estimate,price_target_mean,price_target_high,price_target_low,rating_consensus,source,updated_at
+```
+
+Then run:
+
+```bash
+make import-earnings
+make import-analyst-estimates
+make imports-validate
+make imports-preview
+make imports-apply
+make optional-context-readiness
+```
+
+Invalid rows are rejected to `data/earnings_import_rejected.csv` or `data/analyst_estimates_import_rejected.csv`. Readiness is written to `data/earnings_readiness.csv` and `data/analyst_estimates_readiness.csv`. Until trusted canonical rows exist, the dashboard shows `Not available: missing trusted local CSV input` instead of empty charts or weak conclusions.
 
 ### User-Agent requirement
 

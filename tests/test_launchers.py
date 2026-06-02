@@ -21,6 +21,7 @@ def test_makefile_contains_convenience_targets():
         "research-health",
         "action-queue-check",
         "action-queue",
+        "project-status",
         "verify",
         "validate-all",
         "daily",
@@ -92,8 +93,9 @@ def test_makefile_help_documents_key_workflows():
         "make data-sources-check [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make data-sources",
         "make research-health-check [TICKERS=NVDA,MSFT] [TOP_N=10]",
+        "make project-status",
         "make action-queue-check [TICKERS=NVDA,MSFT] [TOP_N=10]",
-        "make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json]",
+        "make stock-report TICKER=NVDA [OUTPUT=outputs/nvda_stock_report.json] [MD_OUTPUT=outputs/stock_reports/nvda.md]",
         "make local-tickers",
         "make coverage [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make data-wizard [TICKERS=NVDA,MSFT] [TOP_N=10]",
@@ -125,6 +127,8 @@ def test_makefile_help_documents_key_workflows():
         "make focus-peers TICKER=NVDA",
         "make price-status [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make price-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
+        "make price-refresh [TOP_N=25] [PROVIDER=stooq|yahoo]",
+        "make price-refresh TICKERS=NVDA,MSFT [PROVIDER=yahoo]",
         "make fundamentals-peer-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make optional-context-worklist [TICKERS=NVDA,MSFT] [TOP_N=10]",
         "make sec-stage-queue [TICKERS=NVDA,MSFT] [TOP_N=10]",
@@ -138,6 +142,12 @@ def test_makefile_help_documents_key_workflows():
         "make universe-preview",
     ):
         assert phrase in makefile
+
+
+def test_price_refresh_defaults_to_capped_broad_universe_batch():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "python3 -m src.data_update --universe-file data/universe.csv --missing-only --max-tickers $(or $(TOP_N),25)" in makefile
 
 
 def test_readme_front_door_workflows_use_make_based_sec_and_universe_paths():
@@ -328,7 +338,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "sec-stage-queue:\n\tpython3 -m src.data_onboarding --sec-stage-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "peer-mapping-queue:\n\tpython3 -m src.data_onboarding --peer-mapping-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "price-normalize:\nifndef INPUT\n\t$(error INPUT is required, for example: make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual)\nendif" in makefile
-    assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),)" in makefile
+    assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile
     assert "local-tickers:\n\tpython3 -m src.stock_report --list-local-tickers" in makefile
     assert "import-staging:\n\tpython3 -m src.stock_report --write-import-staging" in makefile
     assert "data-sources-check:\n\tpython3 -m src.data_sources --check --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile

@@ -1,0 +1,11 @@
+price_ready:
+  min_rows: 5
+  require_positive_close: true
+momentum_ready:
+  min_rows: 20
+risk_ready:
+  min_rows: 60
+market_direction_ready:
+  min_rows: 20
+peer_ready:
+  min_peers: 2

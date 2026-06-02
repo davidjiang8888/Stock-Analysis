@@ -74,6 +74,9 @@ def _score_watchlist_row(row: pd.Series) -> tuple[float | None, str]:
         reasons.append("Subtracted 8 points because the current setup is `Avoid`.")
 
     score = round(max(0.0, min(100.0, score)), 2)
+    if str(row.get("ValuationStatus", "") or "").strip().lower() == "not_ready":
+        score = min(score, 50.0)
+        reasons.append("Capped score at 50 because valuation readiness is `not_ready`; treat as monitor-only until missing data is resolved.")
     return score, " ".join(reasons)
 
 
@@ -95,6 +98,7 @@ def build_final_watchlist(
                 "SetupStatus",
                 "ReviewState",
                 "FinalState",
+                "ValuationStatus",
                 "FinalValueCategory",
                 "PeerRelativeStatus",
                 "RelativeOpportunityScore",
@@ -109,6 +113,7 @@ def build_final_watchlist(
     portfolio_cols = ["Ticker", "ReviewState", "Reason"]
     value_cols = [
         "Ticker",
+        "ValuationStatus",
         "FinalValueCategory",
         "PeerRelativeStatus",
         "RelativeOpportunityScore",
@@ -164,7 +169,9 @@ def build_final_watchlist(
     score_and_reason = merged.apply(_score_watchlist_row, axis=1)
     merged["WatchlistScore"] = score_and_reason.apply(lambda item: item[0])
     merged["RankReason"] = score_and_reason.apply(lambda item: item[1])
-    rank_mask = merged["WatchlistScore"].notna()
+    rank_mask = merged["WatchlistScore"].notna() & (
+        merged.get("ValuationStatus", pd.Series(index=merged.index, dtype=object)).fillna("").astype(str).str.lower() != "not_ready"
+    )
     merged["WatchlistRank"] = pd.NA
     if rank_mask.any():
         merged.loc[rank_mask, "WatchlistRank"] = (
@@ -188,6 +195,7 @@ def build_final_watchlist(
             "SetupStatus",
             "ReviewState",
             "FinalState",
+            "ValuationStatus",
             "FinalValueCategory",
             "PeerRelativeStatus",
             "RelativeOpportunityScore",

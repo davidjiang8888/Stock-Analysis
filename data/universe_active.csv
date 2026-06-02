@@ -1,0 +1,13 @@
+ticker,scope,priority,theme,research_status,user_notes,added_at,updated_at
+NVDA,active_research,1,AI Semiconductors,active,,2026-05-24T23:05:33.559277+00:00,2026-05-24T23:05:33.559277+00:00
+AVGO,active_research,2,AI Semiconductors,active,,2026-05-24T23:05:33.559277+00:00,2026-05-24T23:05:33.559277+00:00
+AMD,active_research,3,AI Semiconductors,active,,2026-05-24T23:05:33.559277+00:00,2026-05-24T23:05:33.559277+00:00
+MU,active_research,4,Memory Semiconductors,active,,2026-05-24T23:05:33.559277+00:00,2026-05-24T23:05:33.559277+00:00
+CRDO,active_research,5,AI Infrastructure,active,,2026-05-24T23:05:33.559277+00:00,2026-05-24T23:05:33.559277+00:00
+COHR,active_research,6,Optical / AI Infrastructure,active,,2026-05-24T23:05:33.559277+00:00,2026-05-24T23:05:33.559277+00:00
+LITE,active_research,7,Optical / AI Infrastructure,active,,2026-05-24T23:05:33.559277+00:00,2026-05-24T23:05:33.559277+00:00
+HOOD,active_research,8,Fintech,active,,2026-05-24T23:05:33.559277+00:00,2026-05-24T23:05:33.559277+00:00
+TSLA,active_research,9,EV / AI / Robotics,active,,2026-05-24T23:05:33.559277+00:00,2026-05-24T23:05:33.559277+00:00
+META,active_research,10,AI / Ads / Platforms,active,,2026-05-24T23:05:33.559277+00:00,2026-05-24T23:05:33.559277+00:00
+SMH,active_research,11,Semiconductor ETF,active,,2026-05-24T23:05:33.559277+00:00,2026-05-24T23:05:33.559277+00:00
+QQQ,active_research,12,Nasdaq 100 ETF,active,,2026-05-24T23:05:33.559277+00:00,2026-05-24T23:05:33.559277+00:00

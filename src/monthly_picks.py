@@ -274,94 +274,102 @@ def build_monthly_research_picks(
     if final.empty:
         rows = pd.DataFrame(columns=OUTPUT_COLUMNS)
     else:
+        if "WatchlistRank" in final.columns:
+            final = final.loc[final["WatchlistRank"].notna()].copy()
+        if "ValuationStatus" in final.columns:
+            valuation_status = final["ValuationStatus"].fillna("").astype(str).str.strip().str.lower()
+            final = final.loc[valuation_status.ne("not_ready")].copy()
         for frame in (final, momentum, value, universe, fundamentals, prices):
             if "ticker" in frame.columns:
                 frame["ticker"] = frame["ticker"].astype(str).str.upper().str.strip()
             if "Ticker" in frame.columns:
                 frame["Ticker"] = frame["Ticker"].astype(str).str.upper().str.strip()
-        merged = final.merge(momentum, on="Ticker", how="left", suffixes=("", "_Momentum"))
-        merged = merged.merge(value, on="Ticker", how="left", suffixes=("", "_Value"))
-        universe_key = "Ticker" if "Ticker" in universe.columns else "ticker" if "ticker" in universe.columns else None
-        if universe_key:
-            universe_subset = universe.rename(columns={universe_key: "Ticker"})
-            merged = merged.merge(universe_subset, on="Ticker", how="left", suffixes=("", "_Universe"))
+        if final.empty:
+            rows = pd.DataFrame(columns=OUTPUT_COLUMNS)
+        else:
+            merged = final.merge(momentum, on="Ticker", how="left", suffixes=("", "_Momentum"))
+            merged = merged.merge(value, on="Ticker", how="left", suffixes=("", "_Value"))
+            universe_key = "Ticker" if "Ticker" in universe.columns else "ticker" if "ticker" in universe.columns else None
+            if universe_key:
+                universe_subset = universe.rename(columns={universe_key: "Ticker"})
+                merged = merged.merge(universe_subset, on="Ticker", how="left", suffixes=("", "_Universe"))
 
-        month = _infer_month(prices)
-        rows_list: list[dict[str, object]] = []
-        for _, row in merged.iterrows():
-            ticker = _clean_ticker(row.get("Ticker"))
-            if not ticker:
-                continue
-            final_state = str(row.get("FinalState", "") or "")
-            if final_state in {"Ignore", "Broken", "Risk Reduce"}:
-                continue
-            missing: list[str] = []
-            missing.extend(_split_missing(row.get("MissingDataFields")))
-            missing.extend(_split_missing(row.get("MissingDataFields_Value")))
-            momentum_score = _score_momentum(row, missing)
-            final_state_score = STATE_SCORES.get(str(row.get("FinalState", "")), 0.0)
-            quality_score = _score_from_percent(row.get("QualityScore"))
-            valuation_score = _score_from_percent(row.get("ValuationScore"))
-            relative_score = _score_from_percent(row.get("RelativeOpportunityScore"))
-            valuation_context_score = _average_available([valuation_score, relative_score])
-            liquidity_score = _score_liquidity(row, missing)
-            technical = _technical_context(row, _price_history_for_ticker(prices, ticker))
-            technical_score = technical["technical_score"]
-            if momentum_score is not None and technical_score is not None:
-                momentum_score = round(momentum_score * 0.75 + float(technical_score) * 0.25, 2)
-            elif momentum_score is None:
-                momentum_score = technical_score
-            value_row = row
-            risk_penalty = _risk_penalty(row, value_row, missing)
-            weighted_components = {
-                "momentum": momentum_score,
-                "final_state": final_state_score,
-                "quality": quality_score,
-                "valuation": valuation_context_score,
-                "liquidity": liquidity_score,
-            }
-            composite = _weighted_score(weighted_components, weights) - risk_penalty * weights.risk_penalty
-            composite = round(max(0.0, min(100.0, composite)), 2)
-            source_files = _source_files(
-                ("outputs/final_watchlist.csv", final),
-                ("outputs/momentum_leaders.csv", momentum),
-                ("outputs/undervalued_candidates.csv", value),
-                ("data/universe.csv", universe),
-                ("data/fundamentals.csv", fundamentals),
-                ("data/prices.csv", prices),
-            )
-            reason = _build_reason(row, weighted_components, risk_penalty, missing)
-            rows_list.append(
-                {
-                    "Month": month,
-                    "Rank": pd.NA,
-                    "Ticker": ticker,
-                    "CompanyName": row.get("company_name") or row.get("CompanyName") or "",
-                    "Theme": row.get("Theme") or row.get("theme") or "Unclassified",
-                    "Sector": row.get("SectorETF") or row.get("sector_etf") or row.get("sectoretf") or "",
-                    "FinalState": final_state or "Not available",
-                    "SetupStatus": row.get("SetupStatus") or "Not available",
-                    "PrimaryPurpose": row.get("PrimaryPurpose") or row.get("FinalPrimaryPurpose") or "Not available",
-                    "CompositeScore": composite,
-                    "MomentumScore": momentum_score,
-                    "QualityScore": quality_score,
-                    "ValuationContextScore": valuation_context_score,
-                    "RiskPenalty": risk_penalty,
-                    "LiquidityScore": liquidity_score,
-                    "TechnicalContextScore": technical_score,
-                    "MAStackStatus": technical["ma_stack_status"],
-                    "RSI14": technical["rsi14"],
-                    "VolumeTrend": technical["volume_trend"],
-                    "Reason": reason,
-                    "MissingDataFields": ", ".join(sorted(set(value for value in missing if value))),
-                    "SourceFiles": source_files,
-                    "GeneratedAt": generated_at,
+            month = _infer_month(prices)
+            rows_list: list[dict[str, object]] = []
+            for _, row in merged.iterrows():
+                ticker = _clean_ticker(row.get("Ticker"))
+                if not ticker:
+                    continue
+                final_state = str(row.get("FinalState", "") or "")
+                if final_state in {"Ignore", "Broken", "Risk Reduce"}:
+                    continue
+                missing: list[str] = []
+                missing.extend(_split_missing(row.get("MissingDataFields")))
+                missing.extend(_split_missing(row.get("MissingDataFields_Value")))
+                momentum_score = _score_momentum(row, missing)
+                final_state_score = STATE_SCORES.get(str(row.get("FinalState", "")), 0.0)
+                quality_score = _score_from_percent(row.get("QualityScore"))
+                valuation_score = _score_from_percent(row.get("ValuationScore"))
+                relative_score = _score_from_percent(row.get("RelativeOpportunityScore"))
+                valuation_context_score = _average_available([valuation_score, relative_score])
+                liquidity_score = _score_liquidity(row, missing)
+                technical = _technical_context(row, _price_history_for_ticker(prices, ticker))
+                technical_score = technical["technical_score"]
+                if momentum_score is not None and technical_score is not None:
+                    momentum_score = round(momentum_score * 0.75 + float(technical_score) * 0.25, 2)
+                elif momentum_score is None:
+                    momentum_score = technical_score
+                value_row = row
+                risk_penalty = _risk_penalty(row, value_row, missing)
+                weighted_components = {
+                    "momentum": momentum_score,
+                    "final_state": final_state_score,
+                    "quality": quality_score,
+                    "valuation": valuation_context_score,
+                    "liquidity": liquidity_score,
                 }
-            )
-        rows = pd.DataFrame(rows_list, columns=OUTPUT_COLUMNS)
-        if not rows.empty:
-            rows = rows.sort_values(["CompositeScore", "Ticker"], ascending=[False, True]).head(top_n).copy()
-            rows["Rank"] = range(1, len(rows) + 1)
+                composite = _weighted_score(weighted_components, weights) - risk_penalty * weights.risk_penalty
+                composite = round(max(0.0, min(100.0, composite)), 2)
+                source_files = _source_files(
+                    ("outputs/final_watchlist.csv", final),
+                    ("outputs/momentum_leaders.csv", momentum),
+                    ("outputs/undervalued_candidates.csv", value),
+                    ("data/universe.csv", universe),
+                    ("data/fundamentals.csv", fundamentals),
+                    ("data/prices.csv", prices),
+                )
+                reason = _build_reason(row, weighted_components, risk_penalty, missing)
+                rows_list.append(
+                    {
+                        "Month": month,
+                        "Rank": pd.NA,
+                        "Ticker": ticker,
+                        "CompanyName": row.get("company_name") or row.get("CompanyName") or "",
+                        "Theme": row.get("Theme") or row.get("theme") or "Unclassified",
+                        "Sector": row.get("SectorETF") or row.get("sector_etf") or row.get("sectoretf") or "",
+                        "FinalState": final_state or "Not available",
+                        "SetupStatus": row.get("SetupStatus") or "Not available",
+                        "PrimaryPurpose": row.get("PrimaryPurpose") or row.get("FinalPrimaryPurpose") or "Not available",
+                        "CompositeScore": composite,
+                        "MomentumScore": momentum_score,
+                        "QualityScore": quality_score,
+                        "ValuationContextScore": valuation_context_score,
+                        "RiskPenalty": risk_penalty,
+                        "LiquidityScore": liquidity_score,
+                        "TechnicalContextScore": technical_score,
+                        "MAStackStatus": technical["ma_stack_status"],
+                        "RSI14": technical["rsi14"],
+                        "VolumeTrend": technical["volume_trend"],
+                        "Reason": reason,
+                        "MissingDataFields": ", ".join(sorted(set(value for value in missing if value))),
+                        "SourceFiles": source_files,
+                        "GeneratedAt": generated_at,
+                    }
+                )
+            rows = pd.DataFrame(rows_list, columns=OUTPUT_COLUMNS)
+            if not rows.empty:
+                rows = rows.sort_values(["CompositeScore", "Ticker"], ascending=[False, True]).head(top_n).copy()
+                rows["Rank"] = range(1, len(rows) + 1)
 
     output_path = outputs_dir / "monthly_research_picks.csv"
     if write_output:

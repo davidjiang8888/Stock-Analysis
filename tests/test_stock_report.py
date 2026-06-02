@@ -16,7 +16,14 @@ from src.providers.market_data import (
 )
 from src.providers.local_market_data import LocalCSVMarketDataProvider
 from src.providers.mock_market_data import MockMarketDataProvider
-from src.stock_report import build_stock_report, create_stock_report_payload, export_stock_report_json, main
+from src.stock_report import (
+    build_readiness_only_markdown,
+    build_stock_report,
+    create_stock_report_payload,
+    export_stock_report_json,
+    export_stock_report_markdown,
+    main,
+)
 
 RICH_FIXTURE_DIR = Path(__file__).parent / "fixtures" / "rich_local_data"
 
@@ -197,6 +204,173 @@ def test_stock_report_json_export_is_serializable_and_contains_freshness_metadat
     assert "valuation_readiness" in parsed
     assert "status" in parsed["valuation_snapshot"]
     assert parsed["valuation_snapshot"]["status"] == "insufficient_data"
+
+
+def test_stock_report_markdown_export_summarizes_readiness_without_advice(tmp_path: Path):
+    source = make_source_metadata(
+        provider="mock",
+        freshness="daily snapshot",
+        official=False,
+        notes=["Research-grade fixture data."],
+        retrieved_at=datetime.now(timezone.utc).isoformat(),
+    )
+    provider = MockMarketDataProvider(
+        quotes={
+            "QQQ": QuoteSnapshot(
+                ticker="QQQ",
+                price=500.0,
+                previous_close=499.0,
+                open=499.5,
+                day_high=501.0,
+                day_low=498.0,
+                volume=1_000_000,
+                currency="USD",
+                market_time="2026-05-27T16:00:00Z",
+                source=source,
+            )
+        },
+        histories={("QQQ", "1y", "1d"): pd.DataFrame([{"date": pd.Timestamp("2026-01-01"), "close": 500.0}] * 30)},
+        financials={"QQQ": FinancialSnapshot(ticker="QQQ", source=source)},
+        earnings={"QQQ": EarningsSummary(ticker="QQQ", source=source)},
+        estimates={"QQQ": AnalystEstimateSummary(ticker="QQQ", source=source)},
+    )
+    report = build_stock_report("QQQ", provider)
+    output_path = tmp_path / "qqq.md"
+    markdown = export_stock_report_markdown(
+        report,
+        output_path,
+        local_context={
+            "readiness": {"overall_readiness_state": "partial", "price_ready": True, "excluded_features": "dcf"},
+            "decision": {
+                "decision_bucket": "Monitor",
+                "decision_subtype": "Monitor - ETF Market Proxy",
+                "primary_blocker": "none",
+                "main_reason": "ETF market proxy.",
+                "next_best_action": "Use as market/risk context.",
+                "purpose_thesis": "Purpose: ETF / Defensive / Hedge. Use as market, theme, liquidity, or risk context; operating-company valuation remains excluded.",
+                "purpose_alignment": "Purpose alignment: ETF / Defensive / Hedge is evaluated as market/risk context when price, liquidity, and correlation data are ready; operating-company valuation is not applicable.",
+                "setup_evaluation": "Setup status: Setup Forming; final state: Setup Forming.",
+                "valuation_evaluation": "Operating-company DCF is excluded for this asset type; use market/risk context instead of valuation conclusions.",
+                "supported_analysis": "Supported analysis: price history, setup and momentum context, ETF/index monitoring, not operating-company valuation.",
+                "unsupported_analysis": "Unsupported analysis: operating-company DCF conclusions.",
+                "risk_watchpoint": "Risk watchpoint: monitor liquidity, correlation, and theme exposure; company-specific DCF does not apply.",
+                "invalidation_condition": "Invalidate market-proxy usefulness if liquidity, correlation, or theme trend no longer supports the intended monitoring role.",
+                "next_research_question": "What market, sector, or hedge signal is this proxy intended to monitor, and is that signal still supported by local price/risk data?",
+                "review_priority_reason": "Monitor priority: use this proxy for market, theme, liquidity, or risk context; do not treat it as operating-company valuation.",
+                "confidence_explanation": "Confidence is medium: monitoring is supported by price, momentum, market_direction, while optional context remains unavailable.",
+            },
+            "dcf": {"reason_not_ready": "DCF excluded for etf."},
+            "peer": {
+                "peer_blocker_type": "missing_peer_mapping",
+                "mapping_status": "missing_mapping",
+                "peer_count": 0,
+                "peer_trend_comparison_ready": False,
+                "peer_valuation_comparison_ready": False,
+                "next_peer_action": "Add source-backed peer mappings for QQQ.",
+            },
+        },
+    )
+
+    assert output_path.exists()
+    assert "# QQQ Research Readiness Report" in markdown
+    assert "## One-Minute Status" in markdown
+    assert "Decision: Monitor - ETF Market Proxy" in markdown
+    assert "Monitor - ETF Market Proxy" in markdown
+    assert "Research-only local report" in markdown
+    assert "DCF: excluded" in markdown
+    assert "Optional earnings or analyst-estimate context is unavailable" in markdown
+    assert "## Purpose Evaluation" in markdown
+    assert "Research-only purpose brief" in markdown
+    assert "Thesis" in markdown
+    assert "Alignment" in markdown
+    assert "### Supported Now" in markdown
+    assert "### Locked / Unsupported" in markdown
+    assert "### Risk, Invalidation, and Next Question" in markdown
+    assert "market, theme, liquidity, or risk context" in markdown
+    assert "Operating-company DCF is excluded" in markdown
+    assert "Supported analysis" in markdown
+    assert "Unsupported analysis" in markdown
+    assert "operating-company DCF conclusions" in markdown
+    assert "Invalidate market-proxy usefulness" in markdown
+    assert "Monitor priority" in markdown
+    assert "## Source/Freshness Audit" in markdown
+    assert "data/staged/earnings/" in markdown
+    assert "make import-analyst-estimates" in markdown
+    assert "STOOQ_API_KEY" in markdown
+    assert "DCF excluded for etf" in markdown
+    assert "Peer Workflow" in markdown
+    assert "missing_peer_mapping" in markdown
+    assert "Add source-backed peer mappings for QQQ" in markdown
+    assert "buy" not in markdown.lower()
+    assert "sell" not in markdown.lower()
+
+
+def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_advice():
+    markdown = build_readiness_only_markdown(
+        "APLD",
+        {
+            "readiness": {
+                "overall_readiness_state": "blocked",
+                "asset_type": "company",
+                "price_ready": False,
+                "blocked_features": "price, momentum, dcf",
+                "missing_data": "needs at least 5 valid price rows with positive close",
+                "next_action": "Import staged price rows or refresh price provider for APLD.",
+            },
+            "decision": {
+                "decision_bucket": "Blocked by Data",
+                "decision_subtype": "Blocked by Data - Missing Price",
+                "primary_blocker": "price",
+                "main_reason": "Missing usable price data.",
+                "next_best_action": "Import staged price rows or refresh price provider for APLD.",
+                "purpose_thesis": "Purpose: Speculative Optionality. Interpretation is blocked until price history is available.",
+                "purpose_alignment": "Purpose alignment for Speculative Optionality cannot be checked until usable price history exists.",
+                "setup_evaluation": "Setup cannot be evaluated because usable price history is missing.",
+                "valuation_evaluation": "Valuation conclusion is blocked until trusted DCF/fundamental inputs are complete.",
+                "supported_analysis": "Supported analysis: none yet; this row is an unlock checklist until core inputs are available.",
+                "unsupported_analysis": "Unsupported analysis: trend, setup, liquidity, volatility, and relative strength, DCF interpretation.",
+                "risk_watchpoint": "Primary risk is analytical blindness from missing price history; do not interpret trend or volatility yet.",
+                "invalidation_condition": "Invalidate any setup read until price history is available and passes readiness checks.",
+                "next_research_question": "Can trusted local price rows be staged for APLD so trend, liquidity, and downstream analysis become testable?",
+                "review_priority_reason": "Unlock priority: price is the first blocker before setup, valuation, or risk interpretation should be trusted.",
+                "confidence_explanation": "Confidence is low because the primary blocker is price; current output is an unlock checklist, not analysis.",
+            },
+            "price_coverage": {"price_rows": 0, "missing_price_reason": "needs at least 5 valid price rows"},
+            "peer": {
+                "peer_blocker_type": "missing_peer_mapping",
+                "mapping_status": "missing_mapping",
+                "peer_count": 0,
+                "next_peer_action": "Add source-backed peer mappings after price data exists.",
+            },
+        },
+        "No local price rows were found for APLD.",
+    )
+
+    assert "readiness-only report" in markdown
+    assert "## One-Minute Status" in markdown
+    assert "Decision: Blocked by Data - Missing Price" in markdown
+    assert "Primary blocker: price" in markdown
+    assert "Blocked by Data - Missing Price" in markdown
+    assert "DCF: blocked" in markdown
+    assert "## Purpose Evaluation" in markdown
+    assert "Research-only purpose brief" in markdown
+    assert "Purpose alignment for Speculative Optionality cannot be checked" in markdown
+    assert "Setup cannot be evaluated because usable price history is missing" in markdown
+    assert "### Supported Now" in markdown
+    assert "### Locked / Unsupported" in markdown
+    assert "Supported analysis: none yet" in markdown
+    assert "Unsupported analysis: trend, setup, liquidity" in markdown
+    assert "analytical blindness" in markdown
+    assert "Unlock priority: price is the first blocker" in markdown
+    assert "primary blocker is price" in markdown
+    assert "## Source/Freshness Audit" in markdown
+    assert "data/staged/prices/" in markdown
+    assert "data/rejected/price_import_rejected.csv" in markdown
+    assert "Peer Workflow" in markdown
+    assert "missing_peer_mapping" in markdown
+    assert "No local price rows were found for APLD" in markdown
+    assert "buy" not in markdown.lower()
+    assert "sell" not in markdown.lower()
 
 
 def test_create_stock_report_payload_uses_local_provider_when_csvs_are_available(tmp_path: Path):

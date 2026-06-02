@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.config import AppConfig
-from src.report_generator import run
+from src.report_generator import printable_warnings, run
 
 
 def test_report_generator_creates_outputs():
@@ -78,6 +78,7 @@ def test_report_generator_creates_outputs():
     assert portfolio["Reason"].fillna("").str.len().gt(0).all()
     assert value["Reason"].fillna("").str.len().gt(0).all()
     assert final_watchlist["Reason"].fillna("").str.len().gt(0).all()
+
     assert set(purpose["FinalPrimaryPurpose"].dropna()) <= allowed_purposes
     conflict_rows = purpose.loc[purpose["ConflictFlag"].fillna(False).astype(bool)]
     assert conflict_rows["ConflictReasons"].fillna("").str.len().gt(0).all()
@@ -106,6 +107,25 @@ def test_report_generator_creates_outputs():
         string_columns = frame.select_dtypes(include=["object", "string"]).fillna("")
         for phrase in banned_phrases:
             assert not string_columns.apply(lambda column: column.str.contains(phrase, case=False, regex=False)).any().any()
+
+
+def test_printable_warnings_summarizes_broad_universe_missing_prices():
+    warnings = [
+        "A: no daily price history was available.",
+        "AA: no daily price history was available.",
+        "AAA: no daily price history was available.",
+        "Missing OHLCV data for A",
+        "Missing OHLCV data for AA",
+        "Missing OHLCV data for ZZZ",
+    ]
+
+    printable = printable_warnings(warnings, max_warnings=3)
+
+    assert not any(warning == "Missing OHLCV data for ZZZ" for warning in printable)
+    assert any("3 tickers are missing OHLCV coverage" in warning for warning in printable)
+    assert any("3 tickers have no daily price history available" in warning for warning in printable)
+    assert any("make price-worklist TOP_N=25" in warning for warning in printable)
+    assert len(printable) <= 4
 
 
 def test_report_generator_handles_missing_price_file_gracefully(tmp_path: Path):
