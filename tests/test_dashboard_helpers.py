@@ -10259,22 +10259,33 @@ def test_fundamentals_dcf_diagnostic_cards_surface_price_ready_missing_fundament
     )
     dcf = pd.DataFrame(
         [
-            {"ticker": "META", "asset_type": "company", "missing_dcf_fields": "shares_outstanding, free_cash_flow"},
-            {"ticker": "A", "asset_type": "company", "missing_dcf_fields": ""},
-            {"ticker": "QQQ", "asset_type": "etf", "missing_dcf_fields": ""},
+            {
+                "ticker": "META",
+                "asset_type": "company",
+                "missing_dcf_fields": "shares_outstanding, free_cash_flow",
+                "sec_user_agent_configured": True,
+            },
+            {"ticker": "A", "asset_type": "company", "missing_dcf_fields": "", "sec_user_agent_configured": True},
+            {"ticker": "QQQ", "asset_type": "etf", "missing_dcf_fields": "", "sec_user_agent_configured": True},
         ]
     )
 
     cards = dashboard.fundamentals_dcf_diagnostic_cards(readiness, dcf)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    input_card = next(card for card in cards if card["kicker"] == "INPUT PATH")
 
     assert "1 price-ready companies" in rendered
     assert "1 active-universe" in rendered
+    assert "active fundamentals targets: meta" in rendered
     assert "meta" in rendered
     assert "shares_outstanding" in rendered
     assert "free_cash_flow" in rendered
     assert "excluded from operating-company dcf rather than failed valuation" in rendered
     assert "1 dcf-ready companies" in rendered
+    assert input_card["title"] == "SEC staging"
+    assert input_card["command"] == "make sec-stage TICKERS=META"
+    assert "make sec-stage tickers=meta" in rendered
+    assert "tickers=<ticker>" not in rendered
     assert "data/imports/fundamentals.csv" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered

@@ -5585,18 +5585,25 @@ def fundamentals_dcf_diagnostic_cards(
 
     next_ticker = "Not available"
     next_action = "Run make sec-stage-queue TOP_N=25 to refresh the fundamentals unlock queue."
+    active_target_text = "No active-universe fundamentals targets detected."
     if not price_ready_missing_fundamentals.empty:
         ordered = price_ready_missing_fundamentals.assign(_active_rank=(~bool_series(price_ready_missing_fundamentals, "in_active_universe")).astype(int))
         ordered = ordered.sort_values(["_active_rank", "ticker"], kind="stable")
         next_row = ordered.iloc[0]
         next_ticker = format_missing(next_row.get("ticker"), "Ticker")
         next_action = compact_reason(next_row.get("next_action"), max_sentences=2, max_chars=220)
+        active_targets = ordered.loc[bool_series(ordered, "in_active_universe"), "ticker"].dropna().astype(str).str.upper().str.strip().head(5).tolist()
+        if active_targets:
+            active_target_text = f"Active fundamentals targets: {', '.join(active_targets)}."
 
     missing_field_text = "No DCF readiness table available."
     excluded_count = 0
+    sec_configured_from_report = False
     if dcf_readiness_frame is not None and not dcf_readiness_frame.empty:
         dcf_frame = dcf_readiness_frame.copy()
         excluded_count = int(dcf_frame.get("asset_type", pd.Series("", index=dcf_frame.index)).fillna("").astype(str).str.lower().ne("company").sum())
+        if "sec_user_agent_configured" in dcf_frame.columns:
+            sec_configured_from_report = bool(bool_series(dcf_frame, "sec_user_agent_configured").any())
         if "missing_dcf_fields" in dcf_frame.columns:
             missing_counts = (
                 dcf_frame["missing_dcf_fields"]
@@ -5612,12 +5619,16 @@ def fundamentals_dcf_diagnostic_cards(
             else:
                 missing_field_text = "No missing DCF fields reported for generated rows."
 
-    sec_configured = bool(os.environ.get("SEC_USER_AGENT", "").strip())
+    sec_configured = bool(os.environ.get("SEC_USER_AGENT", "").strip()) or sec_configured_from_report
+    sec_stage_command = f"make sec-stage TICKERS={next_ticker}" if next_ticker != "Not available" else "make sec-stage-queue TOP_N=25"
     return [
         {
             "kicker": "FUNDAMENTALS GAP",
             "title": f"{len(price_ready_missing_fundamentals)} price-ready companies",
-            "body": f"{active_missing} active-universe price-ready company row(s) still need trusted fundamentals before DCF can be interpreted.",
+            "body": (
+                f"{active_missing} active-universe price-ready company row(s) still need trusted fundamentals before DCF can be interpreted. "
+                f"{active_target_text}"
+            ),
             "badges": ["trusted rows only", "no valuation conclusion"],
             "command": "make sec-stage-queue TOP_N=25",
         },
@@ -5646,11 +5657,12 @@ def fundamentals_dcf_diagnostic_cards(
             "kicker": "INPUT PATH",
             "title": "SEC staging" if sec_configured else "Manual CSV fallback",
             "body": (
-                "Use make sec-stage TICKERS=<ticker> for staged SEC fundamentals, or fill data/imports/fundamentals.csv with trusted rows. "
+                f"Use {sec_stage_command} for staged SEC fundamentals when a trusted SEC_USER_AGENT is configured, "
+                "or fill data/imports/fundamentals.csv with trusted rows. "
                 "Always run make imports-validate, make imports-preview, and make imports-apply before claiming readiness improved."
             ),
             "badges": ["source/freshness audit", "copy only"],
-            "command": "make imports-validate",
+            "command": sec_stage_command,
         },
     ]
 
