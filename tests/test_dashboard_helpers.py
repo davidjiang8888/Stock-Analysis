@@ -10359,6 +10359,60 @@ def test_peer_mapping_studio_summary_cards_and_scope_toggles_are_actionable():
     assert "sell" not in rendered_cards
 
 
+def test_peer_readiness_product_cards_prioritize_peer_unlock_worklist_active_scope():
+    peer_readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "A",
+                "peer_ready": False,
+                "peer_trend_comparison_ready": False,
+                "peer_valuation_comparison_ready": False,
+                "peer_dcf_comparison_ready": False,
+                "peer_blocker_type": "missing_peer_mapping",
+                "next_peer_action": "Add at least 2 source-backed peer mappings for A in data/imports/peers.csv.",
+            },
+            {
+                "ticker": "COHR",
+                "peer_ready": False,
+                "peer_trend_comparison_ready": False,
+                "peer_valuation_comparison_ready": False,
+                "peer_dcf_comparison_ready": False,
+                "peer_blocker_type": "missing_peer_mapping",
+                "next_peer_action": "Add at least 2 source-backed peer mappings for COHR in data/imports/peers.csv.",
+            },
+        ]
+    )
+    worklist = pd.DataFrame(
+        [
+            {
+                "priority": 1,
+                "ticker": "A",
+                "workflow_scope": "master_universe",
+                "next_action_summary": "Broad master-universe peer mapping follow-up.",
+            },
+            {
+                "priority": 1,
+                "ticker": "COHR",
+                "workflow_scope": "active_universe",
+                "next_action_summary": "Add active source-backed peer mappings first.",
+            },
+        ]
+    )
+
+    cards = dashboard.peer_readiness_product_cards(peer_readiness, pd.DataFrame({"ticker": ["A", "COHR"]}), worklist)
+    next_card = next(card for card in cards if card["kicker"] == "NEXT PEER TARGET")
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+
+    assert next_card["title"] == "COHR"
+    assert next_card["command"] == "make focus-peers TICKER=COHR"
+    assert "active source-backed peer mappings first" in rendered
+    assert "broad master-universe peer mapping follow-up" not in rendered
+    assert "broker" not in rendered
+    assert "order" not in rendered
+    assert "buy" not in rendered
+    assert "sell" not in rendered
+
+
 def test_decision_workflow_summary_cards_explain_buckets_without_trade_language():
     decisions = pd.DataFrame(
         [

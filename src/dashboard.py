@@ -5279,6 +5279,7 @@ def feature_readiness_cards(feature_summary_frame: pd.DataFrame | None, *, limit
 def peer_readiness_product_cards(
     peer_readiness_frame: pd.DataFrame | None,
     peer_mapping_queue_frame: pd.DataFrame | None = None,
+    peer_unlock_worklist_frame: pd.DataFrame | None = None,
 ) -> list[dict[str, object]]:
     if peer_readiness_frame is None or peer_readiness_frame.empty:
         return [
@@ -5317,7 +5318,25 @@ def peer_readiness_product_cards(
     queue_rows = 0 if peer_mapping_queue_frame is None else int(len(peer_mapping_queue_frame))
     next_ticker = "Not available"
     next_reason = "Run make peer-mapping-queue TOP_N=25 to refresh prioritized peer work."
-    if "peer_ready" in frame.columns:
+    if peer_unlock_worklist_frame is not None and not peer_unlock_worklist_frame.empty and "ticker" in peer_unlock_worklist_frame.columns:
+        worklist = peer_unlock_worklist_frame.copy()
+        worklist["ticker"] = worklist["ticker"].astype(str).str.upper().str.strip()
+        if "priority" in worklist.columns:
+            worklist["priority"] = pd.to_numeric(worklist["priority"], errors="coerce").fillna(999).astype(int)
+        if "workflow_scope" in worklist.columns:
+            worklist["_scope_rank"] = worklist["workflow_scope"].fillna("").astype(str).str.lower().ne("active_universe").astype(int)
+        else:
+            worklist["_scope_rank"] = 1
+        sort_columns = [column for column in ["priority", "_scope_rank", "ticker"] if column in worklist.columns]
+        worklist = worklist.sort_values(sort_columns, kind="stable") if sort_columns else worklist
+        next_row = worklist.iloc[0]
+        next_ticker = format_missing(next_row.get("ticker"), "Ticker")
+        next_reason = compact_reason(
+            next_row.get("next_action_summary") or next_row.get("next_peer_action") or next_row.get("missing_peer_reason"),
+            max_sentences=1,
+            max_chars=180,
+        )
+    elif "peer_ready" in frame.columns:
         candidates = frame.loc[~peer_ready].copy()
         if "peer_blocker_type" in candidates.columns:
             candidates = candidates.sort_values(["peer_blocker_type", "ticker"], kind="stable")
@@ -13215,7 +13234,7 @@ def render_market_command_center(
     summary = market_wide_readiness_summary(ticker_readiness_frame, coverage_frame, decisions_frame)
     feature_readiness_payload_cards = feature_readiness_cards(feature_summary_frame)
     decision_workflow_payload_cards = decision_workflow_summary_cards(decisions_frame, ticker_readiness_frame)
-    peer_readiness_payload_cards = peer_readiness_product_cards(peer_readiness_frame, peer_mapping_queue_frame)
+    peer_readiness_payload_cards = peer_readiness_product_cards(peer_readiness_frame, peer_mapping_queue_frame, peer_unlock_worklist_frame)
     fundamentals_dcf_payload_cards = fundamentals_dcf_diagnostic_cards(ticker_readiness_frame, dcf_readiness_frame)
     render_signal_cards(readiness_panel_cards(summary))
     prior_ticker_readiness_frame, prior_ticker_readiness_message = load_prior_ticker_readiness_report()
